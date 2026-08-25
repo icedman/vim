@@ -40,6 +40,9 @@ check-buffer-interface:
 audit-buffer-interface:
 	python3 tools/check_buffer_interface.py --all
 
+benchmark-buffer-snapshot:
+	python3 tools/benchmark_buffer_snapshot.py
+
 # Some make programs use the last target for the $@ default; put the other
 # targets separately to always let $@ expand to "first" by default.
 all install uninstall tools config configure reconfig proto depend lint types test scripttests testtiny test_libvterm unittests testclean clean distclean:

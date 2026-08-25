@@ -594,10 +594,10 @@ Phase 3 is complete.
   storage.
 - [ ] Reuse immutable payload in swap/recovery where safe, or make memline
   consume the persistent store through a private adapter.
-- [ ] Tune leaf sizing, tree fanout, release batching, and allocator overhead
+- [x] Tune leaf sizing, tree fanout, release batching, and allocator overhead
   from measurements.
-  - [ ] Compare the 1, 4, 16, and 64 KiB leaf targets.
-  - [ ] Evaluate tree fanout and final-release batching.
+  - [x] Compare the 1, 4, 16, and 64 KiB leaf targets.
+  - [x] Evaluate tree fanout and final-release batching.
   - [x] Reduce leaf allocator overhead.
 
 #### Phase 4A status: storage measurement primitives
@@ -637,9 +637,31 @@ previous layout, a revision with N leaves therefore performs N fewer persistent
 allocations.  Branch nodes remain separate because independently reference-
 counted branches are the unit of persistent path sharing.
 
-Leaf-target comparison, alternate fanout, and bounded final-release work remain
-open.  They require workload measurements rather than changing the balanced
-binary representation speculatively.
+Leaf-target comparison, alternate fanout, and bounded final-release work require
+workload measurements rather than changing the balanced binary representation
+speculatively.
+
+#### Phase 4C status: leaf target, fanout, and release depth
+
+`tools/benchmark_buffer_snapshot.py` models the exact whole-line packing rule on
+the required deterministic short, medium, mixed, 1 MiB-line, and oversized-line
+datasets.  `make benchmark-buffer-snapshot` regenerates
+`upgrades/buffer-snapshot/leaf-target-report.md` for the 1, 4, 16, and 64 KiB
+targets.  The report separates structural measurements from wall-clock claims.
+
+For 100,000 medium lines, 1 KiB needs 40,000 persistent allocations while 4 KiB
+needs 10,000.  Moving from 4 to 16 or 64 KiB reduces allocations to 2,470 or 614
+but increases expected sparse-edit leaf copying from about 4 KiB to 16 or 64
+KiB.  The mixed and short-line datasets show the same tradeoff.  Oversized lines
+are target-independent.  The 4 KiB default is retained as the balanced point.
+
+At 4 KiB the modeled AVL depth is at most 18 for the 100,000-line datasets.
+Binary fanout therefore keeps lookup and recursive release stack depth bounded
+while preserving simple two-child path copying.  Final release remains linear
+in reachable nodes but does not have linear stack growth.  Wider fanout and
+deferred release batching are not adopted without wall-clock evidence that
+their added publication and reclamation complexity is needed.  Final-release
+latency and sanitizer measurements remain required before Phase 5 worker use.
 
 ### Phase 5: enable worker consumers
 
