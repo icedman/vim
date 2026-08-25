@@ -5032,7 +5032,7 @@ StringToLine(PyObject *obj)
     static PyObject *
 GetBufferLine(buf_T *buf, PyInt n)
 {
-    return LineToString((char *)ml_get_buf(buf, (linenr_T)n, FALSE));
+    return LineToString((char *)buf_line(buf, (linenr_T)n, FALSE));
 }
 
 
@@ -5057,10 +5057,10 @@ GetBufferLineList(buf_T *buf, PyInt lo, PyInt hi)
 	char		*text;
 	PyObject	*string;
 
-	if (lnum > buf->b_ml.ml_line_count)
+	if (lnum > buf_line_count(buf))
 	    text = "";
 	else
-	    text = (char *)ml_get_buf(buf, lnum, FALSE);
+	text = (char *)buf_line(buf, lnum, FALSE);
 	string = LineToString(text);
 	if (string == NULL)
 	{

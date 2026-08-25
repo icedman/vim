@@ -3048,11 +3048,11 @@ syn_add_end_off(
     }
     // Don't go past the end of the line.  Matters for "rs=e+2" when there
     // is a matchgroup. Watch out for match with last NL in the buffer.
-    if (result->lnum > syn_buf->b_ml.ml_line_count)
+    if (result->lnum > buf_line_count(syn_buf))
 	col = 0;
     else if (off != 0)
     {
-	base = ml_get_buf(syn_buf, result->lnum, FALSE);
+	base = buf_line(syn_buf, result->lnum, FALSE);
 	p = base + col;
 	if (off > 0)
 	{
@@ -3098,15 +3098,15 @@ syn_add_start_off(
 	col = regmatch->startpos[0].col;
 	off = spp->sp_offsets[idx];
     }
-    if (result->lnum > syn_buf->b_ml.ml_line_count)
+    if (result->lnum > buf_line_count(syn_buf))
     {
 	// a "\n" at the end of the pattern may take us below the last line
-	result->lnum = syn_buf->b_ml.ml_line_count;
-	col = ml_get_buf_len(syn_buf, result->lnum);
+	result->lnum = buf_line_count(syn_buf);
+	col = buf_line_len(syn_buf, result->lnum);
     }
     if (off != 0)
     {
-	base = ml_get_buf(syn_buf, result->lnum, FALSE);
+	base = buf_line(syn_buf, result->lnum, FALSE);
 	p = base + col;
 	if (off > 0)
 	{
@@ -3129,7 +3129,7 @@ syn_add_start_off(
     static char_u *
 syn_getcurline(void)
 {
-    return ml_get_buf(syn_buf, current_lnum, FALSE);
+    return buf_line(syn_buf, current_lnum, FALSE);
 }
 
 /*

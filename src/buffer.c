@@ -6492,6 +6492,50 @@ buf_get_fname(buf_T *buf)
 }
 
 /*
+ * Return a line from "buf".
+ *
+ * The returned pointer is only valid until the next line access.  When
+ * "will_change" is TRUE the line is prepared for modification.
+ */
+    char_u *
+buf_line(
+    buf_T	*buf,
+    linenr_T	lnum,
+    int		will_change)
+{
+    return ml_get_buf(buf, lnum, will_change);
+}
+
+// Return the length of a line in "buf", excluding the NUL byte.
+    colnr_T
+buf_line_len(buf_T *buf, linenr_T lnum)
+{
+    return ml_get_buf_len(buf, lnum);
+}
+
+// Return the number of lines in "buf".
+    linenr_T
+buf_line_count(buf_T *buf)
+{
+    return buf->b_ml.ml_line_count;
+}
+
+// Return TRUE when "buf" has an allocated memline.
+    int
+buf_is_loaded(buf_T *buf)
+{
+    return buf->b_ml.ml_mfp != NULL;
+}
+
+// Return TRUE when "buf" contains one empty line.
+    int
+buf_is_empty(buf_T *buf)
+{
+    return buf_line_count(buf) == 1
+	&& *buf_line(buf, (linenr_T)1, FALSE) == NUL;
+}
+
+/*
  * Set 'buflisted' for curbuf to "on" and trigger autocommands if it changed.
  */
     void

@@ -789,8 +789,8 @@ qf_get_next_buf_line(qfstate_T *state)
     if (state->buflnum > state->lnumlast)
 	return QF_END_OF_INPUT;
 
-    p_buf = ml_get_buf(state->buf, state->buflnum, FALSE);
-    len = ml_get_buf_len(state->buf, state->buflnum);
+    p_buf = buf_line(state->buf, state->buflnum, FALSE);
+    len = buf_line_len(state->buf, state->buflnum);
     state->buflnum += 1;
 
     if (len > IOSIZE - 2)

@@ -729,8 +729,8 @@ searchit(
 		    && pos->lnum >= 1 && pos->lnum <= buf->b_ml.ml_line_count
 						    && pos->col < MAXCOL - 2)
 	{
-	    ptr = ml_get_buf(buf, pos->lnum, FALSE);
-	    if (ml_get_buf_len(buf, pos->lnum) <= pos->col)
+	    ptr = buf_line(buf, pos->lnum, FALSE);
+	    if (buf_line_len(buf, pos->lnum) <= pos->col)
 		start_char_len = 1;
 	    else
 		start_char_len = (*mb_ptr2len)(ptr + pos->col);
@@ -816,7 +816,7 @@ searchit(
 		    if (lnum + matchpos.lnum > buf->b_ml.ml_line_count)
 			ptr = (char_u *)"";
 		    else
-			ptr = ml_get_buf(buf, lnum + matchpos.lnum, FALSE);
+			ptr = buf_line(buf, lnum + matchpos.lnum, FALSE);
 
 		    /*
 		     * Forward search in the first line: match should be after
