@@ -458,12 +458,16 @@ the backend list as final, especially for legacy toolchains.
   replacement/length adjustment, and successful append/replace/delete façade
   operations.
 - [x] Clear the buffer-owned reference during memline close and buffer teardown.
-- [ ] Replace conservative invalidation and lazy full rebuilding with persistent
-  AVL path copying for append, replace, and delete.
-- [ ] Publish root and tick as one revision after successful mutation.
-- [ ] Keep memline behavior, undo, swap, recovery, properties, and diagnostics
-  unchanged while cross-checking both representations in debug/test builds.
-- [ ] Remove the one-time full copy after invalidation from snapshot acquisition.
+- [x] Add persistent AVL path copying for append, replace, and delete through
+  the buffer mutation façade.
+- [x] Publish the candidate root and tick as one revision after successful
+  memline mutation.
+- [x] Cross-check façade append, replace, and delete results against live buffer
+  contents while retaining an older generation.
+- [ ] Convert direct cached-line writers from conservative invalidation to an
+  explicit commit operation.
+- [ ] Remove the one-time full copy after cached-line invalidation from snapshot
+  acquisition.
 
 #### Phase 2A status: live revision ownership
 
@@ -473,12 +477,11 @@ otherwise only increments its reference count, making repeated acquisition O(1)
 without duplicating text.  Existing handles keep the old revision alive after
 the buffer drops its reference.
 
-Until persistent tree mutation is implemented, any operation that may write
-text conservatively calls `buf_snapshot_invalidate()`.  The next acquisition
-rebuilds the full immutable mirror from final memline contents.  This closes
-stale-snapshot correctness holes, including direct cached-line writers, but is
-not the final low-memory copy-on-write design and can create false revisions for
-temporary writable access.  In particular, `buf_line(..., TRUE)` invalidates
+Operations that bypass the append/replace/delete façade still conservatively
+call `buf_snapshot_invalidate()`.  The next acquisition rebuilds the full
+immutable mirror from final memline contents.  This closes stale-snapshot
+correctness holes for direct cached-line writers, but can create false revisions
+for temporary writable access.  In particular, `buf_line(..., TRUE)` invalidates
 before the caller writes because the current API has no later commit boundary.
 
 The snapshot revision increments once when a previously published live revision
@@ -487,10 +490,36 @@ again.  This gives stable identity to repeated acquisitions and a new identity
 after rebuilding changed text, but persistent publication will become the
 canonical increment point in Phase 2B.
 
-The next stage replaces the flat leaf array with a subtree-counted persistent
-AVL rope.  Leaves remain immutable packed slabs; append, replace, and delete
-copy the affected leaf and O(log n) interior path while sharing untouched
-subtrees.  This Phase 2A checkpoint must not be described as completed COW.
+#### Phase 2B status: persistent façade mutations
+
+The flat leaf array has been replaced by a subtree-counted persistent AVL rope.
+Branch nodes contain immutable child pointers, subtree line counts, and heights.
+Leaves contain one packed slab with offsets, lengths, and NUL-terminated text.
+Lookups descend by subtree line count without absolute line numbers.
+
+When a published revision exists, `buf_append_line()`, `buf_replace_line()`, and
+`buf_delete_line()` first build a complete candidate revision.  The operation
+copies the affected leaf and AVL path while referencing unchanged subtrees.  If
+candidate allocation fails, memline is not changed.  If memline fails, the
+candidate is released.  After memline succeeds, the candidate root, line count,
+and revision are published together by replacing the buffer-owned snapshot.
+A candidate prepared from a stale base is rejected; after a successful memline
+mutation this falls back to invalidation so a later query rebuilds correct text.
+
+Multi-line leaves that exceed the experimental 4 KiB text target are recursively
+split and balanced.  A single oversized line remains a valid oversized leaf.
+Deleting the final line publishes Vim's canonical one-empty-line revision.
+Buffers without a published snapshot do not pay COW allocation costs; their
+first acquisition still lazily builds the current tree.
+
+Stress coverage builds a 300-line revision, retains it, then performs repeated
+append, replace, and delete operations while checking every current line against
+memline and every retained line against the old generation.  Allocation-failure
+coverage verifies candidate preparation does not mutate live text.
+
+Phase 2 remains open for cached-line writers.  Those paths invalidate and lazily
+rebuild rather than path-copying because writable access currently has no exact
+commit boundary.
 
 ### Phase 3: close mutation bypasses
 

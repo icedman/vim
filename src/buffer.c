@@ -6647,6 +6647,25 @@ buf_make_swapfile_name_full(buf_T *buf)
 	mf_fullname(buf->b_ml.ml_mfp);
 }
 
+/*
+ * Return the text length represented by a replace operation, or -1 when its
+ * bounded packed-property input has no text terminator.
+ */
+    static colnr_T
+buf_replace_text_len(char_u *line, colnr_T len, int has_props)
+{
+    char_u *end;
+
+    if (line == NULL)
+	return -1;
+    if (len < 0)
+	return (colnr_T)STRLEN(line);
+    if (!has_props)
+	return len;
+    end = (char_u *)memchr(line, NUL, (size_t)len);
+    return end == NULL ? -1 : (colnr_T)(end - line);
+}
+
 // Append a line to "buf".  "flags" currently has the ml_append new-file bit.
     int
 buf_append_line(
@@ -6656,11 +6675,29 @@ buf_append_line(
     colnr_T	len,
     int		flags)
 {
-    int ret = ml_append_buf(buf, lnum, line, len, flags != 0);
+    colnr_T text_len;
+    buf_snapshot_T *candidate;
+    int ret;
 
-    if (ret == OK)
+    if (line == NULL || len < 0)
+	return FAIL;
+    text_len = len == 0 ? (colnr_T)STRLEN(line) : len - 1;
+    candidate = buf->b_snapshot == NULL ? NULL
+		: buf_snapshot_prepare_append(buf, lnum, line, text_len);
+    if (buf->b_snapshot != NULL && candidate == NULL)
+	return FAIL;
+    ret = ml_append_buf(buf, lnum, line, len, flags != 0);
+    if (ret == FAIL)
+    {
+	buf_snapshot_unref(candidate);
+	return FAIL;
+    }
+    if (candidate != NULL && buf_snapshot_publish(buf, candidate) == FAIL)
+    {
+	buf_snapshot_unref(candidate);
 	buf_snapshot_invalidate(buf);
-    return ret;
+    }
+    return OK;
 }
 
 // Replace a line in "buf", preserving the memline ownership contract.
@@ -6673,22 +6710,52 @@ buf_replace_line(
     int		has_props,
     int		copy)
 {
-    int ret = ml_replace_buf_len(buf, lnum, line, len, has_props, copy);
+    colnr_T text_len = buf_replace_text_len(line, len, has_props);
+    buf_snapshot_T *candidate;
+    int ret;
 
-    if (ret == OK)
+    if (text_len < 0)
+	return FAIL;
+    candidate = buf->b_snapshot == NULL ? NULL
+		: buf_snapshot_prepare_replace(buf, lnum, line, text_len);
+    if (buf->b_snapshot != NULL && candidate == NULL)
+	return FAIL;
+    ret = ml_replace_buf_len(buf, lnum, line, len, has_props, copy);
+    if (ret == FAIL)
+    {
+	buf_snapshot_unref(candidate);
+	return FAIL;
+    }
+    if (candidate != NULL && buf_snapshot_publish(buf, candidate) == FAIL)
+    {
+	buf_snapshot_unref(candidate);
 	buf_snapshot_invalidate(buf);
-    return ret;
+    }
+    return OK;
 }
 
 // Delete a line from "buf" using the memline deletion flags.
     int
 buf_delete_line(buf_T *buf, linenr_T lnum, int flags)
 {
-    int ret = ml_delete_buf_flags(buf, lnum, flags);
+    buf_snapshot_T *candidate = buf->b_snapshot == NULL ? NULL
+				: buf_snapshot_prepare_delete(buf, lnum);
+    int ret;
 
-    if (ret == OK)
+    if (buf->b_snapshot != NULL && candidate == NULL)
+	return FAIL;
+    ret = ml_delete_buf_flags(buf, lnum, flags);
+    if (ret == FAIL)
+    {
+	buf_snapshot_unref(candidate);
+	return FAIL;
+    }
+    if (candidate != NULL && buf_snapshot_publish(buf, candidate) == FAIL)
+    {
+	buf_snapshot_unref(candidate);
 	buf_snapshot_invalidate(buf);
-    return ret;
+    }
+    return OK;
 }
 
 /*

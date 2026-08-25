@@ -976,12 +976,49 @@ func Test_buffer_snapshot_query()
   call assert_equal(['first', '', longline, 'last'],
         \ test_getvalue('buf_snapshot_saved'))
 
+  let changed_tick = test_getvalue('buf_snapshot_tick')
+  call append(2, ['inserted', repeat('y', 5000)])
+  call assert_notequal(changed_tick, test_getvalue('buf_snapshot_tick'))
+  call assert_equal(getline(1, '$'), test_getvalue('buf_snapshot'))
+  call assert_equal(['first', '', longline, 'last'],
+        \ test_getvalue('buf_snapshot_saved'))
+
+  let append_tick = test_getvalue('buf_snapshot_tick')
+  call deletebufline('', 2, 3)
+  call assert_notequal(append_tick, test_getvalue('buf_snapshot_tick'))
+  call assert_equal(getline(1, '$'), test_getvalue('buf_snapshot'))
+  call assert_equal(['first', '', longline, 'last'],
+        \ test_getvalue('buf_snapshot_saved'))
+
   let bnr = bufnr()
   enew
   execute 'bwipe! ' .. bnr
   call assert_equal(['first', '', longline, 'last'],
         \ test_getvalue('buf_snapshot_saved'))
   call test_getvalue('buf_snapshot_clear')
+endfunc
+
+func Test_buffer_snapshot_cow_tree()
+  new
+  let original = map(range(1, 300), {_, v -> printf('line-%04d-%s', v, repeat('x', v % 40))})
+  call setline(1, original)
+  call assert_equal(original, test_getvalue('buf_snapshot'))
+  call assert_equal(1, test_getvalue('buf_snapshot_save'))
+
+  for i in range(1, 100)
+    call append(line('$'), printf('appended-%04d-%s', i, repeat('y', i % 50)))
+  endfor
+  for i in range(20, 220, 17)
+    call setline(i, 'replaced-' .. i)
+  endfor
+  for i in reverse(range(25, 275, 25))
+    call deletebufline('', i)
+  endfor
+
+  call assert_equal(getline(1, '$'), test_getvalue('buf_snapshot'))
+  call assert_equal(original, test_getvalue('buf_snapshot_saved'))
+  call test_getvalue('buf_snapshot_clear')
+  bwipe!
 endfunc
 
 func Test_buffer_snapshot_threads()
@@ -1005,6 +1042,12 @@ func Test_buffer_snapshot_alloc_failure()
     call test_alloc_fail(GetAllocId('buf_snapshot'), countdown, 0)
     call assert_fails("call test_getvalue('buf_snapshot')", 'E342:')
   endfor
+  call assert_equal(['one', 'two', 'three'],
+        \ test_getvalue('buf_snapshot'))
+
+  call test_alloc_fail(GetAllocId('buf_snapshot'), 0, 0)
+  call assert_fails("call append(1, 'four')", 'E342:')
+  call assert_equal(['one', 'two', 'three'], getline(1, '$'))
   call assert_equal(['one', 'two', 'three'],
         \ test_getvalue('buf_snapshot'))
 

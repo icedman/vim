@@ -8,11 +8,13 @@
  */
 
 /*
- * buffer_snapshot.c: immutable, read-only buffer snapshots.
+ * buffer_snapshot.c: persistent immutable buffer snapshots.
  *
- * This is the Phase 1 mirror implementation.  Snapshot construction and
- * reference management are main-thread-only until Vim has a portable atomic
- * reference-count implementation.  Queries touch only immutable memory.
+ * A snapshot owns one reference to an AVL rope.  Branch nodes contain only
+ * relative subtree information, so an edit can share every node outside the
+ * path to the edited leaf.  Leaves store their offset table, length table and
+ * text in one packed slab.  Published revisions and all nodes reachable from
+ * them are immutable.
  */
 
 #include "vim.h"
@@ -30,23 +32,37 @@ typedef int snapshot_ref_T;
 typedef int snapshot_ref_T;
 #endif
 
-typedef struct
+typedef struct snapshot_node snapshot_node_T;
+
+struct snapshot_node
 {
-    linenr_T	sl_first;
-    linenr_T	sl_count;
-    size_t	sl_data_size;
-    size_t	*sl_offsets;
-    colnr_T	*sl_lengths;
-    char_u	*sl_data;
-} snapshot_leaf_T;
+    snapshot_ref_T	sn_refcount;
+    linenr_T		sn_line_count;
+    size_t		sn_allocated;
+    unsigned short	sn_height;
+    unsigned char	sn_is_leaf;
+    union
+    {
+	struct
+	{
+	    snapshot_node_T *left;
+	    snapshot_node_T *right;
+	} branch;
+	struct
+	{
+	    size_t	data_size;
+	    void	*slab;
+	} leaf;
+    } sn_u;
+};
 
 struct buf_snapshot
 {
     snapshot_ref_T	bs_refcount;
     varnumber_T		bs_revision;
+    varnumber_T		bs_base_revision;
     linenr_T		bs_line_count;
-    int			bs_leaf_count;
-    snapshot_leaf_T	**bs_leaves;
+    snapshot_node_T	*bs_root;
     size_t		bs_allocated;
 };
 
@@ -63,49 +79,424 @@ snapshot_mem_free(void *ptr)
 #endif
 }
 
-/*
- * Free a snapshot leaf.
- */
     static void
-snapshot_leaf_free(snapshot_leaf_T *leaf)
+snapshot_node_ref(snapshot_node_T *node)
 {
+    if (node == NULL)
+	return;
+#if defined(MSWIN)
+    (void)InterlockedIncrement(&node->sn_refcount);
+#elif defined(SNAPSHOT_ATOMIC_REFS)
+    (void)__atomic_add_fetch(&node->sn_refcount, 1, __ATOMIC_RELAXED);
+#else
+    ++node->sn_refcount;
+#endif
+}
+
+    static void
+snapshot_node_unref(snapshot_node_T *node)
+{
+    int is_last;
+
+    if (node == NULL)
+	return;
+#if defined(MSWIN)
+    is_last = InterlockedDecrement(&node->sn_refcount) == 0;
+#elif defined(SNAPSHOT_ATOMIC_REFS)
+    is_last = __atomic_sub_fetch(&node->sn_refcount, 1,
+							__ATOMIC_ACQ_REL) == 0;
+#else
+    is_last = --node->sn_refcount == 0;
+#endif
+    if (!is_last)
+	return;
+    if (node->sn_is_leaf)
+	snapshot_mem_free(node->sn_u.leaf.slab);
+    else
+    {
+	snapshot_node_unref(node->sn_u.branch.left);
+	snapshot_node_unref(node->sn_u.branch.right);
+    }
+    snapshot_mem_free(node);
+}
+
+    static size_t *
+snapshot_leaf_offsets(snapshot_node_T *leaf)
+{
+    return (size_t *)leaf->sn_u.leaf.slab;
+}
+
+    static colnr_T *
+snapshot_leaf_lengths(snapshot_node_T *leaf)
+{
+    return (colnr_T *)(snapshot_leaf_offsets(leaf) + leaf->sn_line_count);
+}
+
+    static char_u *
+snapshot_leaf_data(snapshot_node_T *leaf)
+{
+    return (char_u *)(snapshot_leaf_lengths(leaf) + leaf->sn_line_count);
+}
+
+/*
+ * Allocate a packed leaf.  "lines" and "lengths" describe "count" strings;
+ * the strings need not be NUL terminated by their owner.
+ */
+    static snapshot_node_T *
+snapshot_leaf_new(const char_u **lines, const colnr_T *lengths, linenr_T count)
+{
+    snapshot_node_T	*leaf;
+    size_t		table_size;
+    size_t		data_size = 0;
+    size_t		slab_size;
+    size_t		offset = 0;
+    linenr_T		i;
+
+    if (count < 1 || (size_t)count > SIZE_MAX / sizeof(size_t)
+	    || (size_t)count > SIZE_MAX / sizeof(colnr_T))
+	return NULL;
+    table_size = (size_t)count * (sizeof(size_t) + sizeof(colnr_T));
+    for (i = 0; i < count; ++i)
+    {
+	size_t needed;
+
+	if (lengths[i] < 0)
+	    return NULL;
+	needed = (size_t)lengths[i] + 1;
+	if (needed == 0 || data_size > SIZE_MAX - needed)
+	    return NULL;
+	data_size += needed;
+    }
+    if (table_size > SIZE_MAX - data_size)
+	return NULL;
+    slab_size = table_size + data_size;
+
+    leaf = alloc_clear_id(sizeof(*leaf), aid_buf_snapshot);
     if (leaf == NULL)
-	return;
-    snapshot_mem_free(leaf->sl_offsets);
-    snapshot_mem_free(leaf->sl_lengths);
-    snapshot_mem_free(leaf->sl_data);
-    snapshot_mem_free(leaf);
+	return NULL;
+    leaf->sn_u.leaf.slab = alloc_clear_id(slab_size, aid_buf_snapshot);
+    if (leaf->sn_u.leaf.slab == NULL)
+    {
+	snapshot_mem_free(leaf);
+	return NULL;
+    }
+    leaf->sn_refcount = 1;
+    leaf->sn_line_count = count;
+    leaf->sn_allocated = sizeof(*leaf) + slab_size;
+    leaf->sn_height = 1;
+    leaf->sn_is_leaf = TRUE;
+    leaf->sn_u.leaf.data_size = data_size;
+    for (i = 0; i < count; ++i)
+    {
+	snapshot_leaf_offsets(leaf)[i] = offset;
+	snapshot_leaf_lengths(leaf)[i] = lengths[i];
+	mch_memmove(snapshot_leaf_data(leaf) + offset, lines[i],
+						(size_t)lengths[i]);
+	snapshot_leaf_data(leaf)[offset + lengths[i]] = NUL;
+	offset += (size_t)lengths[i] + 1;
+    }
+    return leaf;
 }
 
-/*
- * Free an unreferenced snapshot.
- */
-    static void
-snapshot_free(buf_snapshot_T *snapshot)
+    static snapshot_node_T *
+snapshot_branch_new(snapshot_node_T *left, snapshot_node_T *right)
 {
-    int i;
+    snapshot_node_T *node;
 
-    if (snapshot == NULL)
-	return;
-    for (i = 0; i < snapshot->bs_leaf_count; ++i)
-	snapshot_leaf_free(snapshot->bs_leaves[i]);
-    snapshot_mem_free(snapshot->bs_leaves);
-    snapshot_mem_free(snapshot);
+    if (left == NULL || right == NULL
+	    || left->sn_line_count > MAXLNUM - right->sn_line_count)
+	return NULL;
+    node = alloc_clear_id(sizeof(*node), aid_buf_snapshot);
+    if (node == NULL)
+	return NULL;
+    node->sn_refcount = 1;
+    node->sn_line_count = left->sn_line_count + right->sn_line_count;
+    node->sn_allocated = sizeof(*node) + left->sn_allocated
+							+ right->sn_allocated;
+    node->sn_height = (unsigned short)(
+		left->sn_height > right->sn_height ? left->sn_height + 1
+							: right->sn_height + 1);
+    node->sn_u.branch.left = left;
+    node->sn_u.branch.right = right;
+    snapshot_node_ref(left);
+    snapshot_node_ref(right);
+    return node;
 }
 
 /*
- * Build one immutable leaf starting at "first".  Set "next" to the first line
- * not included in the leaf.
+ * Return a balanced tree containing "left" followed by "right".  Arguments
+ * are borrowed; the returned tree has one owned reference.
  */
-    static snapshot_leaf_T *
+    static snapshot_node_T *
+snapshot_balance(snapshot_node_T *left, snapshot_node_T *right)
+{
+    snapshot_node_T *a;
+    snapshot_node_T *b;
+    snapshot_node_T *result;
+
+    if (left == NULL)
+    {
+	snapshot_node_ref(right);
+	return right;
+    }
+    if (right == NULL)
+    {
+	snapshot_node_ref(left);
+	return left;
+    }
+    if (left->sn_height > right->sn_height + 1)
+    {
+	snapshot_node_T *ll = left->sn_u.branch.left;
+	snapshot_node_T *lr = left->sn_u.branch.right;
+
+	if (ll->sn_height >= lr->sn_height)
+	{
+	    b = snapshot_branch_new(lr, right);
+	    if (b == NULL)
+		return NULL;
+	    result = snapshot_branch_new(ll, b);
+	    snapshot_node_unref(b);
+	    return result;
+	}
+	a = snapshot_branch_new(ll, lr->sn_u.branch.left);
+	if (a == NULL)
+	    return NULL;
+	b = snapshot_branch_new(lr->sn_u.branch.right, right);
+	if (b == NULL)
+	{
+	    snapshot_node_unref(a);
+	    return NULL;
+	}
+	result = snapshot_branch_new(a, b);
+	snapshot_node_unref(a);
+	snapshot_node_unref(b);
+	return result;
+    }
+    if (right->sn_height > left->sn_height + 1)
+    {
+	snapshot_node_T *rl = right->sn_u.branch.left;
+	snapshot_node_T *rr = right->sn_u.branch.right;
+
+	if (rr->sn_height >= rl->sn_height)
+	{
+	    a = snapshot_branch_new(left, rl);
+	    if (a == NULL)
+		return NULL;
+	    result = snapshot_branch_new(a, rr);
+	    snapshot_node_unref(a);
+	    return result;
+	}
+	a = snapshot_branch_new(left, rl->sn_u.branch.left);
+	if (a == NULL)
+	    return NULL;
+	b = snapshot_branch_new(rl->sn_u.branch.right, rr);
+	if (b == NULL)
+	{
+	    snapshot_node_unref(a);
+	    return NULL;
+	}
+	result = snapshot_branch_new(a, b);
+	snapshot_node_unref(a);
+	snapshot_node_unref(b);
+	return result;
+    }
+    return snapshot_branch_new(left, right);
+}
+
+/*
+ * Split an oversized multi-line leaf and return one owned balanced subtree.
+ * The input leaf is borrowed.
+ */
+    static snapshot_node_T *
+snapshot_leaf_split(snapshot_node_T *leaf)
+{
+    const char_u **lines;
+    colnr_T *lengths;
+    snapshot_node_T *left_leaf;
+    snapshot_node_T *right_leaf;
+    snapshot_node_T *left;
+    snapshot_node_T *right;
+    snapshot_node_T *result;
+    linenr_T middle;
+    linenr_T i;
+
+    if (leaf->sn_u.leaf.data_size <= SNAPSHOT_LEAF_TARGET
+						|| leaf->sn_line_count == 1)
+    {
+	snapshot_node_ref(leaf);
+	return leaf;
+    }
+    lines = alloc_clear_id((size_t)leaf->sn_line_count * sizeof(*lines),
+							aid_buf_snapshot);
+    lengths = alloc_clear_id((size_t)leaf->sn_line_count * sizeof(*lengths),
+							aid_buf_snapshot);
+    if (lines == NULL || lengths == NULL)
+    {
+	vim_free(lines);
+	vim_free(lengths);
+	return NULL;
+    }
+    for (i = 0; i < leaf->sn_line_count; ++i)
+    {
+	lines[i] = snapshot_leaf_data(leaf) + snapshot_leaf_offsets(leaf)[i];
+	lengths[i] = snapshot_leaf_lengths(leaf)[i];
+    }
+    {
+	size_t half = leaf->sn_u.leaf.data_size / 2;
+	size_t used = 0;
+
+	middle = leaf->sn_line_count - 1;
+	for (i = 0; i < leaf->sn_line_count - 1; ++i)
+	{
+	    used += (size_t)lengths[i] + 1;
+	    if (used >= half)
+	    {
+		middle = i + 1;
+		break;
+	    }
+	}
+    }
+    left_leaf = snapshot_leaf_new(lines, lengths, middle);
+    right_leaf = snapshot_leaf_new(lines + middle, lengths + middle,
+						leaf->sn_line_count - middle);
+    vim_free(lines);
+    vim_free(lengths);
+    if (left_leaf == NULL || right_leaf == NULL)
+    {
+	snapshot_node_unref(left_leaf);
+	snapshot_node_unref(right_leaf);
+	return NULL;
+    }
+    left = snapshot_leaf_split(left_leaf);
+    right = snapshot_leaf_split(right_leaf);
+    snapshot_node_unref(left_leaf);
+    snapshot_node_unref(right_leaf);
+    if (left == NULL || right == NULL)
+    {
+	snapshot_node_unref(left);
+	snapshot_node_unref(right);
+	return NULL;
+    }
+    result = snapshot_balance(left, right);
+    snapshot_node_unref(left);
+    snapshot_node_unref(right);
+    return result;
+}
+
+/* Build a replacement for one leaf, inserting, replacing, or deleting. */
+    static snapshot_node_T *
+snapshot_leaf_edit(snapshot_node_T *leaf, linenr_T index,
+	const char_u *line, colnr_T len, int operation)
+{
+    const char_u	**lines;
+    colnr_T	*lengths;
+    snapshot_node_T *result;
+    linenr_T	new_count = leaf->sn_line_count + (operation == 1 ? 1 : 0)
+						- (operation == -1 ? 1 : 0);
+    linenr_T	i;
+    linenr_T	j = 0;
+
+    if (new_count == 0)
+	return NULL;
+    lines = alloc_clear_id((size_t)new_count * sizeof(*lines),
+							aid_buf_snapshot);
+    lengths = alloc_clear_id((size_t)new_count * sizeof(*lengths),
+							aid_buf_snapshot);
+    if (lines == NULL || lengths == NULL)
+    {
+	vim_free(lines);
+	vim_free(lengths);
+	return NULL;
+    }
+    for (i = 0; i < leaf->sn_line_count; ++i)
+    {
+	if (operation == 1 && i == index)
+	{
+	    lines[j] = line;
+	    lengths[j++] = len;
+	}
+	if (operation == -1 && i == index)
+	    continue;
+	if (operation == 0 && i == index)
+	{
+	    lines[j] = line;
+	    lengths[j++] = len;
+	}
+	else
+	{
+	    lines[j] = snapshot_leaf_data(leaf)
+						+ snapshot_leaf_offsets(leaf)[i];
+	    lengths[j++] = snapshot_leaf_lengths(leaf)[i];
+	}
+    }
+    if (operation == 1 && index == leaf->sn_line_count)
+    {
+	lines[j] = line;
+	lengths[j++] = len;
+    }
+    result = snapshot_leaf_new(lines, lengths, new_count);
+    vim_free(lines);
+    vim_free(lengths);
+    if (result != NULL)
+    {
+	snapshot_node_T *split = snapshot_leaf_split(result);
+
+	snapshot_node_unref(result);
+	result = split;
+    }
+    return result;
+}
+
+/* operation: 1 inserts before index, 0 replaces index, -1 deletes index. */
+    static snapshot_node_T *
+snapshot_edit(snapshot_node_T *node, linenr_T index, const char_u *line,
+	colnr_T len, int operation, int *failed)
+{
+    snapshot_node_T *changed;
+    snapshot_node_T *result;
+    linenr_T left_count;
+
+    if (node->sn_is_leaf)
+    {
+	changed = snapshot_leaf_edit(node, index, line, len, operation);
+	if (changed == NULL && !(operation == -1 && node->sn_line_count == 1))
+	    *failed = TRUE;
+	return changed;
+    }
+    left_count = node->sn_u.branch.left->sn_line_count;
+    if (index < left_count)
+    {
+	changed = snapshot_edit(node->sn_u.branch.left, index, line, len,
+							operation, failed);
+	if (*failed)
+	    return NULL;
+	result = snapshot_balance(changed, node->sn_u.branch.right);
+    }
+    else
+    {
+	changed = snapshot_edit(node->sn_u.branch.right, index - left_count,
+						line, len, operation, failed);
+	if (*failed)
+	    return NULL;
+	result = snapshot_balance(node->sn_u.branch.left, changed);
+    }
+    snapshot_node_unref(changed);
+    if (result == NULL)
+	*failed = TRUE;
+    return result;
+}
+
+/* Build one immutable leaf and set "next" to its first excluded line. */
+    static snapshot_node_T *
 snapshot_leaf_build(buf_T *buf, linenr_T first, linenr_T line_count,
 	linenr_T *next)
 {
-    snapshot_leaf_T	*leaf;
-    linenr_T		lnum;
-    linenr_T		count = 0;
-    size_t		data_size = 0;
-    size_t		offset = 0;
+    const char_u	**lines;
+    colnr_T	*lengths;
+    snapshot_node_T *leaf;
+    linenr_T	lnum;
+    linenr_T	count = 0;
+    size_t	data_size = 0;
 
     for (lnum = first; lnum <= line_count; ++lnum)
     {
@@ -119,102 +510,119 @@ snapshot_leaf_build(buf_T *buf, linenr_T first, linenr_T line_count,
 	data_size += needed;
 	++count;
     }
-
-    leaf = alloc_clear_id(sizeof(snapshot_leaf_T), aid_buf_snapshot);
-    if (leaf == NULL)
-	return NULL;
-    leaf->sl_offsets = alloc_clear_id(
-				(size_t)count * sizeof(size_t), aid_buf_snapshot);
-    leaf->sl_lengths = alloc_clear_id(
-				(size_t)count * sizeof(colnr_T), aid_buf_snapshot);
-    leaf->sl_data = alloc_clear_id(data_size, aid_buf_snapshot);
-    if (leaf->sl_offsets == NULL || leaf->sl_lengths == NULL
-							|| leaf->sl_data == NULL)
+    lines = alloc_clear_id((size_t)count * sizeof(*lines),
+							aid_buf_snapshot);
+    lengths = alloc_clear_id((size_t)count * sizeof(*lengths),
+							aid_buf_snapshot);
+    if (lines == NULL || lengths == NULL)
     {
-	snapshot_leaf_free(leaf);
+	vim_free(lines);
+	vim_free(lengths);
 	return NULL;
     }
-
-    leaf->sl_first = first;
-    leaf->sl_count = count;
-    leaf->sl_data_size = data_size;
-    for (lnum = first; lnum < first + count; ++lnum)
+    for (lnum = 0; lnum < count; ++lnum)
     {
-	linenr_T index = lnum - first;
-	colnr_T len = buf_line_len(buf, lnum);
-	char_u *line = buf_line(buf, lnum, FALSE);
-
-	leaf->sl_offsets[index] = offset;
-	leaf->sl_lengths[index] = len;
-	mch_memmove(leaf->sl_data + offset, line, (size_t)len + 1);
-	offset += (size_t)len + 1;
+	lengths[lnum] = buf_line_len(buf, first + lnum);
+	lines[lnum] = alloc_clear_id((size_t)lengths[lnum] + 1,
+							aid_buf_snapshot);
+	if (lines[lnum] != NULL)
+	    mch_memmove((char_u *)lines[lnum],
+		buf_line(buf, first + lnum, FALSE), (size_t)lengths[lnum]);
+	if (lines[lnum] == NULL)
+	{
+	    while (lnum > 0)
+		vim_free((char_u *)lines[--lnum]);
+	    vim_free(lines);
+	    vim_free(lengths);
+	    return NULL;
+	}
     }
-
-    *next = first + count;
+    leaf = snapshot_leaf_new(lines, lengths, count);
+    for (lnum = 0; lnum < count; ++lnum)
+	vim_free((char_u *)lines[lnum]);
+    vim_free(lines);
+    vim_free(lengths);
+    if (leaf != NULL)
+	*next = first + count;
     return leaf;
 }
 
-/*
- * Build an immutable revision from the current text of "buf".
- * Must be called on the main editor thread.
- */
+/* Append one leaf to an AVL tree.  Arguments are borrowed. */
+    static snapshot_node_T *
+snapshot_tree_append(snapshot_node_T *root, snapshot_node_T *leaf)
+{
+    snapshot_node_T *right;
+    snapshot_node_T *result;
+
+    if (root == NULL)
+    {
+	snapshot_node_ref(leaf);
+	return leaf;
+    }
+    if (root->sn_is_leaf)
+	return snapshot_balance(root, leaf);
+    right = snapshot_tree_append(root->sn_u.branch.right, leaf);
+    if (right == NULL)
+	return NULL;
+    result = snapshot_balance(root->sn_u.branch.left, right);
+    snapshot_node_unref(right);
+    return result;
+}
+
+/* Build an immutable AVL revision from the current text of "buf". */
     static buf_snapshot_T *
 snapshot_build(buf_T *buf)
 {
-    buf_snapshot_T	*snapshot;
-    linenr_T		lnum;
-    linenr_T		line_count;
-    int			leaf_count = 0;
+    buf_snapshot_T *snapshot;
+    snapshot_node_T *root = NULL;
+    linenr_T lnum;
+    linenr_T line_count;
 
     if (buf == NULL || !buf_is_loaded(buf))
 	return NULL;
-
     line_count = buf_line_count(buf);
-    snapshot = alloc_clear_id(sizeof(buf_snapshot_T), aid_buf_snapshot);
-    if (snapshot == NULL)
-	return NULL;
-    snapshot->bs_leaves = alloc_clear_id(
-		(size_t)line_count * sizeof(snapshot_leaf_T *), aid_buf_snapshot);
-    if (snapshot->bs_leaves == NULL)
-    {
-	snapshot_mem_free(snapshot);
-	return NULL;
-    }
-
     lnum = 1;
     while (lnum <= line_count)
     {
-	snapshot_leaf_T *leaf = snapshot_leaf_build(buf, lnum, line_count,
-								&lnum);
+	snapshot_node_T *leaf = snapshot_leaf_build(buf, lnum, line_count, &lnum);
+	snapshot_node_T *new_root;
 
 	if (leaf == NULL)
 	{
-	    snapshot->bs_leaf_count = leaf_count;
-	    snapshot_free(snapshot);
+	    snapshot_node_unref(root);
 	    return NULL;
 	}
-	snapshot->bs_leaves[leaf_count++] = leaf;
+	new_root = snapshot_tree_append(root, leaf);
+	snapshot_node_unref(root);
+	snapshot_node_unref(leaf);
+	if (new_root == NULL)
+	    return NULL;
+	root = new_root;
     }
-
+    snapshot = alloc_clear_id(sizeof(*snapshot), aid_buf_snapshot);
+    if (snapshot == NULL)
+    {
+	snapshot_node_unref(root);
+	return NULL;
+    }
     snapshot->bs_refcount = 1;
     snapshot->bs_revision = buf->b_snapshot_revision;
+    snapshot->bs_base_revision = buf->b_snapshot_revision;
     snapshot->bs_line_count = line_count;
-    snapshot->bs_leaf_count = leaf_count;
-    snapshot->bs_allocated = sizeof(*snapshot)
-			+ (size_t)line_count * sizeof(snapshot_leaf_T *);
-    for (int i = 0; i < leaf_count; ++i)
-	snapshot->bs_allocated += sizeof(snapshot_leaf_T)
-		+ (size_t)snapshot->bs_leaves[i]->sl_count
-					* (sizeof(size_t) + sizeof(colnr_T))
-		+ snapshot->bs_leaves[i]->sl_data_size;
+    snapshot->bs_root = root;
+    snapshot->bs_allocated = sizeof(*snapshot) + root->sn_allocated;
     return snapshot;
 }
 
-/*
- * Acquire the current immutable revision of "buf".  The first acquisition
- * after initialization or invalidation rebuilds the mirror; repeated
- * acquisitions are O(1).
- */
+    static void
+snapshot_free(buf_snapshot_T *snapshot)
+{
+    if (snapshot == NULL)
+	return;
+    snapshot_node_unref(snapshot->bs_root);
+    snapshot_mem_free(snapshot);
+}
+
     buf_snapshot_T *
 buf_snapshot_acquire(buf_T *buf)
 {
@@ -230,9 +638,6 @@ buf_snapshot_acquire(buf_T *buf)
     return buf->b_snapshot;
 }
 
-/*
- * Drop the buffer-owned revision without changing its revision number.
- */
     void
 buf_snapshot_clear(buf_T *buf)
 {
@@ -242,10 +647,6 @@ buf_snapshot_clear(buf_T *buf)
     buf->b_snapshot = NULL;
 }
 
-/*
- * Drop the buffer-owned revision after text may have changed.  Existing
- * snapshot handles retain the old immutable revision.
- */
     void
 buf_snapshot_invalidate(buf_T *buf)
 {
@@ -258,11 +659,6 @@ buf_snapshot_invalidate(buf_T *buf)
 	buf->b_snapshot_revision = 0;
 }
 
-/*
- * Return TRUE when snapshot references may cross threads in this build.
- * MEM_PROFILE makes Vim's allocation accounting unsuitable for worker-thread
- * final release, even when atomic counters are available.
- */
     int
 buf_snapshot_threadsafe(void)
 {
@@ -273,9 +669,6 @@ buf_snapshot_threadsafe(void)
 #endif
 }
 
-/*
- * Add a reference to "snapshot".
- */
     void
 buf_snapshot_ref(buf_snapshot_T *snapshot)
 {
@@ -290,9 +683,6 @@ buf_snapshot_ref(buf_snapshot_T *snapshot)
 #endif
 }
 
-/*
- * Drop a reference to "snapshot" and free it after the final release.
- */
     void
 buf_snapshot_unref(buf_snapshot_T *snapshot)
 {
@@ -312,86 +702,175 @@ buf_snapshot_unref(buf_snapshot_T *snapshot)
 	snapshot_free(snapshot);
 }
 
-/*
- * Return the immutable text revision captured by "snapshot".
- */
     varnumber_T
 buf_snapshot_tick(const buf_snapshot_T *snapshot)
 {
     return snapshot == NULL ? 0 : snapshot->bs_revision;
 }
 
-/*
- * Return the number of lines in "snapshot".
- */
     linenr_T
 buf_snapshot_line_count(const buf_snapshot_T *snapshot)
 {
     return snapshot == NULL ? 0 : snapshot->bs_line_count;
 }
 
-/*
- * Find the leaf containing "lnum".
- */
-    static snapshot_leaf_T *
-snapshot_find_leaf(const buf_snapshot_T *snapshot, linenr_T lnum)
+    static snapshot_node_T *
+snapshot_find_leaf(const buf_snapshot_T *snapshot, linenr_T lnum,
+	linenr_T *index)
 {
-    int low = 0;
-    int high = snapshot->bs_leaf_count - 1;
+    snapshot_node_T *node = snapshot->bs_root;
+    linenr_T zero_based = lnum - 1;
 
-    while (low <= high)
+    while (!node->sn_is_leaf)
     {
-	int middle = low + (high - low) / 2;
-	snapshot_leaf_T *leaf = snapshot->bs_leaves[middle];
+	linenr_T left_count = node->sn_u.branch.left->sn_line_count;
 
-	if (lnum < leaf->sl_first)
-	    high = middle - 1;
-	else if (lnum >= leaf->sl_first + leaf->sl_count)
-	    low = middle + 1;
+	if (zero_based < left_count)
+	    node = node->sn_u.branch.left;
 	else
-	    return leaf;
+	{
+	    zero_based -= left_count;
+	    node = node->sn_u.branch.right;
+	}
     }
-    return NULL;
+    *index = zero_based;
+    return node;
 }
 
-/*
- * Return an immutable line.  The pointer remains valid until the caller drops
- * its snapshot reference.
- */
     const char_u *
 buf_snapshot_line(const buf_snapshot_T *snapshot, linenr_T lnum)
 {
-    snapshot_leaf_T *leaf;
+    snapshot_node_T *leaf;
     linenr_T index;
 
     if (snapshot == NULL || lnum < 1 || lnum > snapshot->bs_line_count)
 	return NULL;
-    leaf = snapshot_find_leaf(snapshot, lnum);
-    if (leaf == NULL)
-	return NULL;
-    index = lnum - leaf->sl_first;
-    return leaf->sl_data + leaf->sl_offsets[index];
+    leaf = snapshot_find_leaf(snapshot, lnum, &index);
+    return snapshot_leaf_data(leaf) + snapshot_leaf_offsets(leaf)[index];
 }
 
-/*
- * Return a snapshot line length, excluding the terminating NUL.
- */
     colnr_T
 buf_snapshot_line_len(const buf_snapshot_T *snapshot, linenr_T lnum)
 {
-    snapshot_leaf_T *leaf;
+    snapshot_node_T *leaf;
+    linenr_T index;
 
     if (snapshot == NULL || lnum < 1 || lnum > snapshot->bs_line_count)
 	return 0;
-    leaf = snapshot_find_leaf(snapshot, lnum);
-    return leaf == NULL ? 0 : leaf->sl_lengths[lnum - leaf->sl_first];
+    leaf = snapshot_find_leaf(snapshot, lnum, &index);
+    return snapshot_leaf_lengths(leaf)[index];
 }
 
-/*
- * Return bytes allocated by this Phase 1 snapshot mirror.
- */
     size_t
 buf_snapshot_size(const buf_snapshot_T *snapshot)
 {
     return snapshot == NULL ? 0 : snapshot->bs_allocated;
+}
+
+    static varnumber_T
+snapshot_next_revision(varnumber_T revision)
+{
+    return revision < VARNUM_MAX ? revision + 1 : 0;
+}
+
+    static buf_snapshot_T *
+snapshot_prepare(buf_T *buf, linenr_T index, const char_u *line, colnr_T len,
+	int operation)
+{
+    buf_snapshot_T *base;
+    buf_snapshot_T *candidate;
+    snapshot_node_T *root;
+    int failed = FALSE;
+
+    if (buf == NULL || !buf_is_loaded(buf) || len < 0
+	    || (operation != -1 && line == NULL))
+	return NULL;
+    base = buf_snapshot_acquire(buf);
+    if (base == NULL)
+	return NULL;
+
+    if (index < 0 || index > base->bs_line_count
+	    || (operation != 1 && index == base->bs_line_count))
+    {
+	buf_snapshot_unref(base);
+	return NULL;
+    }
+    if (operation == -1 && base->bs_line_count == 1)
+    {
+	static const char_u empty[] = "";
+	root = snapshot_edit(base->bs_root, 0, empty, 0, 0, &failed);
+    }
+    else
+	root = snapshot_edit(base->bs_root, index, line, len, operation, &failed);
+    if (failed || root == NULL)
+    {
+	snapshot_node_unref(root);
+	buf_snapshot_unref(base);
+	return NULL;
+    }
+    candidate = alloc_clear_id(sizeof(*candidate), aid_buf_snapshot);
+    if (candidate == NULL)
+    {
+	snapshot_node_unref(root);
+	buf_snapshot_unref(base);
+	return NULL;
+    }
+    candidate->bs_refcount = 1;
+    candidate->bs_base_revision = base->bs_revision;
+    candidate->bs_revision = snapshot_next_revision(base->bs_revision);
+    candidate->bs_line_count = root->sn_line_count;
+    candidate->bs_root = root;
+    candidate->bs_allocated = sizeof(*candidate) + root->sn_allocated;
+    buf_snapshot_unref(base);
+    return candidate;
+}
+
+/* Construct a candidate with "line" inserted after "after". */
+    buf_snapshot_T *
+buf_snapshot_prepare_append(buf_T *buf, linenr_T after, const char_u *line,
+	colnr_T len)
+{
+    return snapshot_prepare(buf, after, line, len, 1);
+}
+
+/* Construct a candidate with line "lnum" replaced. */
+    buf_snapshot_T *
+buf_snapshot_prepare_replace(buf_T *buf, linenr_T lnum, const char_u *line,
+	colnr_T len)
+{
+    if (lnum < 1)
+	return NULL;
+    return snapshot_prepare(buf, lnum - 1, line, len, 0);
+}
+
+/* Construct a candidate with line "lnum" deleted. */
+    buf_snapshot_T *
+buf_snapshot_prepare_delete(buf_T *buf, linenr_T lnum)
+{
+    if (lnum < 1)
+	return NULL;
+    return snapshot_prepare(buf, lnum - 1, NULL, 0, -1);
+}
+
+/*
+ * Publish a prepared candidate.  On success ownership of the caller's
+ * reference is transferred to the buffer.  A stale candidate is rejected.
+ */
+    int
+buf_snapshot_publish(buf_T *buf, buf_snapshot_T *candidate)
+{
+    buf_snapshot_T *old;
+    varnumber_T current_revision;
+
+    if (buf == NULL || candidate == NULL || !buf_is_loaded(buf))
+	return FAIL;
+    old = buf->b_snapshot;
+    current_revision = old == NULL ? buf->b_snapshot_revision
+							: old->bs_revision;
+    if (candidate->bs_base_revision != current_revision)
+	return FAIL;
+    buf->b_snapshot = candidate;
+    buf->b_snapshot_revision = candidate->bs_revision;
+    buf_snapshot_unref(old);
+    return OK;
 }
