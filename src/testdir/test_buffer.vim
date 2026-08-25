@@ -966,6 +966,44 @@ func Test_buffer_snapshot_query()
 
   call assert_equal(['first', '', longline, 'last'],
         \ test_getvalue('buf_snapshot'))
+  call assert_equal(1, test_getvalue('buf_snapshot_contract'))
+
+  call assert_equal(1, test_getvalue('buf_snapshot_save'))
+  call setline(1, 'changed')
+  call assert_equal(['first', '', longline, 'last'],
+        \ test_getvalue('buf_snapshot_saved'))
+
+  let bnr = bufnr()
+  enew
+  execute 'bwipe! ' .. bnr
+  call assert_equal(['first', '', longline, 'last'],
+        \ test_getvalue('buf_snapshot_saved'))
+  call test_getvalue('buf_snapshot_clear')
+endfunc
+
+func Test_buffer_snapshot_threads()
+  new
+  call setline(1, ['threaded', 'second', 'third'])
+
+  if test_getvalue('buf_snapshot_threadsafe')
+    call assert_equal(1, test_getvalue('buf_snapshot_threads'))
+  else
+    call assert_equal(-1, test_getvalue('buf_snapshot_threads'))
+  endif
+
+  bwipe!
+endfunc
+
+func Test_buffer_snapshot_alloc_failure()
+  new
+  call setline(1, ['one', 'two', 'three'])
+
+  for countdown in range(0, 5)
+    call test_alloc_fail(GetAllocId('buf_snapshot'), countdown, 0)
+    call assert_fails("call test_getvalue('buf_snapshot')", 'E342:')
+  endfor
+  call assert_equal(['one', 'two', 'three'],
+        \ test_getvalue('buf_snapshot'))
 
   bwipe!
 endfunc

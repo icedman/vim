@@ -13,6 +13,10 @@
 
 #include "vim.h"
 
+#ifdef HAVE_PTHREAD
+# include <pthread.h>
+#endif
+
 #if defined(FEAT_EVAL)
 
 /*
@@ -981,6 +985,135 @@ f_test_feedinput(typval_T *argvars, typval_T *rettv UNUSED)
 #endif
 }
 
+static buf_snapshot_T *test_saved_snapshot = NULL;
+
+#if defined(HAVE_PTHREAD) || defined(MSWIN)
+typedef struct
+{
+    buf_snapshot_T *bst_snapshot;
+    int bst_failed;
+} buf_snapshot_threadarg_T;
+
+# ifdef MSWIN
+    static DWORD WINAPI
+buf_snapshot_test_worker(LPVOID data)
+# else
+    static void *
+buf_snapshot_test_worker(void *data)
+# endif
+{
+    buf_snapshot_threadarg_T *arg = data;
+    int i;
+
+    for (i = 0; i < 10000; ++i)
+    {
+	const char_u *line = buf_snapshot_line(arg->bst_snapshot, 1);
+
+	if (line == NULL || STRCMP(line, "threaded") != 0
+			|| buf_snapshot_line_count(arg->bst_snapshot) != 3)
+	{
+	    arg->bst_failed = TRUE;
+	    break;
+	}
+	buf_snapshot_ref(arg->bst_snapshot);
+	buf_snapshot_unref(arg->bst_snapshot);
+    }
+    buf_snapshot_unref(arg->bst_snapshot);
+# ifdef MSWIN
+    return 0;
+# else
+    return NULL;
+# endif
+}
+
+/*
+ * Exercise concurrent snapshot queries and reference drops.  The main thread
+ * drops its reference before joining, so the final release is done by one of
+ * the workers.
+ */
+    static int
+buf_snapshot_test_threads(buf_snapshot_T *snapshot)
+{
+# define SNAPSHOT_TEST_THREADS 4
+    buf_snapshot_threadarg_T args[SNAPSHOT_TEST_THREADS];
+    int created = 0;
+    int failed = FALSE;
+    int i;
+# ifdef MSWIN
+    HANDLE threads[SNAPSHOT_TEST_THREADS];
+# else
+    pthread_t threads[SNAPSHOT_TEST_THREADS];
+# endif
+
+    if (!buf_snapshot_threadsafe())
+	return -1;
+    for (i = 0; i < SNAPSHOT_TEST_THREADS; ++i)
+    {
+	args[i].bst_snapshot = snapshot;
+	args[i].bst_failed = FALSE;
+	buf_snapshot_ref(snapshot);
+# ifdef MSWIN
+	threads[i] = CreateThread(NULL, 0, buf_snapshot_test_worker,
+							&args[i], 0, NULL);
+	if (threads[i] == NULL)
+# else
+	if (pthread_create(&threads[i], NULL, buf_snapshot_test_worker,
+							&args[i]) != 0)
+# endif
+	{
+	    buf_snapshot_unref(snapshot);
+	    failed = TRUE;
+	    break;
+	}
+	++created;
+    }
+
+    buf_snapshot_unref(snapshot);
+    for (i = 0; i < created; ++i)
+    {
+# ifdef MSWIN
+	(void)WaitForSingleObject(threads[i], INFINITE);
+	(void)CloseHandle(threads[i]);
+# else
+	(void)pthread_join(threads[i], NULL);
+# endif
+	if (args[i].bst_failed)
+	    failed = TRUE;
+    }
+    return failed ? FAIL : OK;
+# undef SNAPSHOT_TEST_THREADS
+}
+#endif
+
+/*
+ * Copy snapshot lines into "rettv" for internal snapshot tests.
+ */
+    static void
+test_get_snapshot_lines(buf_snapshot_T *snapshot, typval_T *rettv)
+{
+    list_T *list = list_alloc();
+    linenr_T lnum;
+
+    if (snapshot == NULL || list == NULL)
+    {
+	if (list != NULL)
+	    list_unref(list);
+	return;
+    }
+    for (lnum = 1; lnum <= buf_snapshot_line_count(snapshot); ++lnum)
+    {
+	const char_u *line = buf_snapshot_line(snapshot, lnum);
+
+	if (line == NULL || list_append_string(list, (char_u *)line,
+				buf_snapshot_line_len(snapshot, lnum)) == FAIL)
+	{
+	    list_unref(list);
+	    return;
+	}
+    }
+    rettv_list_set(rettv, list);
+}
+
 /*
  * "test_getvalue({name})" function
  */
@@ -999,29 +1132,62 @@ f_test_getvalue(typval_T *argvars, typval_T *rettv)
     else if (STRCMP(name, (char_u *)"buf_snapshot") == 0)
     {
 	buf_snapshot_T *snapshot = buf_snapshot_acquire(curbuf);
-	list_T *list = list_alloc();
-	linenr_T lnum;
 
-	if (snapshot == NULL || list == NULL)
+	test_get_snapshot_lines(snapshot, rettv);
+	buf_snapshot_unref(snapshot);
+    }
+    else if (STRCMP(name, (char_u *)"buf_snapshot_save") == 0)
+    {
+	buf_snapshot_unref(test_saved_snapshot);
+	test_saved_snapshot = buf_snapshot_acquire(curbuf);
+	if (test_saved_snapshot != NULL)
+	{
+	    // Exercise a non-final reference drop while retaining the saved one.
+	    buf_snapshot_ref(test_saved_snapshot);
+	    buf_snapshot_unref(test_saved_snapshot);
+	}
+	rettv->vval.v_number = test_saved_snapshot != NULL;
+    }
+    else if (STRCMP(name, (char_u *)"buf_snapshot_saved") == 0)
+	test_get_snapshot_lines(test_saved_snapshot, rettv);
+    else if (STRCMP(name, (char_u *)"buf_snapshot_clear") == 0)
+    {
+	buf_snapshot_unref(test_saved_snapshot);
+	test_saved_snapshot = NULL;
+    }
+    else if (STRCMP(name, (char_u *)"buf_snapshot_threadsafe") == 0)
+	rettv->vval.v_number = buf_snapshot_threadsafe();
+    else if (STRCMP(name, (char_u *)"buf_snapshot_threads") == 0)
+    {
+	buf_snapshot_T *snapshot = buf_snapshot_acquire(curbuf);
+
+	if (snapshot == NULL)
+	    rettv->vval.v_number = FAIL;
+#if defined(HAVE_PTHREAD) || defined(MSWIN)
+	else
+	    rettv->vval.v_number = buf_snapshot_test_threads(snapshot);
+#else
+	else
 	{
 	    buf_snapshot_unref(snapshot);
-	    if (list != NULL)
-		list_unref(list);
-	    return;
+	    rettv->vval.v_number = -1;
 	}
-	for (lnum = 1; lnum <= buf_snapshot_line_count(snapshot); ++lnum)
-	{
-	    const char_u *line = buf_snapshot_line(snapshot, lnum);
+#endif
+    }
+    else if (STRCMP(name, (char_u *)"buf_snapshot_contract") == 0)
+    {
+	buf_snapshot_T *snapshot = buf_snapshot_acquire(curbuf);
+	const char_u *first = buf_snapshot_line(snapshot, 1);
+	linenr_T count = buf_snapshot_line_count(snapshot);
 
-	if (line == NULL || list_append_string(list, (char_u *)line,
-				buf_snapshot_line_len(snapshot, lnum)) == FAIL)
-	    {
-		list_unref(list);
-		buf_snapshot_unref(snapshot);
-		return;
-	    }
-	}
-	rettv_list_set(rettv, list);
+	rettv->vval.v_number = snapshot != NULL
+		&& first != NULL
+		&& buf_snapshot_line(snapshot, 0) == NULL
+		&& buf_snapshot_line(snapshot, count + 1) == NULL
+		&& buf_snapshot_line_len(snapshot, 0) == 0
+		&& buf_snapshot_line_len(snapshot, count + 1) == 0
+		&& buf_snapshot_line(snapshot, count) != NULL
+		&& first == buf_snapshot_line(snapshot, 1);
 	buf_snapshot_unref(snapshot);
     }
     else

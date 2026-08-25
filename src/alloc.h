@@ -44,6 +44,7 @@ typedef enum {
     aid_newwin_wvars,
     aid_newtabpage_tvars,
     aid_blob_alloc,
+    aid_buf_snapshot,
     aid_get_func,
     aid_defer,
     aid_tuple_append,

@@ -6696,21 +6696,30 @@ set_buflisted(int on)
     int
 buf_contents_changed(buf_T *buf)
 {
-    buf_T	*newbuf;
-    int		differ = TRUE;
-    linenr_T	lnum;
+    buf_T		*newbuf;
+    buf_snapshot_T	*snapshot;
+    int			differ = TRUE;
+    linenr_T		lnum;
     aco_save_T	aco;
     exarg_T	ea;
+
+    snapshot = buf_snapshot_acquire(buf);
+    if (snapshot == NULL)
+	return TRUE;
 
     // Allocate a buffer without putting it in the buffer list.
     newbuf = buflist_new(NULL, NULL, (linenr_T)1, BLN_DUMMY);
     if (newbuf == NULL)
+    {
+	buf_snapshot_unref(snapshot);
 	return TRUE;
+    }
 
     // Force the 'fileencoding' and 'fileformat' to be equal.
     if (prep_exarg(&ea, buf) == FAIL)
     {
 	wipe_buffer(newbuf, FALSE);
+	buf_snapshot_unref(snapshot);
 	return TRUE;
     }
 
@@ -6720,6 +6729,7 @@ buf_contents_changed(buf_T *buf)
     {
 	// Failed to find a window for "newbuf".
 	wipe_buffer(newbuf, FALSE);
+	buf_snapshot_unref(snapshot);
 	return TRUE;
     }
 
@@ -6732,11 +6742,12 @@ buf_contents_changed(buf_T *buf)
 					    &ea, READ_NEW | READ_DUMMY) == OK)
     {
 	// compare the two files line by line
-	if (buf->b_ml.ml_line_count == curbuf->b_ml.ml_line_count)
+	if (buf_snapshot_line_count(snapshot) == buf_line_count(curbuf))
 	{
 	    differ = FALSE;
-	    for (lnum = 1; lnum <= curbuf->b_ml.ml_line_count; ++lnum)
-		if (STRCMP(ml_get_buf(buf, lnum, FALSE), ml_get(lnum)) != 0)
+	    for (lnum = 1; lnum <= buf_line_count(curbuf); ++lnum)
+		if (STRCMP(buf_snapshot_line(snapshot, lnum),
+					buf_line(curbuf, lnum, FALSE)) != 0)
 		{
 		    differ = TRUE;
 		    break;
@@ -6752,6 +6763,7 @@ buf_contents_changed(buf_T *buf)
 	wipe_buffer(newbuf, FALSE);
 
     unblock_autocmds();
+    buf_snapshot_unref(snapshot);
 
     return differ;
 }

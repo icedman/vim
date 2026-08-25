@@ -401,13 +401,18 @@ size remains intentionally undecided until prototype measurements exist.
 - [x] Add line, line-length, line-count, revision, and allocated-size queries.
 - [x] Add focused integration coverage through the private `test_getvalue()`
   test hook, including empty and oversized-leaf lines.
-- [ ] Add the portable atomic reference implementation and concurrent
-  reference/final-release tests.  Current `ref`/`unref` operations and snapshot
-  acquisition are main-thread-only.
-- [ ] Add a real internal consumer after atomic ownership is available; the
-  test hook copies results and does not expose snapshot handles.
-- [ ] Add allocation-failure coverage and direct C tests for pointer lifetime
-  across source edits, unload, and wipeout.
+- [x] Add atomic reference implementations for Windows `Interlocked*` and
+  supported GCC/Clang `__atomic_*` builtins, with explicit capability reporting
+  and a main-thread-only fallback.
+- [x] Add concurrent query, reference, and worker final-release tests for the
+  POSIX-thread and Windows thread backends.  Tests run only when the matching
+  thread and atomic capabilities are available.
+- [x] Add a real internal consumer: `buf_contents_changed()` captures the
+  original buffer and compares the re-read temporary buffer against immutable
+  snapshot lines.
+- [x] Add allocation-failure coverage at every Phase 1 snapshot allocation.
+- [x] Test stable pointers, invalid queries, non-final reference release, and a
+  retained snapshot across source edits and buffer wipeout.
 - [x] Verify query implementations use only immutable snapshot storage.  The
   acquisition path alone reads through the buffer interface.
 
@@ -427,9 +432,22 @@ per successfully published immutable text root before the revision value is
 meaningful to consumers.
 
 The snapshot query path is immutable, allocation-free, and independent of
-memline.  The handle lifetime is not yet cross-thread-safe because the current
-reference count is a plain main-thread counter.  Passing these handles to
-workers before the atomic item above is completed is prohibited.
+memline.  Snapshot references use `InterlockedIncrement()`/
+`InterlockedDecrement()` on Windows and GCC/Clang `__atomic_*` operations where
+supported.  Final release on those backends frees snapshot-owned allocations
+without consulting Vim globals.  `buf_snapshot_threadsafe()` reports whether
+cross-thread ownership is supported; it returns false for the plain-counter
+fallback and `MEM_PROFILE` builds.  Snapshot acquisition remains main-thread-
+only, and handle publication must occur through an independently synchronized
+queue.  No worker consumer may bypass the capability check.
+
+The atomic operations are selected conservatively from compiler/platform
+macros.  Configure now detects a usable POSIX `pthread_create()` implementation
+for the Unix concurrency test; Windows uses `CreateThread()`.  The stress test
+runs four workers, repeatedly queries and retains/releases one snapshot, drops
+the main reference before joining, and therefore exercises final release from
+a worker.  Compiler-atomic configure probes remain desirable before treating
+the backend list as final, especially for legacy toolchains.
 
 ### Phase 2: copy-on-write live revisions
 

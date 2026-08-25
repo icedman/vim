@@ -3581,6 +3581,10 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 		      AC_DEFINE(HAVE_PTHREAD_NP_H),
 	      AC_MSG_RESULT(no))
 
+dnl Snapshot atomic reference tests require a real POSIX thread implementation.
+AC_CHECK_HEADER([pthread.h],
+  [AC_SEARCH_LIBS([pthread_create], [pthread], [AC_DEFINE(HAVE_PTHREAD)])])
+
 AC_CHECK_HEADERS(strings.h)
 if test "x$MACOS_X" = "xyes"; then
   dnl The strings.h file on OS/X contains a warning and nothing useful.

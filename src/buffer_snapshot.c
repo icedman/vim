@@ -19,6 +19,17 @@
 
 #define SNAPSHOT_LEAF_TARGET 4096
 
+#if defined(MSWIN)
+typedef volatile LONG snapshot_ref_T;
+# define SNAPSHOT_ATOMIC_REFS
+#elif defined(__clang__) || (defined(__GNUC__) \
+	&& (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)))
+typedef int snapshot_ref_T;
+# define SNAPSHOT_ATOMIC_REFS
+#else
+typedef int snapshot_ref_T;
+#endif
+
 typedef struct
 {
     linenr_T	sl_first;
@@ -31,13 +42,26 @@ typedef struct
 
 struct buf_snapshot
 {
-    int			bs_refcount;
+    snapshot_ref_T	bs_refcount;
     varnumber_T		bs_revision;
     linenr_T		bs_line_count;
     int			bs_leaf_count;
     snapshot_leaf_T	**bs_leaves;
     size_t		bs_allocated;
 };
+
+/*
+ * Free snapshot-owned memory without reading Vim globals on worker threads.
+ */
+    static void
+snapshot_mem_free(void *ptr)
+{
+#if defined(SNAPSHOT_ATOMIC_REFS) && !defined(MEM_PROFILE)
+    free(ptr);
+#else
+    vim_free(ptr);
+#endif
+}
 
 /*
  * Free a snapshot leaf.
@@ -47,10 +71,10 @@ snapshot_leaf_free(snapshot_leaf_T *leaf)
 {
     if (leaf == NULL)
 	return;
-    vim_free(leaf->sl_offsets);
-    vim_free(leaf->sl_lengths);
-    vim_free(leaf->sl_data);
-    vim_free(leaf);
+    snapshot_mem_free(leaf->sl_offsets);
+    snapshot_mem_free(leaf->sl_lengths);
+    snapshot_mem_free(leaf->sl_data);
+    snapshot_mem_free(leaf);
 }
 
 /*
@@ -65,8 +89,8 @@ snapshot_free(buf_snapshot_T *snapshot)
 	return;
     for (i = 0; i < snapshot->bs_leaf_count; ++i)
 	snapshot_leaf_free(snapshot->bs_leaves[i]);
-    vim_free(snapshot->bs_leaves);
-    vim_free(snapshot);
+    snapshot_mem_free(snapshot->bs_leaves);
+    snapshot_mem_free(snapshot);
 }
 
 /*
@@ -96,12 +120,14 @@ snapshot_leaf_build(buf_T *buf, linenr_T first, linenr_T line_count,
 	++count;
     }
 
-    leaf = ALLOC_CLEAR_ONE(snapshot_leaf_T);
+    leaf = alloc_clear_id(sizeof(snapshot_leaf_T), aid_buf_snapshot);
     if (leaf == NULL)
 	return NULL;
-    leaf->sl_offsets = ALLOC_MULT(size_t, count);
-    leaf->sl_lengths = ALLOC_MULT(colnr_T, count);
-    leaf->sl_data = alloc(data_size);
+    leaf->sl_offsets = alloc_clear_id(
+				(size_t)count * sizeof(size_t), aid_buf_snapshot);
+    leaf->sl_lengths = alloc_clear_id(
+				(size_t)count * sizeof(colnr_T), aid_buf_snapshot);
+    leaf->sl_data = alloc_clear_id(data_size, aid_buf_snapshot);
     if (leaf->sl_offsets == NULL || leaf->sl_lengths == NULL
 							|| leaf->sl_data == NULL)
     {
@@ -144,13 +170,14 @@ buf_snapshot_acquire(buf_T *buf)
 	return NULL;
 
     line_count = buf_line_count(buf);
-    snapshot = ALLOC_CLEAR_ONE(buf_snapshot_T);
+    snapshot = alloc_clear_id(sizeof(buf_snapshot_T), aid_buf_snapshot);
     if (snapshot == NULL)
 	return NULL;
-    snapshot->bs_leaves = ALLOC_MULT(snapshot_leaf_T *, line_count);
+    snapshot->bs_leaves = alloc_clear_id(
+		(size_t)line_count * sizeof(snapshot_leaf_T *), aid_buf_snapshot);
     if (snapshot->bs_leaves == NULL)
     {
-	vim_free(snapshot);
+	snapshot_mem_free(snapshot);
 	return NULL;
     }
 
@@ -184,22 +211,56 @@ buf_snapshot_acquire(buf_T *buf)
 }
 
 /*
- * Add a main-thread reference to "snapshot".
+ * Return TRUE when snapshot references may cross threads in this build.
+ * MEM_PROFILE makes Vim's allocation accounting unsuitable for worker-thread
+ * final release, even when atomic counters are available.
+ */
+    int
+buf_snapshot_threadsafe(void)
+{
+#if defined(SNAPSHOT_ATOMIC_REFS) && !defined(MEM_PROFILE)
+    return TRUE;
+#else
+    return FALSE;
+#endif
+}
+
+/*
+ * Add a reference to "snapshot".
  */
     void
 buf_snapshot_ref(buf_snapshot_T *snapshot)
 {
-    if (snapshot != NULL)
-	++snapshot->bs_refcount;
+    if (snapshot == NULL)
+	return;
+#if defined(MSWIN)
+    (void)InterlockedIncrement(&snapshot->bs_refcount);
+#elif defined(SNAPSHOT_ATOMIC_REFS)
+    (void)__atomic_add_fetch(&snapshot->bs_refcount, 1, __ATOMIC_RELAXED);
+#else
+    ++snapshot->bs_refcount;
+#endif
 }
 
 /*
- * Drop a main-thread reference to "snapshot".
+ * Drop a reference to "snapshot" and free it after the final release.
  */
     void
 buf_snapshot_unref(buf_snapshot_T *snapshot)
 {
-    if (snapshot != NULL && --snapshot->bs_refcount == 0)
+    int is_last;
+
+    if (snapshot == NULL)
+	return;
+#if defined(MSWIN)
+    is_last = InterlockedDecrement(&snapshot->bs_refcount) == 0;
+#elif defined(SNAPSHOT_ATOMIC_REFS)
+    is_last = __atomic_sub_fetch(&snapshot->bs_refcount, 1,
+							__ATOMIC_ACQ_REL) == 0;
+#else
+    is_last = --snapshot->bs_refcount == 0;
+#endif
+    if (is_last)
 	snapshot_free(snapshot);
 }
 

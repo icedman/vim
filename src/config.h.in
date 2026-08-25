@@ -255,6 +255,7 @@
 #undef HAVE_MATH_H
 #undef HAVE_NDIR_H
 #undef HAVE_POLL_H
+#undef HAVE_PTHREAD
 #undef HAVE_PTHREAD_NP_H
 #undef HAVE_PWD_H
 #undef HAVE_SETJMP_H
