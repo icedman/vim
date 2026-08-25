@@ -10,6 +10,7 @@ package.cpath = cpath
 local debug_nodes = false
 local props = {}
 local parse_timers = {}
+local buffer_timers = {}
 
 
 local scope_hl_map = {
@@ -34,85 +35,76 @@ local scope_hl_map = {
 	{ "value", "String" },
 }
 
-function ts_highlight_buffer()
-	local buf = vim.buffer()
-	local n = buf.number
-	local r = vim.window().line
-	local c = vim.window().column
+local function highlight_node(node)
+	local start_row = math.floor(node[1])
+	local start_column = math.floor(node[2])
+	local end_row = math.floor(node[3])
+	local end_column = math.floor(node[4])
+	local node_type = node[5]
+	local hl = nil
 
+	for _, map in ipairs(scope_hl_map) do
+		if string.find(node_type, map[1], 1, true) then
+			hl = map[2]
+		end
+	end
+	if not hl or start_row ~= end_row or end_column <= start_column then
+		return
+	end
+
+	if not props[hl] then
+		vim.command("highlight default link TS_" .. hl .. " " .. hl)
+		vim.command("call prop_type_add('TS_" .. hl .. "', {'highlight': 'TS_" .. hl .. "', 'priority': 999})")
+		props[hl] = true
+	end
+	vim.command(
+		"call prop_add("
+			.. start_row + 1
+			.. ","
+			.. start_column + 1
+			.. ", {'length': "
+			.. end_column - start_column
+			.. ", 'type': 'TS_"
+			.. hl
+			.. "'})"
+	)
+end
+
+local function begin_highlight(pending)
+	local buf = vim.buffer()
 	for hl, _ in pairs(props) do
 		vim.command("silent! call prop_remove({'types': ['TS_" .. hl .. "'], 'all': 1}, 1, " .. #buf .. ")")
 	end
-
-	for i = 0, #buf - 1, 1 do
-		local nodes = module.query_tree(n, i, 0)
-		for j, node in ipairs(nodes) do
-			local start_row = math.floor(node[1])
-			local start_column = math.floor(node[2])
-			local end_row = math.floor(node[3])
-			local end_column = math.floor(node[4])
-			local node_type = node[5]
-
-			if debug_nodes and i + 1 == r and start_column + 1 < c and end_column > c then
-				print(node_type)
-			end
-
-			local hl = nil
-			for j, map in ipairs(scope_hl_map) do
-				if string.find(node_type, map[1]) then
-					hl = map[2]
-				end
-			end
-
-			if hl and start_row == end_row and end_column > start_column then
-				if not props[hl] then
-					vim.command("highlight default link TS_" .. hl .. " " .. hl)
-					vim.command("call prop_type_add('TS_" .. hl .. "', {'highlight': 'TS_" .. hl .. "', 'priority': 999})")
-					props[hl] = true
-				end
-				vim.command(
-					"call prop_add("
-						.. i + 1
-						.. ","
-						.. start_column + 1
-						.. ", { 'length': "
-						.. end_column - start_column
-						.. ", 'type': '"
-						.. "TS_"
-						.. hl
-						.. "'})"
-				)
-			end
-
-			if debug_nodes and start_row ~= end_row and i + 1 == r and start_column + 1 == c then
-				print(
-					start_row + 1
-						.. ","
-						.. start_column + 1
-						.. " - "
-						.. end_row + 1
-						.. ","
-						.. end_column
-						.. " "
-						.. node_type
-				)
-			end
-		end
-	end
+	pending.nodes = module.query_tree(pending.buffer, -1, 0)
+	pending.index = 1
+	pending.highlighting = true
 end
 
 function ts_poll_parse(timer)
 	local pending = parse_timers[timer]
-	if not pending then
-		vim.fn.timer_stop(timer)
-		return
-	end
-	if module.parse_ready(pending.buffer, pending.generation) then
+	if not pending or vim.buffer().number ~= pending.buffer then
 		vim.fn.timer_stop(timer)
 		parse_timers[timer] = nil
-		if vim.buffer().number == pending.buffer then
-			ts_highlight_buffer()
+		buffer_timers[pending and pending.buffer or -1] = nil
+		return
+	end
+
+	if not pending.highlighting then
+		if not module.parse_ready(pending.buffer, pending.generation) then
+			return
 		end
+		begin_highlight(pending)
+	end
+
+	local last = math.min(pending.index + 199, #pending.nodes)
+	for i = pending.index, last do
+		highlight_node(pending.nodes[i])
+	end
+	pending.index = last + 1
+	if pending.index > #pending.nodes then
+		vim.fn.timer_stop(timer)
+		parse_timers[timer] = nil
+		buffer_timers[pending.buffer] = nil
 	end
 end
 
@@ -128,8 +120,14 @@ function ts_parse_buffer()
 	if type(generation) ~= "number" then
 		return
 	end
+	local old_timer = buffer_timers[buf.number]
+	if old_timer then
+		vim.fn.timer_stop(old_timer)
+		parse_timers[old_timer] = nil
+	end
 	local timer = tonumber(vim.eval("timer_start(10, function('TSParsePoll'), {'repeat': -1})"))
 	parse_timers[timer] = { buffer = buf.number, generation = generation }
+	buffer_timers[buf.number] = timer
 end
 
 function ts_block(r)
@@ -177,7 +175,11 @@ function ts_inner_block()
 end
 
 function ts_log_tree()
-	module.log_tree()
+	if module.log_tree(vim.buffer().number) then
+		print("Tree-sitter tree written to /tmp/vim-treesitter.log")
+	else
+		print("Tree-sitter tree is not ready")
+	end
 end
 
 function ts_debug_nodes()
@@ -195,7 +197,7 @@ endfunction
 ]])
 
 vim.command("au BufEnter * :lua ts_parse_buffer()")
-vim.command("au CursorMoved,CursorMovedI * :lua ts_highlight_buffer()")
+
 vim.command("au TextChanged,TextChangedI * :lua ts_parse_buffer()")
 vim.command("command TSLogTree 0 % :lua ts_log_tree()")
 vim.command("command TSDebugNodes 0 % :lua ts_debug_nodes()")

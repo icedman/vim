@@ -1,0 +1,37 @@
+*vim-snapshots.txt*	Display immutable buffer snapshots in a right pane.
+
+==============================================================================
+INTRODUCTION					*vim-snapshots*
+
+Vim-snapshots captures the current buffer and displays the latest capture in a
+read-only right-hand window.  The display follows the source cursor.  Editing
+the source publishes a new snapshot automatically.
+
+==============================================================================
+COMMANDS					*vim-snapshots-commands*
+
+:SnapshotOpen		Open a right-hand snapshot pane.
+:SnapshotClose		Close the current buffer's snapshot pane.
+:SnapshotTake		Capture and publish the current buffer.
+:SnapshotRefresh	Alias for `:SnapshotTake`.
+
+==============================================================================
+API						*vim-snapshots-api*
+
+snapshots#Snapshot([{buf}])	Return a new immutable snapshot.
+snapshots#Take([{buf}])	Capture, publish, and return a snapshot.
+snapshots#Latest([{buf}])	Return the latest published snapshot or {}.
+snapshots#Line({snapshot}, {lnum})
+			Return one snapshot line, or an empty string.
+snapshots#LineCount({snapshot})
+			Return the number of snapshot lines.
+snapshots#Tick({snapshot})	Return the captured changedtick.
+
+A snapshot has the fields "bufnr", "changedtick", and "lines".  It is detached
+from subsequent source-buffer edits and callers should treat it as read-only.
+It is a Vim script snapshot, not a thread-safe C snapshot handle.
+
+Set g:vim_snapshots_width before opening a pane to select its width.  The
+default is 50 columns.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

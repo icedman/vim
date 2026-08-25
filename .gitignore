@@ -115,3 +115,5 @@ src/cscope.out
 /.cache/clangd/
 /.ccls-cache/
 /compile_commands.json
+
+*.sw*

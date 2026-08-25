@@ -44,7 +44,7 @@ const unsigned char *buf_snapshot_line(const buf_snapshot_T *snapshot,
 colnr_T buf_snapshot_line_len(const buf_snapshot_T *snapshot, linenr_T lnum);
 }
 
-#define LOG_FILE "/tmp/ashlar.log"
+#define LOG_FILE "/tmp/vim-treesitter.log"
 
 static bool log_initialized = false;
 static bool log_tree = false;
@@ -236,8 +236,7 @@ void walk_tree(TSTreeCursor *cursor, int depth, int row,
                std::vector<TSNodeEx> *nodes, int option = 0,
                char *last_type = NULL) {
   TSNode node = ts_tree_cursor_current_node(cursor);
-  int start = ts_node_start_byte(node);
-  int end = ts_node_end_byte(node);
+
 
   const char *type = ts_node_type(node);
   TSPoint startPoint = ts_node_start_point(node);
@@ -253,19 +252,19 @@ void walk_tree(TSTreeCursor *cursor, int depth, int row,
     has_children = false;
   }
 
-  if (nodes != NULL && row != -1) {
-    // find specific row ~ option 0
-    if (nodes != NULL && option == 0 &&
-        (!has_children || startPoint.row != endPoint.row)) {
-      if (startPoint.row == row) {
+  if (nodes != NULL) {
+    // Find a specific row, or every highlightable node when row is -1.
+    if (option == 0 && (!has_children || startPoint.row != endPoint.row)) {
+      if (row == -1 || startPoint.row == static_cast<uint32_t>(row)) {
         nodes->push_back(TSNodeEx(node, depth, last_type));
       }
     }
 
     // find block section ~ option 1
-    if (nodes != NULL && option == 1 &&
+    if (row != -1 && option == 1 &&
         (has_children && startPoint.row != endPoint.row)) {
-      if (startPoint.row < row && endPoint.row > row) {
+      if (startPoint.row < static_cast<uint32_t>(row) &&
+          endPoint.row > static_cast<uint32_t>(row)) {
         nodes->push_back(TSNodeEx(node, depth, last_type));
       }
     }
@@ -436,7 +435,29 @@ int _parse_ready(lua_State *L) {
 }
 
 int _log_tree(lua_State *L) {
-  log_tree = true;
+  int id = lua_tonumber(L, -1);
+  doc_ptr doc = get_doc(id);
+  std::lock_guard<std::mutex> lock(doc->mutex);
+  if (!doc->tree) {
+    lua_pushboolean(L, 0);
+    return 1;
+  }
+
+  char *tree_string = ts_node_string(ts_tree_root_node(doc->tree));
+  FILE *log_file = fopen(LOG_FILE, "w");
+  if (tree_string == NULL || log_file == NULL) {
+    free(tree_string);
+    if (log_file != NULL) {
+      fclose(log_file);
+    }
+    lua_pushboolean(L, 0);
+    return 1;
+  }
+  fputs(tree_string, log_file);
+  fputc('\n', log_file);
+  fclose(log_file);
+  free(tree_string);
+  lua_pushboolean(L, 1);
   return 1;
 }
 
