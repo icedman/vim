@@ -1003,7 +1003,13 @@ func Test_buffer_snapshot_cow_tree()
   let original = map(range(1, 300), {_, v -> printf('line-%04d-%s', v, repeat('x', v % 40))})
   call setline(1, original)
   call assert_equal(original, test_getvalue('buf_snapshot'))
+  let unchanged_tick = test_getvalue('buf_snapshot_tick')
+  silent 1,$uniq
+  call assert_equal(unchanged_tick, test_getvalue('buf_snapshot_tick'))
   call assert_equal(1, test_getvalue('buf_snapshot_save'))
+
+  normal! gg0rZ
+  call assert_equal(getline(1, '$'), test_getvalue('buf_snapshot'))
 
   for i in range(1, 100)
     call append(line('$'), printf('appended-%04d-%s', i, repeat('y', i % 50)))

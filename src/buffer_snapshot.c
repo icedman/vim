@@ -825,6 +825,84 @@ snapshot_prepare(buf_T *buf, linenr_T index, const char_u *line, colnr_T len,
     return candidate;
 }
 
+/*
+ * Publish finalized text changes in the inclusive line range.  This is the
+ * commit boundary for cached-line writers that bypass the mutation facade.
+ */
+    void
+buf_snapshot_sync(buf_T *buf, linenr_T first, linenr_T last)
+{
+    buf_snapshot_T *base;
+    buf_snapshot_T *candidate;
+    snapshot_node_T *root;
+    int changed = FALSE;
+    linenr_T lnum;
+
+    if (buf == NULL || buf->b_snapshot == NULL || !buf_is_loaded(buf))
+	return;
+    if (buf_snapshot_line_count(buf->b_snapshot) != buf_line_count(buf))
+    {
+	buf_snapshot_invalidate(buf);
+	return;
+    }
+    if (first < 1)
+	first = 1;
+    if (last > buf_line_count(buf))
+	last = buf_line_count(buf);
+    if (first > last)
+	return;
+
+    base = buf->b_snapshot;
+    root = base->bs_root;
+    snapshot_node_ref(root);
+    for (lnum = first; lnum <= last; ++lnum)
+    {
+	colnr_T len = buf_line_len(buf, lnum);
+	char_u *line = buf_line(buf, lnum, FALSE);
+	const char_u *oldline = buf_snapshot_line(base, lnum);
+	int failed = FALSE;
+	snapshot_node_T *new_root;
+
+	if (len == buf_snapshot_line_len(base, lnum)
+				&& STRNCMP(line, oldline, (size_t)len + 1) == 0)
+	    continue;
+	new_root = snapshot_edit(root, lnum - 1, line, len, 0, &failed);
+	if (failed || new_root == NULL)
+	{
+	    snapshot_node_unref(new_root);
+	    snapshot_node_unref(root);
+	    buf_snapshot_invalidate(buf);
+	    return;
+	}
+	snapshot_node_unref(root);
+	root = new_root;
+	changed = TRUE;
+    }
+    if (!changed)
+    {
+	snapshot_node_unref(root);
+	return;
+    }
+    candidate = alloc_clear_id(sizeof(*candidate), aid_buf_snapshot);
+    if (candidate == NULL)
+    {
+	snapshot_node_unref(root);
+	buf_snapshot_invalidate(buf);
+	return;
+    }
+    candidate->bs_refcount = 1;
+    candidate->bs_base_revision = base->bs_revision;
+    candidate->bs_revision = snapshot_next_revision(base->bs_revision);
+    candidate->bs_line_count = root->sn_line_count;
+    candidate->bs_root = root;
+    candidate->bs_allocated = sizeof(*candidate) + root->sn_allocated;
+    if (buf_snapshot_publish(buf, candidate) == FAIL)
+    {
+	buf_snapshot_unref(candidate);
+	buf_snapshot_invalidate(buf);
+    }
+}
+
 /* Construct a candidate with "line" inserted after "after". */
     buf_snapshot_T *
 buf_snapshot_prepare_append(buf_T *buf, linenr_T after, const char_u *line,

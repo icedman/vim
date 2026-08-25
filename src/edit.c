@@ -5370,6 +5370,8 @@ ins_tab(void)
 	curwin->w_p_list = save_list;
     }
 
+    buf_snapshot_sync(curbuf, curwin->w_cursor.lnum,
+					curwin->w_cursor.lnum);
     return FALSE;
 }
 

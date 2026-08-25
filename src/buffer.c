@@ -319,7 +319,10 @@ open_buffer(
 #endif
 	// Help buffer is filtered.
 	if (bt_help(curbuf))
+	{
 	    fix_help_buffer();
+	    buf_snapshot_sync(curbuf, 1, buf_line_count(curbuf));
+	}
     }
     else if (read_stdin)
     {
@@ -6505,8 +6508,6 @@ buf_line(
     linenr_T	lnum,
     int		will_change)
 {
-    if (will_change)
-	buf_snapshot_invalidate(buf);
     return ml_get_buf(buf, lnum, will_change);
 }
 
@@ -6548,7 +6549,6 @@ buf_replace_cached_line(
     int		invalidate_textlen,
     int		clear_empty)
 {
-    buf_snapshot_invalidate(buf);
     if (buf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
 	vim_free(buf->b_ml.ml_line_ptr);
     buf->b_ml.ml_line_ptr = line;
@@ -6568,7 +6568,6 @@ buf_replace_cached_line(
     void
 buf_adjust_cached_line_len(buf_T *buf, int amount, int textlen)
 {
-    buf_snapshot_invalidate(buf);
     buf->b_ml.ml_line_len += amount;
     buf->b_ml.ml_line_textlen = textlen;
 }

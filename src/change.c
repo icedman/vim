@@ -731,6 +731,18 @@ changed_common(
     int		cols;
     pos_T	*p;
     int		add;
+    linenr_T	snapshot_last = lnum;
+
+    if (xtra > 0)
+    {
+	if (xtra <= (long)MAXLNUM - lnume)
+	    snapshot_last = lnume + (linenr_T)xtra - 1;
+	else
+	    snapshot_last = buf_line_count(curbuf);
+    }
+    else if (xtra == 0 && lnume > lnum)
+	snapshot_last = lnume - 1;
+    buf_snapshot_sync(curbuf, lnum, snapshot_last);
 
     // mark the buffer as modified
     changed();

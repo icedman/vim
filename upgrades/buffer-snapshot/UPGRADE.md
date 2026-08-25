@@ -464,10 +464,10 @@ the backend list as final, especially for legacy toolchains.
   memline mutation.
 - [x] Cross-check façade append, replace, and delete results against live buffer
   contents while retaining an older generation.
-- [ ] Convert direct cached-line writers from conservative invalidation to an
-  explicit commit operation.
-- [ ] Remove the one-time full copy after cached-line invalidation from snapshot
-  acquisition.
+- [x] Convert direct cached-line writers from conservative invalidation to an
+  idempotent logical-change commit operation.
+- [x] Remove normal cached-line invalidation and its subsequent full-copy
+  acquisition fallback.
 
 #### Phase 2A status: live revision ownership
 
@@ -517,9 +517,29 @@ append, replace, and delete operations while checking every current line against
 memline and every retained line against the old generation.  Allocation-failure
 coverage verifies candidate preparation does not mutate live text.
 
-Phase 2 remains open for cached-line writers.  Those paths invalidate and lazily
-rebuild rather than path-copying because writable access currently has no exact
-commit boundary.
+#### Phase 2C status: cached-line commit boundary
+
+Writable line access and cached-line storage helpers no longer invalidate a
+published revision.  `changed_common()` commits finalized visible text through
+`buf_snapshot_sync()`, which compares the reported range, path-copies only lines
+whose bytes differ, and publishes the entire logical range under one new
+revision.  Façade mutations are idempotent at this boundary because their
+already-published lines compare equal.
+
+This placement intentionally ignores temporary writers such as `ex_uniq()` and
+formatting probes that restore their bytes before any logical change
+notification.  Property-only cached-line repacking also remains outside the text
+revision stream because it uses display/property notifications rather than
+`changed_common()`.
+
+Insert-mode tab compaction can finalize bytes after its earlier insertion
+notification, so `ins_tab()` performs one explicit final-line sync.  Help-buffer
+filtering similarly performs a dedicated whole-buffer sync without marking the
+buffer modified.  Allocation failure during a post-change sync conservatively
+invalidates the live revision; the next query rebuilds correct text.
+
+Phase 2 is complete for the audited mutation paths.  Phase 3 should enforce the
+commit boundary and remove or annotate any newly discovered mutation bypasses.
 
 ### Phase 3: close mutation bypasses
 
