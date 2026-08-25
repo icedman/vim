@@ -590,12 +590,34 @@ Phase 3 is complete.
 
 ### Phase 4: consolidate storage
 
-- Avoid permanent duplicate text ownership between memline and snapshot
+- [ ] Avoid permanent duplicate text ownership between memline and snapshot
   storage.
-- Reuse immutable payload in swap/recovery where safe, or make memline consume
-  the persistent store through a private adapter.
-- Tune leaf sizing, tree fanout, release batching, and allocator overhead from
-  measurements.
+- [ ] Reuse immutable payload in swap/recovery where safe, or make memline
+  consume the persistent store through a private adapter.
+- [ ] Tune leaf sizing, tree fanout, release batching, and allocator overhead
+  from measurements.
+
+#### Phase 4A status: storage measurement primitives
+
+The first consolidation step adds measurements before changing memline ownership.
+Raw memline data blocks are not yet safe immutable payloads: they remain coupled
+to mutable cache state, block locking, swap translation and eviction, encryption,
+and recovery.  Sharing those allocations without first separating those
+responsibilities would weaken the snapshot's callback-free reader contract.
+
+`buf_snapshot_stats()` reports bytes reachable from one revision, packed text
+and table bytes, leaf and branch counts, and the largest leaf payload.
+`buf_snapshot_shared_size()` compares node identity between two revisions and
+reports physically shared node/leaf bytes.  The latter is diagnostic and not on
+a snapshot query or mutation hot path.  `SNAPSHOT_LEAF_TARGET` can now be
+overridden by benchmark builds while retaining 4 KiB as the default.
+
+Tests verify that repeated acquisition does not change tree storage, a sparse
+one-byte edit shares storage with the retained generation, normal leaves stay
+within the configured target, and a single oversized line remains isolated in
+an oversized leaf.  These primitives establish the baseline needed to compare
+1, 4, 16, and 64 KiB targets and to quantify whether a future private memline
+adapter actually reduces total ownership rather than shifting overhead.
 
 ### Phase 5: enable worker consumers
 

@@ -19,7 +19,9 @@
 
 #include "vim.h"
 
-#define SNAPSHOT_LEAF_TARGET 4096
+#ifndef SNAPSHOT_LEAF_TARGET
+# define SNAPSHOT_LEAF_TARGET 4096
+#endif
 
 #if defined(MSWIN)
 typedef volatile LONG snapshot_ref_T;
@@ -765,6 +767,75 @@ buf_snapshot_line_len(const buf_snapshot_T *snapshot, linenr_T lnum)
 buf_snapshot_size(const buf_snapshot_T *snapshot)
 {
     return snapshot == NULL ? 0 : snapshot->bs_allocated;
+}
+
+    static void
+snapshot_node_stats(snapshot_node_T *node, buf_snapshot_stats_T *stats)
+{
+    if (node->sn_is_leaf)
+    {
+	size_t table_size = (size_t)node->sn_line_count
+					* (sizeof(size_t) + sizeof(colnr_T));
+
+	++stats->bss_leaf_count;
+	stats->bss_text_bytes += node->sn_u.leaf.data_size;
+	stats->bss_table_bytes += table_size;
+	if (stats->bss_largest_leaf < node->sn_u.leaf.data_size)
+	    stats->bss_largest_leaf = node->sn_u.leaf.data_size;
+	return;
+    }
+    ++stats->bss_branch_count;
+    snapshot_node_stats(node->sn_u.branch.left, stats);
+    snapshot_node_stats(node->sn_u.branch.right, stats);
+}
+
+/*
+ * Return storage reachable from one revision.  Text byte counts include each
+ * line's terminating NUL.  Shared nodes are counted once per queried revision.
+ */
+    void
+buf_snapshot_stats(const buf_snapshot_T *snapshot, buf_snapshot_stats_T *stats)
+{
+    if (stats == NULL)
+	return;
+    vim_memset(stats, 0, sizeof(*stats));
+    if (snapshot == NULL)
+	return;
+    stats->bss_reachable_bytes = snapshot->bs_allocated;
+    snapshot_node_stats(snapshot->bs_root, stats);
+}
+
+    static int
+snapshot_node_contains(snapshot_node_T *node, snapshot_node_T *wanted)
+{
+    if (node == wanted)
+	return TRUE;
+    if (node->sn_is_leaf)
+	return FALSE;
+    return snapshot_node_contains(node->sn_u.branch.left, wanted)
+	|| snapshot_node_contains(node->sn_u.branch.right, wanted);
+}
+
+    static size_t
+snapshot_node_shared_size(snapshot_node_T *node, snapshot_node_T *other)
+{
+    if (snapshot_node_contains(other, node))
+	return node->sn_is_leaf ? node->sn_allocated : sizeof(*node);
+    if (node->sn_is_leaf)
+	return 0;
+    return snapshot_node_shared_size(node->sn_u.branch.left, other)
+	+ snapshot_node_shared_size(node->sn_u.branch.right, other);
+}
+
+/* Return physical node and leaf bytes shared by two revisions. */
+    size_t
+buf_snapshot_shared_size(
+    const buf_snapshot_T *one,
+    const buf_snapshot_T *two)
+{
+    if (one == NULL || two == NULL)
+	return 0;
+    return snapshot_node_shared_size(one->bs_root, two->bs_root);
 }
 
     static varnumber_T

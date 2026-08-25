@@ -966,6 +966,9 @@ func Test_buffer_snapshot_query()
 
   call assert_equal(['first', '', longline, 'last'],
         \ test_getvalue('buf_snapshot'))
+  let stats = test_getvalue('buf_snapshot_stats')
+  call assert_equal(strlen(longline) + 1, stats[5])
+  call assert_true(stats[1] >= strlen(longline) + 4)
   call assert_equal(1, test_getvalue('buf_snapshot_contract'))
   let tick = test_getvalue('buf_snapshot_tick')
   call assert_equal(tick, test_getvalue('buf_snapshot_tick'))
@@ -1003,13 +1006,28 @@ func Test_buffer_snapshot_cow_tree()
   let original = map(range(1, 300), {_, v -> printf('line-%04d-%s', v, repeat('x', v % 40))})
   call setline(1, original)
   call assert_equal(original, test_getvalue('buf_snapshot'))
+  let initial_stats = test_getvalue('buf_snapshot_stats')
+  call assert_true(initial_stats[0] > initial_stats[1])
+  call assert_true(initial_stats[3] > 1)
+  call assert_equal(initial_stats[3] - 1, initial_stats[4])
+  call assert_true(initial_stats[5] <= 4096)
   let unchanged_tick = test_getvalue('buf_snapshot_tick')
   silent 1,$uniq
   call assert_equal(unchanged_tick, test_getvalue('buf_snapshot_tick'))
   call assert_equal(1, test_getvalue('buf_snapshot_save'))
+  for i in range(1, 10)
+    call assert_equal(initial_stats[0 : 5],
+          \ test_getvalue('buf_snapshot_stats')[0 : 5])
+  endfor
 
   normal! gg0rZ
   call assert_equal(getline(1, '$'), test_getvalue('buf_snapshot'))
+  let changed_stats = test_getvalue('buf_snapshot_stats')
+  let saved_stats = test_getvalue('buf_snapshot_saved_stats')
+  call assert_true(changed_stats[6] > 0)
+  call assert_true(changed_stats[6] < saved_stats[0])
+  call assert_equal(changed_stats[6], saved_stats[6])
+  call assert_equal(initial_stats[1], saved_stats[1])
 
   for i in range(1, 100)
     call append(line('$'), printf('appended-%04d-%s', i, repeat('y', i % 50)))

@@ -10,6 +10,8 @@ linenr_T buf_snapshot_line_count(const buf_snapshot_T *snapshot);
 const char_u *buf_snapshot_line(const buf_snapshot_T *snapshot, linenr_T lnum);
 colnr_T buf_snapshot_line_len(const buf_snapshot_T *snapshot, linenr_T lnum);
 size_t buf_snapshot_size(const buf_snapshot_T *snapshot);
+void buf_snapshot_stats(const buf_snapshot_T *snapshot, buf_snapshot_stats_T *stats);
+size_t buf_snapshot_shared_size(const buf_snapshot_T *one, const buf_snapshot_T *two);
 void buf_snapshot_sync(buf_T *buf, linenr_T first, linenr_T last);
 buf_snapshot_T *buf_snapshot_prepare_append(buf_T *buf, linenr_T after, const char_u *line, colnr_T len);
 buf_snapshot_T *buf_snapshot_prepare_replace(buf_T *buf, linenr_T lnum, const char_u *line, colnr_T len);

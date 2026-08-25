@@ -83,6 +83,15 @@ typedef struct frame_S		frame_T;
 typedef int			scid_T;		// script ID
 typedef struct file_buffer	buf_T;		// forward declaration
 typedef struct buf_snapshot	buf_snapshot_T;
+typedef struct
+{
+    size_t bss_reachable_bytes;
+    size_t bss_text_bytes;
+    size_t bss_table_bytes;
+    size_t bss_leaf_count;
+    size_t bss_branch_count;
+    size_t bss_largest_leaf;
+} buf_snapshot_stats_T;
 typedef struct terminal_S	term_T;
 
 #ifdef FEAT_MENU

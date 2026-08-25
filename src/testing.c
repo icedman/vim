@@ -1115,6 +1115,37 @@ test_get_snapshot_lines(buf_snapshot_T *snapshot, typval_T *rettv)
 }
 
 /*
+ * Return snapshot storage statistics as:
+ * [reachable, text, tables, leaves, branches, largest-leaf, shared].
+ */
+    static void
+test_get_snapshot_stats(
+    buf_snapshot_T *snapshot,
+    buf_snapshot_T *other,
+    typval_T *rettv)
+{
+    buf_snapshot_stats_T stats;
+    list_T *list = list_alloc();
+
+    if (list == NULL)
+	return;
+    buf_snapshot_stats(snapshot, &stats);
+    if (list_append_number(list, (varnumber_T)stats.bss_reachable_bytes) == FAIL
+	    || list_append_number(list, (varnumber_T)stats.bss_text_bytes) == FAIL
+	    || list_append_number(list, (varnumber_T)stats.bss_table_bytes) == FAIL
+	    || list_append_number(list, (varnumber_T)stats.bss_leaf_count) == FAIL
+	    || list_append_number(list, (varnumber_T)stats.bss_branch_count) == FAIL
+	    || list_append_number(list, (varnumber_T)stats.bss_largest_leaf) == FAIL
+	    || list_append_number(list, (varnumber_T)buf_snapshot_shared_size(
+						 snapshot, other)) == FAIL)
+    {
+	list_unref(list);
+	return;
+    }
+    rettv_list_set(rettv, list);
+}
+
+/*
  * "test_getvalue({name})" function
  */
     void
@@ -1150,6 +1181,20 @@ f_test_getvalue(typval_T *argvars, typval_T *rettv)
     }
     else if (STRCMP(name, (char_u *)"buf_snapshot_saved") == 0)
 	test_get_snapshot_lines(test_saved_snapshot, rettv);
+    else if (STRCMP(name, (char_u *)"buf_snapshot_stats") == 0)
+    {
+	buf_snapshot_T *snapshot = buf_snapshot_acquire(curbuf);
+
+	test_get_snapshot_stats(snapshot, test_saved_snapshot, rettv);
+	buf_snapshot_unref(snapshot);
+    }
+    else if (STRCMP(name, (char_u *)"buf_snapshot_saved_stats") == 0)
+    {
+	buf_snapshot_T *snapshot = buf_snapshot_acquire(curbuf);
+
+	test_get_snapshot_stats(test_saved_snapshot, snapshot, rettv);
+	buf_snapshot_unref(snapshot);
+    }
     else if (STRCMP(name, (char_u *)"buf_snapshot_clear") == 0)
     {
 	buf_snapshot_unref(test_saved_snapshot);
