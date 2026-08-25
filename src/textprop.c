@@ -294,7 +294,7 @@ um_open_at_no_props(buf_T *buf, linenr_T lnum, int prop_count)
     CLEAR_FIELD(um);
     um.buf = buf;
 
-    if (lnum < 1 || lnum > buf->b_ml.ml_line_count)
+    if (lnum < 1 || lnum > buf_line_count(buf))
     {
 	um.buf = NULL;
 	return um;
@@ -339,7 +339,7 @@ clear_cont_flag_on_neighbor(buf_T *buf, linenr_T lnum,
 {
     unpacked_memline_T	neighbor;
 
-    if (lnum < 1 || lnum > buf->b_ml.ml_line_count)
+    if (lnum < 1 || lnum > buf_line_count(buf))
 	return;
 
     neighbor = um_open_at(buf, lnum, 0);
@@ -720,12 +720,12 @@ prop_add_one(
     if (type == NULL)
 	goto theend;
 
-    if (start_lnum < 1 || start_lnum > buf->b_ml.ml_line_count)
+    if (start_lnum < 1 || start_lnum > buf_line_count(buf))
     {
 	semsg(_(e_invalid_line_number_nr), (long)start_lnum);
 	goto theend;
     }
-    if (end_lnum < start_lnum || end_lnum > buf->b_ml.ml_line_count)
+    if (end_lnum < start_lnum || end_lnum > buf_line_count(buf))
     {
 	semsg(_(e_invalid_line_number_nr), (long)end_lnum);
 	goto theend;
@@ -1445,8 +1445,8 @@ find_prop_in_lines(
 
     if (first_lnum < 1)
 	first_lnum = 1;
-    if (last_lnum > wp->w_buffer->b_ml.ml_line_count)
-	last_lnum = wp->w_buffer->b_ml.ml_line_count;
+    if (last_lnum > buf_line_count(wp->w_buffer))
+	last_lnum = buf_line_count(wp->w_buffer);
 
     for (linenr_T lnum = first_lnum; lnum <= last_lnum; ++lnum)
     {
@@ -1872,7 +1872,7 @@ f_prop_clear(typval_T *argvars, typval_T *rettv UNUSED)
 	{
 	    int idx;
 
-	    if (lnum > buf->b_ml.ml_line_count)
+	    if (lnum > buf_line_count(buf))
 		break;
 	    if (!um_goto_line(&um, lnum, 0))
 		break;
@@ -1954,7 +1954,7 @@ f_prop_find(typval_T *argvars, typval_T *rettv)
     else if (col == -1)
 	col = 1;
 
-    if (lnum < 1 || lnum > buf->b_ml.ml_line_count)
+    if (lnum < 1 || lnum > buf_line_count(buf))
     {
 	emsg(_(e_invalid_range));
 	return;
@@ -2079,7 +2079,7 @@ f_prop_find(typval_T *argvars, typval_T *rettv)
 
 	if (dir > 0)
 	{
-	    if (lnum >= buf->b_ml.ml_line_count)
+	    if (lnum >= buf_line_count(buf))
 		break;
 	    lnum++;
 	}
@@ -2302,9 +2302,9 @@ f_prop_list(typval_T *argvars, typval_T *rettv)
 	    if (end_lnum < 0)
 		// negative end_lnum is used as an offset from the last buffer
 		// line
-		end_lnum = buf->b_ml.ml_line_count + end_lnum + 1;
-	    else if (end_lnum > buf->b_ml.ml_line_count)
-		end_lnum = buf->b_ml.ml_line_count;
+		end_lnum = buf_line_count(buf) + end_lnum + 1;
+	    else if (end_lnum > buf_line_count(buf))
+		end_lnum = buf_line_count(buf);
 	    add_lnum = TRUE;
 	}
 	if (d != NULL && (di = dict_find(d, (char_u *)"types", -1)) != NULL)
@@ -2340,7 +2340,7 @@ f_prop_list(typval_T *argvars, typval_T *rettv)
 	    }
 	}
     }
-    if (start_lnum < 1 || start_lnum > buf->b_ml.ml_line_count
+    if (start_lnum < 1 || start_lnum > buf_line_count(buf)
 		|| end_lnum < 1 || end_lnum < start_lnum)
 	emsg(_(e_invalid_range));
     else
@@ -2466,7 +2466,7 @@ f_prop_remove(typval_T *argvars, typval_T *rettv)
     }
 
     if (end == 0)
-	end = buf->b_ml.ml_line_count;
+	end = buf_line_count(buf);
 
     {
 	unpacked_memline_T um = um_open(buf);
@@ -2475,7 +2475,7 @@ f_prop_remove(typval_T *argvars, typval_T *rettv)
 	{
 	    int idx;
 
-	    if (lnum > buf->b_ml.ml_line_count)
+	    if (lnum > buf_line_count(buf))
 		break;
 	    if (!um_goto_line(&um, lnum, 0))
 		break;

@@ -619,7 +619,7 @@ check_mark(pos_T *pos)
 	    emsg(_(e_mark_not_set));
 	return FAIL;
     }
-    if (pos->lnum > curbuf->b_ml.ml_line_count)
+    if (pos->lnum > buf_line_count(curbuf))
     {
 	emsg(_(e_mark_has_invalid_line_number));
 	return FAIL;
@@ -682,7 +682,7 @@ mark_line(pos_T *mp, int lead_len)
     char_u	*s, *p;
     int		len;
 
-    if (mp->lnum == 0 || mp->lnum > curbuf->b_ml.ml_line_count)
+    if (mp->lnum == 0 || mp->lnum > buf_line_count(curbuf))
 	return vim_strsave((char_u *)"-invalid-");
     // Allow for up to 5 bytes per character.
     s = vim_strnsave(skipwhite(ml_get(mp->lnum)), Columns * 5);

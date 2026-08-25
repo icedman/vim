@@ -1836,9 +1836,9 @@ win_found:
 	// the buffer contents may have changed
 	VIsual_active = aco->save_VIsual_active;
 	check_cursor();
-	if (curwin->w_topline > curbuf->b_ml.ml_line_count)
+	if (curwin->w_topline > buf_line_count(curbuf))
 	{
-	    curwin->w_topline = curbuf->b_ml.ml_line_count;
+	    curwin->w_topline = buf_line_count(curbuf);
 #ifdef FEAT_DIFF
 	    curwin->w_topfill = 0;
 #endif

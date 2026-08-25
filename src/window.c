@@ -7311,7 +7311,7 @@ win_fix_scroll(int resize)
 
 	    // If window has moved update botline to keep the same screenlines.
 	    if (*p_spk == 's' && wp->w_winrow != wp->w_prev_winrow
-		      && wp->w_botline - 1 <= wp->w_buffer->b_ml.ml_line_count)
+		      && wp->w_botline - 1 <= buf_line_count(wp->w_buffer))
 	    {
 		int diff = (wp->w_winrow - wp->w_prev_winrow)
 					  + (wp->w_height - wp->w_prev_height);
@@ -7368,7 +7368,7 @@ win_fix_cursor(int normal)
 
     if (skip_win_fix_cursor
 	    || !wp->w_do_win_fix_cursor
-	    || wp->w_buffer->b_ml.ml_line_count < wp->w_height)
+	    || buf_line_count(wp->w_buffer) < wp->w_height)
 	return;
 
     wp->w_do_win_fix_cursor = false;
@@ -7388,7 +7388,7 @@ win_fix_cursor(int normal)
 
     // Check if cursor position is above or below valid cursor range.
     linenr_T nlnum = 0;
-    if (lnum > bot && (wp->w_botline - wp->w_buffer->b_ml.ml_line_count) != 1)
+    if (lnum > bot && (wp->w_botline - buf_line_count(wp->w_buffer)) != 1)
 	nlnum = bot;
     else if (lnum < top && wp->w_topline != 1)
 	nlnum = (so == wp->w_height / 2) ? bot : top;
@@ -7470,7 +7470,7 @@ scroll_to_fraction(win_T *wp, int prev_height)
     //   is visible.
     if (height > 0
 	   && (!wp->w_p_scb || wp == curwin)
-	   && (height < wp->w_buffer->b_ml.ml_line_count || wp->w_topline > 1))
+	   && (height < buf_line_count(wp->w_buffer) || wp->w_topline > 1))
     {
 	/*
 	 * Find a value for w_topline that shows the cursor at the same
@@ -8196,16 +8196,16 @@ check_lnums_both(int do_curwin, int nested)
 		wp->w_save_cursor.w_topline_save = wp->w_topline;
 	    }
 
-	    need_adjust = wp->w_cursor.lnum > curbuf->b_ml.ml_line_count;
+	    need_adjust = wp->w_cursor.lnum > buf_line_count(curbuf);
 	    if (need_adjust)
-		wp->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+		wp->w_cursor.lnum = buf_line_count(curbuf);
 	    if (need_adjust || !nested)
 		// save the (corrected) cursor position
 		wp->w_save_cursor.w_cursor_corr = wp->w_cursor;
 
-	    need_adjust = wp->w_topline > curbuf->b_ml.ml_line_count;
+	    need_adjust = wp->w_topline > buf_line_count(curbuf);
 	    if (need_adjust)
-		wp->w_topline = curbuf->b_ml.ml_line_count;
+		wp->w_topline = buf_line_count(curbuf);
 	    if (need_adjust || !nested)
 		// save the (corrected) topline
 		wp->w_save_cursor.w_topline_corr = wp->w_topline;
@@ -8255,7 +8255,7 @@ reset_lnums(void)
 	    if (wp->w_save_cursor.w_topline_corr == wp->w_topline
 				  && wp->w_save_cursor.w_topline_save != 0)
 		wp->w_topline = wp->w_save_cursor.w_topline_save;
-	    if (wp->w_save_cursor.w_topline_save > wp->w_buffer->b_ml.ml_line_count)
+	    if (wp->w_save_cursor.w_topline_save > buf_line_count(wp->w_buffer))
 		wp->w_valid &= ~VALID_TOPLINE;
 	}
 }

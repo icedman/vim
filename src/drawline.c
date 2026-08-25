@@ -1593,7 +1593,7 @@ win_line(
 	// next line are found too: "et<line-break>al.".
 	// Trick: skip a few chars for C/shell/Vim comments
 	nextline[SPWORDLEN] = NUL;
-	if (lnum < wp->w_buffer->b_ml.ml_line_count)
+	if (lnum < buf_line_count(wp->w_buffer))
 	{
 	    line = buf_line(wp->w_buffer, lnum + 1, FALSE);
 	    spell_cat_line(nextline + SPWORDLEN, line, SPWORDLEN);

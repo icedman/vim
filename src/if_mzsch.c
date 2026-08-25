@@ -2356,7 +2356,7 @@ get_buffer_size(void *data, int argc, Scheme_Object **argv)
     Vim_Prim	    *prim = (Vim_Prim *)data;
     vim_mz_buffer   *buf = get_buffer_arg(prim->name, 0, argc, argv);
 
-    return scheme_make_integer(buf->buf->b_ml.ml_line_count);
+    return scheme_make_integer(buf_line_count(buf->buf));
 }
 
 /*
@@ -3690,7 +3690,7 @@ mzthreads_allowed(void)
     static int
 line_in_range(linenr_T lnum, buf_T *buf)
 {
-    return (lnum > 0 && lnum <= buf->b_ml.ml_line_count);
+    return (lnum > 0 && lnum <= buf_line_count(buf));
 }
 
     static void

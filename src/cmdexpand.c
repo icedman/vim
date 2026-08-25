@@ -5327,7 +5327,7 @@ expand_pattern_in_buf(
 
 	// searchit() can return line number +1 past the last line when
 	// searching for "foo\n" if "foo" is at end of buffer.
-	if (end_match_pos.lnum > curbuf->b_ml.ml_line_count)
+	if (end_match_pos.lnum > buf_line_count(curbuf))
 	{
 	    cur_match_pos.lnum = 1;
 	    cur_match_pos.col = 0;

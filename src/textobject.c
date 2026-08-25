@@ -63,7 +63,7 @@ findsent(int dir, long count)
 	else if (dir == FORWARD && pos.col == 0 &&
 						startPS(pos.lnum, NUL, FALSE))
 	{
-	    if (pos.lnum == curbuf->b_ml.ml_line_count)
+	    if (pos.lnum == buf_line_count(curbuf))
 		return FAIL;
 	    ++pos.lnum;
 	    goto found;
@@ -213,7 +213,7 @@ findpar(
 	    if (fold_skipped)
 		curr -= dir;
 #endif
-	    if ((curr += dir) < 1 || curr > curbuf->b_ml.ml_line_count)
+	    if ((curr += dir) < 1 || curr > buf_line_count(curbuf))
 	    {
 		if (count)
 		    return FALSE;
@@ -226,7 +226,7 @@ findpar(
     if (both && *ml_get(curr) == '}')	// include line with '}'
 	++curr;
     curwin->w_cursor.lnum = curr;
-    if (curr == curbuf->b_ml.ml_line_count && what != '}' && dir == FORWARD)
+    if (curr == buf_line_count(curbuf) && what != '}' && dir == FORWARD)
     {
 	char_u *line = ml_get(curr);
 
@@ -383,7 +383,7 @@ fwd_word(
 	 * We always move at least one character, unless on the last
 	 * character in the buffer.
 	 */
-	last_line = (curwin->w_cursor.lnum == curbuf->b_ml.ml_line_count);
+	last_line = (curwin->w_cursor.lnum == buf_line_count(curbuf));
 	i = inc_cursor();
 	if (i == -1 || (i >= 1 && last_line)) // started at last char in file
 	    return FAIL;
@@ -1533,7 +1533,7 @@ extend:
 	for (i = count; --i >= 0; )
 	{
 	    if (start_lnum ==
-			   (dir == BACKWARD ? 1 : curbuf->b_ml.ml_line_count))
+			   (dir == BACKWARD ? 1 : buf_line_count(curbuf)))
 	    {
 		retval = FAIL;
 		break;
@@ -1552,7 +1552,7 @@ extend:
 		for (;;)
 		{
 		    if (start_lnum == (dir == BACKWARD
-					    ? 1 : curbuf->b_ml.ml_line_count))
+					    ? 1 : buf_line_count(curbuf)))
 			break;
 		    if (start_is_white != linewhite(start_lnum + dir)
 			    || (!start_is_white
@@ -1564,7 +1564,7 @@ extend:
 		if (!include)
 		    break;
 		if (start_lnum == (dir == BACKWARD
-					    ? 1 : curbuf->b_ml.ml_line_count))
+					    ? 1 : buf_line_count(curbuf)))
 		    break;
 		prev_start_is_white = start_is_white;
 	    }
@@ -1597,7 +1597,7 @@ extend:
      * Move past the end of any white lines.
      */
     end_lnum = start_lnum;
-    while (end_lnum <= curbuf->b_ml.ml_line_count && linewhite(end_lnum))
+    while (end_lnum <= buf_line_count(curbuf) && linewhite(end_lnum))
 	++end_lnum;
 
     --end_lnum;
@@ -1606,7 +1606,7 @@ extend:
 	--i;
     while (i--)
     {
-	if (end_lnum == curbuf->b_ml.ml_line_count)
+	if (end_lnum == buf_line_count(curbuf))
 	    return FAIL;
 
 	if (!include)
@@ -1618,7 +1618,7 @@ extend:
 	    /*
 	     * skip to end of paragraph
 	     */
-	    while (end_lnum < curbuf->b_ml.ml_line_count
+	    while (end_lnum < buf_line_count(curbuf)
 		    && !linewhite(end_lnum + 1)
 		    && !startPS(end_lnum + 1, 0, 0))
 		++end_lnum;
@@ -1631,7 +1631,7 @@ extend:
 	 * skip to end of white lines after paragraph
 	 */
 	if (include || do_white)
-	    while (end_lnum < curbuf->b_ml.ml_line_count
+	    while (end_lnum < buf_line_count(curbuf)
 						   && linewhite(end_lnum + 1))
 		++end_lnum;
     }

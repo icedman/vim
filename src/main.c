@@ -791,7 +791,7 @@ vim_main2(void)
 
     // Ex starts at last line of the file
     if (exmode_active)
-	curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	curwin->w_cursor.lnum = buf_line_count(curbuf);
 
     apply_autocmds(EVENT_BUFENTER, NULL, NULL, FALSE, curbuf);
     TIME_MSG("BufEnter autocommands");
@@ -1361,7 +1361,7 @@ may_trigger_deferred_events(void)
     {
 	if (conceal_old_cursor_line != conceal_new_cursor_line
 		&& conceal_old_cursor_line != 0
-		&& conceal_old_cursor_line <= curbuf->b_ml.ml_line_count)
+		&& conceal_old_cursor_line <= buf_line_count(curbuf))
 	    redrawWinline(curwin, conceal_old_cursor_line);
 	redrawWinline(curwin, conceal_new_cursor_line);
 	curwin->w_valid &= ~VALID_CROW;

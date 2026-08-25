@@ -5580,7 +5580,7 @@ RBItem(BufferObject *self, PyInt n, PyInt start, PyInt end)
 	return NULL;
 
     if (end == -1)
-	end = self->buf->b_ml.ml_line_count;
+	end = buf_line_count(self->buf);
 
     if (n < 0)
 	n += end - start + 1;
@@ -5603,7 +5603,7 @@ RBSlice(BufferObject *self, PyInt lo, PyInt hi, PyInt start, PyInt end)
 	return NULL;
 
     if (end == -1)
-	end = self->buf->b_ml.ml_line_count;
+	end = buf_line_count(self->buf);
 
     size = end - start + 1;
 
@@ -5636,7 +5636,7 @@ RBAsItem(
 	return -1;
 
     if (end == -1)
-	end = self->buf->b_ml.ml_line_count;
+	end = buf_line_count(self->buf);
 
     if (n < 0)
 	n += end - start + 1;
@@ -5674,7 +5674,7 @@ RBAsSlice(
 	return -1;
 
     if (end == -1)
-	end = self->buf->b_ml.ml_line_count;
+	end = buf_line_count(self->buf);
 
     // Sort out the slice range
     size = end - start + 1;
@@ -5718,7 +5718,7 @@ RBAppend(
 	return NULL;
 
     if (end == -1)
-	end = self->buf->b_ml.ml_line_count;
+	end = buf_line_count(self->buf);
 
     max = n = end - start + 1;
 
@@ -5930,7 +5930,7 @@ BufferLength(BufferObject *self)
     if (CheckBuffer(self))
 	return -1; // ???
 
-    return (PyInt)(self->buf->b_ml.ml_line_count);
+    return (PyInt)(buf_line_count(self->buf));
 }
 
     static PyObject *
@@ -6510,7 +6510,7 @@ run_do(const char *cmd, dict_T* locals UNUSED, void *arg UNUSED
 	*pygilstate = PyGILState_Ensure();
 #endif
 	// Check the line number, the command my have deleted lines.
-	if (lnum > curbuf->b_ml.ml_line_count
+	if (lnum > buf_line_count(curbuf)
 		|| !(line = GetBufferLine(curbuf, lnum)))
 	    goto err;
 	if (!(linenr = PyInt_FromLong((long) lnum)))
@@ -6526,7 +6526,7 @@ run_do(const char *cmd, dict_T* locals UNUSED, void *arg UNUSED
 
 	// Check that the command didn't switch to another buffer.
 	// Check the line number, the command my have deleted lines.
-	if (curbuf != was_curbuf || lnum > curbuf->b_ml.ml_line_count)
+	if (curbuf != was_curbuf || lnum > buf_line_count(curbuf))
 	{
 	    Py_XDECREF(ret);
 	    goto err;

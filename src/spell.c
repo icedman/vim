@@ -1416,7 +1416,7 @@ spell_move_to(
 	// for empty line first.
 	empty_line = *skipwhite(line) == NUL;
 	STRCPY(buf, line);
-	if (lnum < wp->w_buffer->b_ml.ml_line_count)
+	if (lnum < buf_line_count(wp->w_buffer))
 	    spell_cat_line(buf + STRLEN(buf),
 			  buf_line(wp->w_buffer, lnum + 1, FALSE), MAXWLEN);
 
@@ -1524,7 +1524,7 @@ spell_move_to(
 	    {
 		// Wrap around to the end of the buffer.  May search the
 		// starting line again and accept the last match.
-		lnum = wp->w_buffer->b_ml.ml_line_count;
+		lnum = buf_line_count(wp->w_buffer);
 		wrapped = TRUE;
 		if (!shortmess(SHM_SEARCH))
 		    give_warning((char_u *)_(top_bot_msg), TRUE);
@@ -1533,7 +1533,7 @@ spell_move_to(
 	}
 	else
 	{
-	    if (lnum < wp->w_buffer->b_ml.ml_line_count)
+	    if (lnum < buf_line_count(wp->w_buffer))
 		++lnum;
 	    else if (!p_ws)
 		break;	    // at first line and 'nowrapscan'
@@ -3940,14 +3940,14 @@ ex_spelldump(exarg_T *eap)
     set_option_value_give_err((char_u*)"spl",  dummy, spl, OPT_LOCAL);
     vim_free(spl);
 
-    if (!BUFEMPTY())
+    if (!buf_is_empty(curbuf))
 	return;
 
     spell_dump_compl(NULL, 0, NULL, eap->forceit ? DUMPFLAG_COUNT : 0);
 
     // Delete the empty line that we started with.
-    if (curbuf->b_ml.ml_line_count > 1)
-	ml_delete(curbuf->b_ml.ml_line_count);
+    if (buf_line_count(curbuf) > 1)
+	ml_delete(buf_line_count(curbuf));
 
     redraw_later(UPD_NOT_VALID);
 }

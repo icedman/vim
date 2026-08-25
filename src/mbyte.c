@@ -4466,7 +4466,7 @@ utf_find_illegal(void)
 	    }
 	    p += len;
 	}
-	if (curwin->w_cursor.lnum == curbuf->b_ml.ml_line_count)
+	if (curwin->w_cursor.lnum == buf_line_count(curbuf))
 	    break;
 	++curwin->w_cursor.lnum;
 	curwin->w_cursor.col = 0;

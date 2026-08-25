@@ -1472,7 +1472,7 @@ bufline_pos_in_scrollback(term_T *term, linenr_T lnum, int col, int *row, int *w
     int         calc_col = col;
     linenr_T    l;
 
-    if (lnum > buf->b_ml.ml_line_count)
+    if (lnum > buf_line_count(buf))
 	return;
 
     if (lnum > term->tl_buffer_scrolled)
@@ -2035,7 +2035,7 @@ add_scrollback_line_to_buffer(term_T *term, char_u *text, int len, int append)
 {
     buf_T	*buf = term->tl_buffer;
     int		empty = (buf->b_ml.ml_flags & ML_EMPTY);
-    linenr_T	lnum = buf->b_ml.ml_line_count;
+    linenr_T	lnum = buf_line_count(buf);
 
 #ifdef MSWIN
     char_u *tmp = text;
@@ -2154,7 +2154,7 @@ cleanup_scrollback(term_T *term)
 
     curbuf = term->tl_buffer;
     gap = &term->tl_scrollback;
-    bufline = buf_line(curbuf, curbuf->b_ml.ml_line_count, FALSE);
+    bufline = buf_line(curbuf, buf_line_count(curbuf), FALSE);
     bufline_length = STRLEN(bufline);
     while (term->tl_scrollback_snapshot && gap->ga_len > 0)
     {
@@ -2164,8 +2164,8 @@ cleanup_scrollback(term_T *term)
 	bufline_length -= line->sb_bytes;
 	if (!bufline_length)
 	{
-	    ml_delete(curbuf->b_ml.ml_line_count);
-	    bufline = buf_line(curbuf, curbuf->b_ml.ml_line_count, FALSE);
+	    ml_delete(buf_line_count(curbuf));
+	    bufline = buf_line(curbuf, buf_line_count(curbuf), FALSE);
 	    bufline_length = STRLEN(bufline);
 	}
 	vim_free(line->sb_cells);
@@ -2175,7 +2175,7 @@ cleanup_scrollback(term_T *term)
     if (bufline_length < STRLEN(bufline))
     {
 	char_u *shortened = vim_strnsave(bufline, bufline_length);
-	ml_replace(curbuf->b_ml.ml_line_count, shortened, FALSE);
+	ml_replace(buf_line_count(curbuf), shortened, FALSE);
     }
     curbuf = curwin->w_buffer;
     if (curbuf == term->tl_buffer)
@@ -5687,7 +5687,7 @@ read_dump_file(FILE *fd, VTermPos *cursor_pos)
 		ga_init(&ga_cell);
 
 		ga_append(&ga_text, NUL);
-		ml_append(curbuf->b_ml.ml_line_count, ga_text.ga_data,
+		ml_append(buf_line_count(curbuf), ga_text.ga_data,
 							ga_text.ga_len, FALSE);
 	    }
 	    else
@@ -5875,7 +5875,7 @@ read_dump_file(FILE *fd, VTermPos *cursor_pos)
 	// trailing characters after last NL
 	dump_is_corrupt(&ga_text);
 	ga_append(&ga_text, NUL);
-	ml_append(curbuf->b_ml.ml_line_count, ga_text.ga_data,
+	ml_append(buf_line_count(curbuf), ga_text.ga_data,
 							ga_text.ga_len, FALSE);
     }
 
@@ -6052,23 +6052,23 @@ term_load_dump(typval_T *argvars, typval_T *rettv, int do_diff)
 	if (!do_diff)
 	    goto theend;
 
-	term->tl_top_diff_rows = curbuf->b_ml.ml_line_count;
+	term->tl_top_diff_rows = buf_line_count(curbuf);
 
 	textline = get_separator(width, fname1);
 	if (textline == NULL)
 	    goto theend;
 	if (add_empty_scrollback(term, &term->tl_default_color, 0) == OK)
-	    ml_append(curbuf->b_ml.ml_line_count, textline, 0, FALSE);
+	    ml_append(buf_line_count(curbuf), textline, 0, FALSE);
 	vim_free(textline);
 
 	textline = get_separator(width, fname2);
 	if (textline == NULL)
 	    goto theend;
 	if (add_empty_scrollback(term, &term->tl_default_color, 0) == OK)
-	    ml_append(curbuf->b_ml.ml_line_count, textline, 0, FALSE);
+	    ml_append(buf_line_count(curbuf), textline, 0, FALSE);
 	textline[width] = NUL;
 
-	bot_lnum = curbuf->b_ml.ml_line_count;
+	bot_lnum = buf_line_count(curbuf);
 	width2 = read_dump_file(fd2, &cursor_pos2);
 	if (width2 > width)
 	{
@@ -6079,11 +6079,11 @@ term_load_dump(typval_T *argvars, typval_T *rettv, int do_diff)
 	    width = width2;
 	    textline[width] = NUL;
 	}
-	term->tl_bot_diff_rows = curbuf->b_ml.ml_line_count - bot_lnum;
+	term->tl_bot_diff_rows = buf_line_count(curbuf) - bot_lnum;
 
 	for (lnum = 1; lnum <= term->tl_top_diff_rows; ++lnum)
 	{
-	    if (lnum + bot_lnum > curbuf->b_ml.ml_line_count)
+	    if (lnum + bot_lnum > buf_line_count(curbuf))
 	    {
 		// bottom part has fewer rows, fill with "-"
 		for (i = 0; i < width; ++i)
@@ -6175,7 +6175,7 @@ term_load_dump(typval_T *argvars, typval_T *rettv, int do_diff)
 	    ++bot_lnum;
 	}
 
-	while (lnum + bot_lnum <= curbuf->b_ml.ml_line_count)
+	while (lnum + bot_lnum <= buf_line_count(curbuf))
 	{
 	    // bottom part has more rows, fill with "+"
 	    for (i = 0; i < width; ++i)
@@ -6224,7 +6224,7 @@ term_swap_diff(void)
 	    || term->tl_scrollback.ga_len == 0)
 	return FAIL;
 
-    line_count = curbuf->b_ml.ml_line_count;
+    line_count = buf_line_count(curbuf);
     top_rows = term->tl_top_diff_rows;
     bot_rows = term->tl_bot_diff_rows;
     bot_start = line_count - bot_rows;
@@ -6516,7 +6516,7 @@ f_term_getline(typval_T *argvars, typval_T *rettv)
 	scrollbackline_pos_in_buf(term, sb_row, &lnum, NULL, &offset);
 
 	// vterm is finished, get the text from the buffer
-	if (lnum > 0 && lnum <= buf->b_ml.ml_line_count)
+	if (lnum > 0 && lnum <= buf_line_count(buf))
 	{
 	    char_u *p = buf_line(buf, lnum, FALSE);
 	    if (STRLEN(p) >= offset + line->sb_bytes)
@@ -6780,7 +6780,7 @@ f_term_scrape(typval_T *argvars, typval_T *rettv)
 
 	scrollbackline_pos_in_buf(term, sb_row, &lnum, NULL, &offset);
 
-	if (sb_row >= term->tl_scrollback.ga_len || lnum <= 0 || lnum > buf->b_ml.ml_line_count)
+	if (sb_row >= term->tl_scrollback.ga_len || lnum <= 0 || lnum > buf_line_count(buf))
 	    return;
 
 	line = (sb_line_T *)term->tl_scrollback.ga_data + sb_row;

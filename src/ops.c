@@ -780,7 +780,7 @@ op_delete(oparg_T *oap)
     char_u		*ptr;
     char_u		*newp, *oldp;
     struct block_def	bd;
-    linenr_T		old_lcount = curbuf->b_ml.ml_line_count;
+    linenr_T		old_lcount = buf_line_count(curbuf);
     int			did_yank = FALSE;
 
     if (curbuf->b_ml.ml_flags & ML_EMPTY)	    // nothing to do
@@ -1131,7 +1131,7 @@ op_delete(oparg_T *oap)
 	    auto_format(FALSE, TRUE);
     }
 
-    msgmore(curbuf->b_ml.ml_line_count - old_lcount);
+    msgmore(buf_line_count(curbuf) - old_lcount);
 
 setmarks:
     if ((cmdmod.cmod_flags & CMOD_LOCKMARKS) == 0)
@@ -3435,7 +3435,7 @@ cursor_pos_info(dict_T *dict)
 	    line_count_selected = max_pos.lnum - min_pos.lnum + 1;
 	}
 
-	for (lnum = 1; lnum <= curbuf->b_ml.ml_line_count; ++lnum)
+	for (lnum = 1; lnum <= buf_line_count(curbuf); ++lnum)
 	{
 	    // Check for a CTRL-C every 100000 characters.
 	    if (byte_count > last_check)
@@ -3482,7 +3482,7 @@ cursor_pos_info(dict_T *dict)
 		{
 		    byte_count_cursor += line_count_info(s, &word_count_cursor,
 					   &char_count_cursor, len, eol_size);
-		    if (lnum == curbuf->b_ml.ml_line_count
+		    if (lnum == buf_line_count(curbuf)
 			    && !curbuf->b_p_eol
 			    && (curbuf->b_p_bin || !curbuf->b_p_fixeol)
 			    && (long)STRLEN(s) < len)
@@ -3532,7 +3532,7 @@ cursor_pos_info(dict_T *dict)
 		    vim_snprintf((char *)IObuff, IOSIZE,
 			    _("Selected %s%ld of %ld Lines; %lld of %lld Words; %lld of %lld Bytes"),
 			    buf1, line_count_selected,
-			    (long)curbuf->b_ml.ml_line_count,
+			    (long)buf_line_count(curbuf),
 			    word_count_cursor,
 			    word_count,
 			    byte_count_cursor,
@@ -3541,7 +3541,7 @@ cursor_pos_info(dict_T *dict)
 		    vim_snprintf((char *)IObuff, IOSIZE,
 			    _("Selected %s%ld of %ld Lines; %lld of %lld Words; %lld of %lld Chars; %lld of %lld Bytes"),
 			    buf1, line_count_selected,
-			    (long)curbuf->b_ml.ml_line_count,
+			    (long)buf_line_count(curbuf),
 			    word_count_cursor,
 			    word_count,
 			    char_count_cursor,
@@ -3564,7 +3564,7 @@ cursor_pos_info(dict_T *dict)
 			_("Col %s of %s; Line %ld of %ld; Word %lld of %lld; Byte %lld of %lld"),
 			(char *)buf1, (char *)buf2,
 			(long)curwin->w_cursor.lnum,
-			(long)curbuf->b_ml.ml_line_count,
+			(long)buf_line_count(curbuf),
 			word_count_cursor, word_count,
 			byte_count_cursor, byte_count);
 		else
@@ -3572,7 +3572,7 @@ cursor_pos_info(dict_T *dict)
 			_("Col %s of %s; Line %ld of %ld; Word %lld of %lld; Char %lld of %lld; Byte %lld of %lld"),
 			(char *)buf1, (char *)buf2,
 			(long)curwin->w_cursor.lnum,
-			(long)curbuf->b_ml.ml_line_count,
+			(long)buf_line_count(curbuf),
 			word_count_cursor, word_count,
 			char_count_cursor, char_count,
 			byte_count_cursor, byte_count);
@@ -3645,7 +3645,7 @@ op_colon(oparg_T *oap)
 	    stuffcharReadbuff(',');
 	    if (oap->end.lnum == curwin->w_cursor.lnum)
 		stuffcharReadbuff('.');
-	    else if (oap->end.lnum == curbuf->b_ml.ml_line_count)
+	    else if (oap->end.lnum == buf_line_count(curbuf))
 		stuffcharReadbuff('$');
 	    else if (oap->start.lnum == curwin->w_cursor.lnum
 #ifdef FEAT_FOLDING
@@ -4000,8 +4000,8 @@ do_pending_operator(cmdarg_T *cap, int old_col, int gui_yank)
 	    // redo_VIsual.rv_line_count and redo_VIsual.rv_vcol.
 	    oap->start = curwin->w_cursor;
 	    curwin->w_cursor.lnum += redo_VIsual.rv_line_count - 1;
-	    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
-		curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
+		curwin->w_cursor.lnum = buf_line_count(curbuf);
 	    VIsual_mode = redo_VIsual.rv_mode;
 	    if (redo_VIsual.rv_vcol == MAXCOL || VIsual_mode == 'v')
 	    {
@@ -4223,7 +4223,7 @@ do_pending_operator(cmdarg_T *cap, int old_col, int gui_yank)
 		    // that works on lines only.
 		    if (*p_sel != 'o'
 			    && !op_on_lines(oap->op_type)
-			    && oap->end.lnum < curbuf->b_ml.ml_line_count)
+			    && oap->end.lnum < buf_line_count(curbuf))
 		    {
 			++oap->end.lnum;
 			oap->end.col = 0;
@@ -4343,7 +4343,7 @@ do_pending_operator(cmdarg_T *cap, int old_col, int gui_yank)
 	    if (oap->line_count < 2)
 		oap->line_count = 2;
 	    if (curwin->w_cursor.lnum + oap->line_count - 1 >
-						   curbuf->b_ml.ml_line_count)
+						   buf_line_count(curbuf))
 		beep_flush();
 	    else
 	    {

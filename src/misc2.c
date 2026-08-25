@@ -363,7 +363,7 @@ inc(pos_T *lp)
 	    return ((p[1] != NUL) ? 0 : 2);
 	}
     }
-    if (lp->lnum != curbuf->b_ml.ml_line_count)     // there is a next line
+    if (lp->lnum != buf_line_count(curbuf))     // there is a next line
     {
 	lp->col = 0;
 	lp->lnum++;
@@ -513,8 +513,8 @@ check_pos(buf_T *buf, pos_T *pos)
 {
     colnr_T len;
 
-    if (pos->lnum > buf->b_ml.ml_line_count)
-	pos->lnum = buf->b_ml.ml_line_count;
+    if (pos->lnum > buf_line_count(buf))
+	pos->lnum = buf_line_count(buf);
 
     if (pos->col > 0)
     {
@@ -530,15 +530,15 @@ check_pos(buf_T *buf, pos_T *pos)
     void
 check_cursor_lnum(void)
 {
-    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
+    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
     {
 #ifdef FEAT_FOLDING
 	// If there is a closed fold at the end of the file, put the cursor in
 	// its first line.  Otherwise in the last line.
-	if (!hasFolding(curbuf->b_ml.ml_line_count,
+	if (!hasFolding(buf_line_count(curbuf),
 						&curwin->w_cursor.lnum, NULL))
 #endif
-	    curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	    curwin->w_cursor.lnum = buf_line_count(curbuf);
     }
     if (curwin->w_cursor.lnum <= 0)
 	curwin->w_cursor.lnum = 1;
@@ -635,9 +635,9 @@ check_cursor(void)
     void
 check_visual_pos(void)
 {
-    if (VIsual.lnum > curbuf->b_ml.ml_line_count)
+    if (VIsual.lnum > buf_line_count(curbuf))
     {
-	VIsual.lnum = curbuf->b_ml.ml_line_count;
+	VIsual.lnum = buf_line_count(curbuf);
 	VIsual.col = 0;
 	VIsual.coladd = 0;
     }

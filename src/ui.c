@@ -1214,7 +1214,7 @@ ui_find_longest_lnum(void)
 #endif
 	    curwin->w_topline <= curwin->w_cursor.lnum
 	    && curwin->w_botline > curwin->w_cursor.lnum
-	    && curwin->w_botline <= curbuf->b_ml.ml_line_count + 1)
+	    && curwin->w_botline <= buf_line_count(curbuf) + 1)
     {
 	linenr_T    lnum;
 	long	    n;

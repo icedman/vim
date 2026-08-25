@@ -144,11 +144,13 @@ Phase 1 remains open until its API checks and debug assertions are added.
   `buf_line_len()` across 42 source files.
 - [x] Regenerated the internal-access inventory after the migration.
 - [x] Rebuilt Vim and reran `test_buffer.res` successfully.
-- [ ] Replace direct line-count and loaded-state field reads with accessors.
+- [x] Replace direct line-count field reads and `BUFEMPTY()` uses with
+  `buf_line_count()` and `buf_is_empty()` in consumer code.
+- [ ] Replace loaded-state field reads with `buf_is_loaded()`.
 - [ ] Migrate implicit-current-buffer reads and mutation operations.
 
-The inventory now reports 1,639 access findings, including 1,059 direct
-`b_ml` accesses, 461 implicit-current-buffer line accesses, and one writable
+The inventory now reports 1,131 access findings, including 570 direct
+`b_ml` accesses, 460 implicit-current-buffer line accesses, and one writable
 line access. The remaining `ml_get_buf*()` calls are implementation or
 façade calls, except for any cases that require deliberate review.
 

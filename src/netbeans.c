@@ -1378,7 +1378,7 @@ nb_do_cmd(
 		    if (buf_was_empty)
 			lnum_start = 1;	    // above empty line
 		    else
-			lnum_start = curbuf->b_ml.ml_line_count + 1;
+			lnum_start = buf_line_count(curbuf) + 1;
 		}
 
 		// "lnum" is the line where we insert: either append to it or

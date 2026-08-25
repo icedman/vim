@@ -2341,7 +2341,7 @@ retnomove:
 	else if (row >= curwin->w_height)
 	{
 	    count = 0;
-	    for (first = TRUE; curwin->w_topline < curbuf->b_ml.ml_line_count; )
+	    for (first = TRUE; curwin->w_topline < buf_line_count(curbuf); )
 	    {
 #ifdef FEAT_DIFF
 		if (curwin->w_topfill > 0)
@@ -2354,7 +2354,7 @@ retnomove:
 		first = FALSE;
 #ifdef FEAT_FOLDING
 		if (hasFolding(curwin->w_topline, NULL, &curwin->w_topline)
-			&& curwin->w_topline == curbuf->b_ml.ml_line_count)
+			&& curwin->w_topline == buf_line_count(curbuf))
 		    break;
 #endif
 #ifdef FEAT_DIFF
@@ -2385,7 +2385,7 @@ retnomove:
 	    // the text down (done later when recomputing w_topline).
 	    if (mouse_dragging > 0
 		    && curwin->w_cursor.lnum
-				       == curwin->w_buffer->b_ml.ml_line_count
+				       == buf_line_count(curwin->w_buffer)
 		    && curwin->w_cursor.lnum == curwin->w_topline)
 		curwin->w_valid &= ~(VALID_TOPLINE);
 	}

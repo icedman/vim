@@ -5436,7 +5436,7 @@ mch_call_shell_fork(
 					|| (!curbuf->b_p_bin
 					    && curbuf->b_p_fixeol)
 					|| (lnum != curbuf->b_no_eol_lnum
-					    && (lnum != curbuf->b_ml.ml_line_count
+					    && (lnum != buf_line_count(curbuf)
 						    || curbuf->b_p_eol)))
 				    vim_ignored = write(toshell_fd, "\n",
 								   (size_t)1);

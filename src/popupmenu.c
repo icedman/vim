@@ -1436,7 +1436,7 @@ pum_set_selected(int n, int repeat UNUSED)
 			&& curbuf->b_p_bh[0] == 'w')
 		{
 		    // Already a "wipeout" buffer, make it empty.
-		    while (!BUFEMPTY())
+		    while (!buf_is_empty(curbuf))
 			ml_delete((linenr_T)1);
 		}
 		else
@@ -1480,7 +1480,7 @@ pum_set_selected(int n, int repeat UNUSED)
 			p = e + 1;
 		    }
 		    // delete the empty last line
-		    ml_delete(curbuf->b_ml.ml_line_count);
+		    ml_delete(buf_line_count(curbuf));
 
 		    // Increase the height of the preview window to show the
 		    // text, but no more than 'previewheight' lines.
@@ -1503,8 +1503,8 @@ pum_set_selected(int n, int repeat UNUSED)
 # endif
 			curwin->w_topline = 1;
 		    }
-		    else if (curwin->w_topline > curbuf->b_ml.ml_line_count)
-			curwin->w_topline = curbuf->b_ml.ml_line_count;
+		    else if (curwin->w_topline > buf_line_count(curbuf))
+			curwin->w_topline = buf_line_count(curbuf);
 		    curwin->w_cursor.lnum = curwin->w_topline;
 		    curwin->w_cursor.col = 0;
 # ifdef FEAT_PROP_POPUP

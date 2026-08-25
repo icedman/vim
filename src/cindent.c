@@ -1399,13 +1399,13 @@ cin_isfuncdecl(
 	    //       , arg2)
 	    for (;;)
 	    {
-		if (lnum >= curbuf->b_ml.ml_line_count)
+		if (lnum >= buf_line_count(curbuf))
 		    break;
 		s = ml_get(++lnum);
 		if (!cin_ispreproc(s))
 		    break;
 	    }
-	    if (lnum >= curbuf->b_ml.ml_line_count)
+	    if (lnum >= buf_line_count(curbuf))
 		break;
 	    // Require a comma at end of the line or a comma or ')' at the
 	    // start of next line.
@@ -3839,7 +3839,7 @@ term_again:
     // Don't do this if the current line looks like a comment or if the
     // current line is terminated, ie. ends in ';', or if the current line
     // contains { or }: "void f(condition) {\n if (1)"
-    if (cur_curpos.lnum < curbuf->b_ml.ml_line_count
+    if (cur_curpos.lnum < buf_line_count(curbuf)
 	    && !cin_nocode(theline)
 	    && vim_strchr(theline, '{') == NULL
 	    && vim_strchr(theline, '}') == NULL
@@ -4326,7 +4326,7 @@ f_cindent(typval_T *argvars UNUSED, typval_T *rettv)
 
     pos = curwin->w_cursor;
     lnum = tv_get_lnum(argvars);
-    if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count)
+    if (lnum >= 1 && lnum <= buf_line_count(curbuf))
     {
 	curwin->w_cursor.lnum = lnum;
 	rettv->vval.v_number = get_c_indent();

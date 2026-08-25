@@ -5523,7 +5523,7 @@ number_width(win_T *wp)
 	lnum = wp->w_height;
     else
 	// cursor line shows absolute line number
-	lnum = wp->w_buffer->b_ml.ml_line_count;
+	lnum = buf_line_count(wp->w_buffer);
 
     if (lnum == wp->w_nrwidth_line_count && wp->w_nuw_cached == wp->w_p_nuw)
 	return wp->w_nrwidth_width;

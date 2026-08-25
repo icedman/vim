@@ -155,7 +155,7 @@ read_buffer(
     {
 	// Set or reset 'modified' before executing autocommands, so that
 	// it can be changed there.
-	if (!readonlymode && !BUFEMPTY())
+	if (!readonlymode && !buf_is_empty(curbuf))
 	    changed();
 	else if (retval == OK)
 	    unchanged(curbuf, FALSE, TRUE);
@@ -2142,7 +2142,7 @@ curbuf_reusable(void)
     return (curbuf != NULL
 	&& curbuf->b_ffname == NULL
 	&& curbuf->b_nwindows <= 1
-	&& (curbuf->b_ml.ml_mfp == NULL || BUFEMPTY())
+	&& (curbuf->b_ml.ml_mfp == NULL || buf_is_empty(curbuf))
 	&& !bt_quickfix(curbuf)
 	&& !curbufIsChanged());
 }
@@ -2609,7 +2609,7 @@ buflist_getfile(
 	// If 'switchbuf' contains "split", "vsplit" or "newtab" and the
 	// current buffer isn't empty: open new tab or window
 	if (wp == NULL && (swb_flags & (SWB_VSPLIT | SWB_SPLIT | SWB_NEWTAB))
-							       && !BUFEMPTY())
+							&& !buf_is_empty(curbuf))
 	{
 	    if (swb_flags & SWB_NEWTAB)
 		tabpage_new();

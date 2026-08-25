@@ -1959,7 +1959,7 @@ channel_write_in(channel_T *channel)
     }
 
     for (lnum = in_part->ch_buf_top; lnum <= in_part->ch_buf_bot
-				   && lnum <= buf->b_ml.ml_line_count; ++lnum)
+				   && lnum <= buf_line_count(buf); ++lnum)
     {
 	if (!can_write_buf_line(channel))
 	    break;
@@ -1973,7 +1973,7 @@ channel_write_in(channel_T *channel)
 	ch_log(channel, "written %d lines to channel", written);
 
     in_part->ch_buf_top = lnum;
-    if (lnum > buf->b_ml.ml_line_count || lnum > in_part->ch_buf_bot)
+    if (lnum > buf_line_count(buf) || lnum > in_part->ch_buf_bot)
     {
 #if defined(FEAT_TERMINAL)
 	// Send CTRL-D or "eof_chars" to close stdin on MS-Windows.
@@ -1997,7 +1997,7 @@ channel_write_in(channel_T *channel)
     }
     else
 	ch_log(channel, "Still %ld more lines to write",
-				   (long)(buf->b_ml.ml_line_count - lnum + 1));
+				   (long)(buf_line_count(buf) - lnum + 1));
 }
 
 /*
@@ -2076,7 +2076,7 @@ channel_write_new_lines(buf_T *buf)
 	    if (in_part->ch_fd == INVALID_FD)
 		continue;  // pipe was closed
 	    found_one = TRUE;
-	    for (lnum = in_part->ch_buf_bot; lnum < buf->b_ml.ml_line_count;
+	    for (lnum = in_part->ch_buf_bot; lnum < buf_line_count(buf);
 								       ++lnum)
 	    {
 		if (!can_write_buf_line(channel))
@@ -2089,9 +2089,9 @@ channel_write_new_lines(buf_T *buf)
 		ch_log(channel, "written line %d to channel", (int)lnum - 1);
 	    else if (written > 1)
 		ch_log(channel, "written %d lines to channel", written);
-	    if (lnum < buf->b_ml.ml_line_count)
+	    if (lnum < buf_line_count(buf))
 		ch_log(channel, "Still %ld more lines to write",
-				       (long)(buf->b_ml.ml_line_count - lnum));
+				       (long)(buf_line_count(buf) - lnum));
 
 	    in_part->ch_buf_bot = lnum;
 	}
@@ -4008,9 +4008,9 @@ is_channel_write_remaining(chanpart_T *in_part)
     if (buf == NULL)
 	return FALSE;
     return in_part->ch_buf_append
-	    ? (in_part->ch_buf_bot < buf->b_ml.ml_line_count)
+	    ? (in_part->ch_buf_bot < buf_line_count(buf))
 	    : (in_part->ch_buf_top <= in_part->ch_buf_bot
-			    && in_part->ch_buf_top <= buf->b_ml.ml_line_count);
+			    && in_part->ch_buf_top <= buf_line_count(buf));
 }
 
 #if defined(HAVE_SELECT)

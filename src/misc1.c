@@ -534,7 +534,7 @@ plines_m_win(win_T *wp, linenr_T first, linenr_T last, int max)
 	}
     }
 #ifdef FEAT_DIFF
-    if (first == wp->w_buffer->b_ml.ml_line_count + 1)
+    if (first == buf_line_count(wp->w_buffer) + 1)
 	count += diff_check_fill(wp, first);
 #endif
     return MIN(max, count);
@@ -2573,7 +2573,7 @@ get_cmd_output_as_rettv(
 		goto errret;
 	    }
 
-	    for (lnum = 1; lnum <= buf->b_ml.ml_line_count; lnum++)
+	    for (lnum = 1; lnum <= buf_line_count(buf); lnum++)
 	    {
 		for (p = buf_line(buf, lnum, FALSE); *p != NUL; ++p)
 		    if (putc(*p == '\n' ? NUL : *p, fd) == EOF)

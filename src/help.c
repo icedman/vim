@@ -717,7 +717,7 @@ fix_help_buffer(void)
     if (!syntax_present(curwin))
 #endif
     {
-	for (lnum = 1; lnum <= curbuf->b_ml.ml_line_count; ++lnum)
+	for (lnum = 1; lnum <= buf_line_count(curbuf); ++lnum)
 	{
 	    line = buf_line(curbuf, lnum, FALSE);
 	    len = buf_line_len(curbuf, lnum);
@@ -764,7 +764,7 @@ fix_help_buffer(void)
 #endif
 	)
     {
-	for (lnum = 1; lnum < curbuf->b_ml.ml_line_count; ++lnum)
+	for (lnum = 1; lnum < buf_line_count(curbuf); ++lnum)
 	{
 	    line = buf_line(curbuf, lnum, FALSE);
 	    if (strstr((char *)line, "*local-additions*") == NULL)

@@ -3969,7 +3969,7 @@ get_col(typval_T *argvars, typval_T *rettv, int charcol)
 	if (fp->col == MAXCOL)
 	{
 	    // '> can be MAXCOL, get the length of the line then
-	    if (fp->lnum <= curbuf->b_ml.ml_line_count)
+	    if (fp->lnum <= buf_line_count(curbuf))
 		col = ml_get_len(fp->lnum) + 1;
 	    else
 		col = MAXCOL;
@@ -9061,7 +9061,7 @@ f_line2byte(typval_T *argvars UNUSED, typval_T *rettv)
 	return;
 
     lnum = tv_get_lnum(argvars);
-    if (lnum < 1 || lnum > curbuf->b_ml.ml_line_count + 1)
+    if (lnum < 1 || lnum > buf_line_count(curbuf) + 1)
 	rettv->vval.v_number = -1;
     else
 	rettv->vval.v_number = ml_find_line_or_offset(curbuf, lnum, NULL);
@@ -9482,8 +9482,8 @@ f_matchbufline(typval_T *argvars, typval_T *rettv)
 	return;
     }
 
-    if (elnum > buf->b_ml.ml_line_count)
-	elnum = buf->b_ml.ml_line_count;
+    if (elnum > buf_line_count(buf))
+	elnum = buf_line_count(buf);
 
     int		submatches = FALSE;
     if (argvars[4].v_type != VAR_UNKNOWN)
@@ -9815,7 +9815,7 @@ f_nextnonblank(typval_T *argvars, typval_T *rettv)
 
     for (lnum = tv_get_lnum(argvars); ; ++lnum)
     {
-	if (lnum < 0 || lnum > curbuf->b_ml.ml_line_count)
+	if (lnum < 0 || lnum > buf_line_count(curbuf))
 	{
 	    lnum = 0;
 	    break;
@@ -9952,7 +9952,7 @@ f_prevnonblank(typval_T *argvars, typval_T *rettv)
 	return;
 
     lnum = tv_get_lnum(argvars);
-    if (lnum < 1 || lnum > curbuf->b_ml.ml_line_count)
+    if (lnum < 1 || lnum > buf_line_count(curbuf))
 	lnum = 0;
     else
 	while (lnum >= 1 && *skipwhite(ml_get(lnum)) == NUL)
@@ -12377,7 +12377,7 @@ f_synID(typval_T *argvars UNUSED, typval_T *rettv)
     col = (linenr_T)tv_get_number(&argvars[1]) - 1;	// -1 on type error
     trans = (int)tv_get_bool_chk(&argvars[2], &transerr);
 
-    if (!transerr && lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count
+    if (!transerr && lnum >= 1 && lnum <= buf_line_count(curbuf)
 	    && col >= 0 && col < (long)ml_get_len(lnum))
 	id = syn_get_id(curwin, lnum, col, trans, NULL, FALSE);
 #endif
@@ -12554,7 +12554,7 @@ f_synconcealed(typval_T *argvars UNUSED, typval_T *rettv)
 
     if (rettv_list_alloc(rettv) == OK)
     {
-	if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count
+	if (lnum >= 1 && lnum <= buf_line_count(curbuf)
 	    && col >= 0 && col <= (long)ml_get_len(lnum)
 	    && curwin->w_p_cole > 0)
 	{
@@ -12611,7 +12611,7 @@ f_synstack(typval_T *argvars UNUSED, typval_T *rettv)
     lnum = tv_get_lnum(argvars);		// -1 on type error
     col = (colnr_T)tv_get_number(&argvars[1]) - 1;	// -1 on type error
 
-    if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count
+    if (lnum >= 1 && lnum <= buf_line_count(curbuf)
 	    && col >= 0 && col <= (long)ml_get_len(lnum)
 	    && rettv_list_alloc(rettv) == OK)
     {
@@ -12808,7 +12808,7 @@ f_virtcol(typval_T *argvars, typval_T *rettv)
 
     int fnum = curbuf->b_fnum;
     fp = var2fpos(&argvars[0], FALSE, &fnum, FALSE);
-    if (fp != NULL && fp->lnum <= curbuf->b_ml.ml_line_count
+    if (fp != NULL && fp->lnum <= buf_line_count(curbuf)
 	    && fnum == curbuf->b_fnum)
     {
 	// Limit the column to a valid value, getvvcol() doesn't check.

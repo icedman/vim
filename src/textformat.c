@@ -744,10 +744,10 @@ auto_format(
     curwin->w_cursor = saved_cursor;
     saved_cursor.lnum = 0;
 
-    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
+    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
     {
 	// "cannot happen"
-	curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	curwin->w_cursor.lnum = buf_line_count(curbuf);
 	coladvance((colnr_T)MAXCOL);
     }
     else
@@ -866,7 +866,7 @@ op_format(
     oparg_T	*oap,
     int		keep_cursor)		// keep cursor on same text char
 {
-    long	old_line_count = curbuf->b_ml.ml_line_count;
+    long	old_line_count = buf_line_count(curbuf);
 
     // Place the cursor where the "gq" or "gw" command was given, so that "u"
     // can put it back there.
@@ -895,10 +895,10 @@ op_format(
     // Leave the cursor at the first non-blank of the last formatted line.
     // If the cursor was moved one line back (e.g. with "Q}") go to the next
     // line, so "." will do the next lines.
-    if (oap->end_adjusted && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+    if (oap->end_adjusted && curwin->w_cursor.lnum < buf_line_count(curbuf))
 	++curwin->w_cursor.lnum;
     beginline(BL_WHITE | BL_FIX);
-    old_line_count = curbuf->b_ml.ml_line_count - old_line_count;
+    old_line_count = buf_line_count(curbuf) - old_line_count;
     msgmore(old_line_count);
 
     if ((cmdmod.cmod_flags & CMOD_LOCKMARKS) == 0)
@@ -1061,7 +1061,7 @@ format_lines(
 	}
 
 	// The last line to be formatted.
-	if (count == 1 || curwin->w_cursor.lnum == curbuf->b_ml.ml_line_count)
+	if (count == 1 || curwin->w_cursor.lnum == buf_line_count(curbuf))
 	{
 	    next_is_not_par = TRUE;
 	    next_leader_len = 0;
@@ -1093,7 +1093,7 @@ format_lines(
 	    if (first_par_line
 		    && (do_second_indent || do_number_indent)
 		    && prev_is_end_par
-		    && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+		    && curwin->w_cursor.lnum < buf_line_count(curbuf))
 	    {
 		if (do_second_indent && !LINEEMPTY(curwin->w_cursor.lnum + 1))
 		{
@@ -1128,7 +1128,7 @@ format_lines(
 	    }
 
 	    // When the comment leader changes, it's the end of the paragraph.
-	    if (curwin->w_cursor.lnum >= curbuf->b_ml.ml_line_count
+	    if (curwin->w_cursor.lnum >= buf_line_count(curbuf)
 		    || !same_leader(curwin->w_cursor.lnum,
 					leader_len, leader_flags,
 					   next_leader_len, next_leader_flags))

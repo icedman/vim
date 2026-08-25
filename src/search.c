@@ -726,7 +726,7 @@ searchit(
 	    start_char_len = 0;
 	// Watch out for the "col" being MAXCOL - 2, used in a closed fold.
 	else if (has_mbyte
-		    && pos->lnum >= 1 && pos->lnum <= buf->b_ml.ml_line_count
+		    && pos->lnum >= 1 && pos->lnum <= buf_line_count(buf)
 						    && pos->col < MAXCOL - 2)
 	{
 	    ptr = buf_line(buf, pos->lnum, FALSE);
@@ -780,7 +780,7 @@ searchit(
 
 	for (loop = 0; loop <= 1; ++loop)   // loop twice if 'wrapscan' set
 	{
-	    for ( ; lnum > 0 && lnum <= buf->b_ml.ml_line_count;
+	    for ( ; lnum > 0 && lnum <= buf_line_count(buf);
 					   lnum += dir, at_first_line = FALSE)
 	    {
 		// Stop after checking "stop_lnum", if it's set.
@@ -813,7 +813,7 @@ searchit(
 		    submatch = first_submatch(&regmatch);
 #endif
 		    // "lnum" may be past end of buffer for "\n\zs".
-		    if (lnum + matchpos.lnum > buf->b_ml.ml_line_count)
+		    if (lnum + matchpos.lnum > buf_line_count(buf))
 			ptr = (char_u *)"";
 		    else
 			ptr = buf_line(buf, lnum + matchpos.lnum, FALSE);
@@ -1043,7 +1043,7 @@ searchit(
 			{
 			    --pos->col;
 			    if (has_mbyte
-				    && pos->lnum <= buf->b_ml.ml_line_count)
+				    && pos->lnum <= buf_line_count(buf))
 			    {
 				ptr = buf_line(buf, pos->lnum, FALSE);
 				pos->col -= (*mb_head_off)(ptr, ptr + pos->col);
@@ -1125,7 +1125,7 @@ searchit(
 	     * written.
 	     */
 	    if (dir == BACKWARD)    // start second loop at the other end
-		lnum = buf->b_ml.ml_line_count;
+		lnum = buf_line_count(buf);
 	    else
 		lnum = 1;
 	    if (!shortmess(SHM_SEARCH)
@@ -1168,9 +1168,9 @@ searchit(
     }
 
     // A pattern like "\n\zs" may go past the last line.
-    if (pos->lnum > buf->b_ml.ml_line_count)
+    if (pos->lnum > buf_line_count(buf))
     {
-	pos->lnum = buf->b_ml.ml_line_count;
+	pos->lnum = buf_line_count(buf);
 	pos->col = buf_line_len(buf, pos->lnum);
 	if (pos->col > 0)
 	    --pos->col;
@@ -1643,7 +1643,7 @@ do_search(
 			break;
 		if (c)			// at end of buffer
 		{
-		    pos.lnum = curbuf->b_ml.ml_line_count + 1;
+		    pos.lnum = buf_line_count(curbuf) + 1;
 		    pos.col = 0;
 		}
 	    }
@@ -1688,8 +1688,8 @@ do_search(
 		c = pos.lnum + spats[0].off.off;
 		if (c < 1)
 		    pos.lnum = 1;
-		else if (c > curbuf->b_ml.ml_line_count)
-		    pos.lnum = curbuf->b_ml.ml_line_count;
+		else if (c > buf_line_count(curbuf))
+		    pos.lnum = buf_line_count(curbuf);
 		else
 		    pos.lnum = c;
 		pos.col = 0;
@@ -1790,7 +1790,7 @@ search_for_exact_line(
     char_u	*p;
     int		compl_len = ins_compl_len();
 
-    if (buf->b_ml.ml_line_count == 0)
+    if (buf_line_count(buf) == 0)
 	return FAIL;
     for (;;)
     {
@@ -1799,7 +1799,7 @@ search_for_exact_line(
 	{
 	    if (p_ws)
 	    {
-		pos->lnum = buf->b_ml.ml_line_count;
+		pos->lnum = buf_line_count(buf);
 		if (!shortmess(SHM_SEARCH))
 		    give_warning((char_u *)_(top_bot_msg), TRUE);
 	    }
@@ -1809,7 +1809,7 @@ search_for_exact_line(
 		break;
 	    }
 	}
-	else if (pos->lnum > buf->b_ml.ml_line_count)
+	else if (pos->lnum > buf_line_count(buf))
 	{
 	    if (p_ws)
 	    {
@@ -2370,7 +2370,7 @@ findmatchlimit(
 	    {
 		if (hash_dir > 0)
 		{
-		    if (pos.lnum == curbuf->b_ml.ml_line_count)
+		    if (pos.lnum == buf_line_count(curbuf))
 			break;
 		}
 		else if (pos.lnum == 1)
@@ -2492,7 +2492,7 @@ findmatchlimit(
 		    || (lisp && comment_col != MAXCOL
 					   && pos.col == (colnr_T)comment_col))
 	    {
-		if (pos.lnum == curbuf->b_ml.ml_line_count  // end of file
+		if (pos.lnum == buf_line_count(curbuf)  // end of file
 			// line is exhausted and comment with it,
 			// don't search for match in code
 			 || lispcomm)
@@ -3122,8 +3122,8 @@ current_search(
 	    {
 		// try again from end of buffer
 		// searching backwards, so set pos to last line and col
-		pos.lnum = curwin->w_buffer->b_ml.ml_line_count;
-		pos.col  = ml_get_len(curwin->w_buffer->b_ml.ml_line_count);
+		pos.lnum = buf_line_count(curwin->w_buffer);
+		pos.col  = ml_get_len(buf_line_count(curwin->w_buffer));
 	    }
 	}
     }
@@ -3516,8 +3516,8 @@ find_pattern_in_path(
     depth = depth_displayed = -1;
 
     lnum = start_lnum;
-    if (end_lnum > curbuf->b_ml.ml_line_count)
-	end_lnum = curbuf->b_ml.ml_line_count;
+    if (end_lnum > buf_line_count(curbuf))
+	end_lnum = buf_line_count(curbuf);
     if (lnum > end_lnum)		// do at least one line
 	lnum = end_lnum;
     line = get_line_and_copy(lnum, file_line);
@@ -4163,7 +4163,7 @@ show_pat_in_path(
 	}
 	else
 	{
-	    if (++*lnum > curbuf->b_ml.ml_line_count)
+	    if (++*lnum > buf_line_count(curbuf))
 		break;
 	    line = ml_get(*lnum);
 	    linelen = ml_get_len(*lnum);

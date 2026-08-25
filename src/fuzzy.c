@@ -821,7 +821,7 @@ search_for_fuzzy_match(
 	circly_end = *start_pos;
     else
     {
-	circly_end.lnum = buf->b_ml.ml_line_count;
+	circly_end.lnum = buf_line_count(buf);
 	circly_end.col = 0;
 	circly_end.coladd = 0;
     }
@@ -838,7 +838,7 @@ search_for_fuzzy_match(
 	    break;
 
 	// Ensure current_pos is valid
-	if (current_pos.lnum >= 1 && current_pos.lnum <= buf->b_ml.ml_line_count)
+	if (current_pos.lnum >= 1 && current_pos.lnum <= buf_line_count(buf))
 	{
 	    // Get the current line buffer
 	    *ptr = buf_line(buf, current_pos.lnum, FALSE);
@@ -883,7 +883,7 @@ search_for_fuzzy_match(
 	// Move to the next line or previous line based on direction
 	if (dir == FORWARD)
 	{
-	    if (++current_pos.lnum > buf->b_ml.ml_line_count)
+	    if (++current_pos.lnum > buf_line_count(buf))
 	    {
 		if (p_ws)
 		{
@@ -900,7 +900,7 @@ search_for_fuzzy_match(
 	    {
 		if (p_ws)
 		{
-		    current_pos.lnum = buf->b_ml.ml_line_count;
+		    current_pos.lnum = buf_line_count(buf);
 		    looped_around = TRUE;
 		}
 		else

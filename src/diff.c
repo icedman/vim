@@ -802,7 +802,7 @@ diff_write_buffer(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
     char_u	*ptr;
 
     if (end < 0)
-	end = buf->b_ml.ml_line_count;
+	end = buf_line_count(buf);
 
     if (buf->b_ml.ml_flags & ML_EMPTY || end < start)
     {
@@ -907,7 +907,7 @@ diff_write(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
 	return FAIL;
 
     if (end < 0)
-	end = buf->b_ml.ml_line_count;
+	end = buf_line_count(buf);
 
     // Always use 'fileformat' set to "unix".
     save_ml_flags = buf->b_ml.ml_flags;
@@ -1455,7 +1455,7 @@ ex_diffpatch(exarg_T *eap)
 
     // Write the current buffer to "tmp_orig".
     if (buf_write(curbuf, tmp_orig, NULL,
-		(linenr_T)1, curbuf->b_ml.ml_line_count,
+		(linenr_T)1, buf_line_count(curbuf),
 				     NULL, FALSE, FALSE, FALSE, TRUE) == FAIL)
 	goto theend;
 
@@ -2460,7 +2460,7 @@ diff_check_with_linestatus(win_T *wp, linenr_T lnum, int *linestatus)
 	return 0;
 
     // safety check: "lnum" must be a buffer line
-    if (lnum < 1 || lnum > buf->b_ml.ml_line_count + 1)
+    if (lnum < 1 || lnum > buf_line_count(buf) + 1)
 	return 0;
 
     idx = diff_buf_idx(buf);
@@ -2825,7 +2825,7 @@ parse_diffanchors(
 	    return FAIL;
 
 	if (!check_only
-		&& (lnum == MAXLNUM || lnum <= 0 || lnum > buf->b_ml.ml_line_count + 1))
+		&& (lnum == MAXLNUM || lnum <= 0 || lnum > buf_line_count(buf) + 1))
 	{
 	    emsg(_(e_invalid_range));
 	    return FAIL;
@@ -4173,7 +4173,7 @@ ex_diffgetput(exarg_T *eap)
 	// Make it possible that ":diffget" on the last line gets line below
 	// the cursor line when there is no difference above the cursor.
 	int linestatus = 0;
-	if (eap->line1 == curbuf->b_ml.ml_line_count
+	if (eap->line1 == buf_line_count(curbuf)
 		&& (diff_check_with_linestatus(curwin, eap->line1, &linestatus) == 0
 		    && linestatus == 0)
 		&& (eap->line1 == 1 ||
@@ -4242,7 +4242,7 @@ ex_diffgetput(exarg_T *eap)
 	count = dp->df_count[idx_to];
 	// The empty line of an empty buffer is deleted below, include it in
 	// the undo information, otherwise undo leaves a line behind.
-	linenr_T undo_bot = lnum + count + (count == 0 && BUFEMPTY() ? 1 : 0);
+	linenr_T undo_bot = lnum + count + (count == 0 && buf_is_empty(curbuf) ? 1 : 0);
 
 	if (dp->df_lnum[idx_cur] + dp->df_count[idx_cur] > eap->line1 + off
 		&& u_save(lnum - 1, undo_bot) != FAIL)
@@ -4294,12 +4294,12 @@ ex_diffgetput(exarg_T *eap)
 		    end_skip = 0;
 	    }
 
-	    buf_empty = BUFEMPTY();
+	    buf_empty = buf_is_empty(curbuf);
 	    added = 0;
 	    for (i = 0; i < count; ++i)
 	    {
 		// remember deleting the last line of the buffer
-		buf_empty = curbuf->b_ml.ml_line_count == 1;
+		buf_empty = buf_line_count(curbuf) == 1;
 		if (ml_delete(lnum) == OK)
 		    --added;
 	    }
@@ -4317,7 +4317,7 @@ ex_diffgetput(exarg_T *eap)
 		    ml_append(lnum + i - 1, p, 0, FALSE);
 		    vim_free(p);
 		    ++added;
-		    if (buf_empty && curbuf->b_ml.ml_line_count == 2)
+		    if (buf_empty && buf_line_count(curbuf) == 2)
 		    {
 			// Added the first line into an empty buffer, need to
 			// delete the dummy empty line.
@@ -4364,7 +4364,7 @@ ex_diffgetput(exarg_T *eap)
 			// When the buffer was previously empty, the cursor may
 			// now be beyond the last line, so clamp cursor lnum.
 			curwin->w_cursor.lnum = MIN(curwin->w_cursor.lnum,
-						curbuf->b_ml.ml_line_count);
+						buf_line_count(curbuf));
 		    }
 		    else if (added < 0)
 			curwin->w_cursor.lnum = lnum;
@@ -4525,8 +4525,8 @@ diff_move_to(int dir, long count)
     }
 
     // don't end up past the end of the file
-    if (lnum > curbuf->b_ml.ml_line_count)
-	lnum = curbuf->b_ml.ml_line_count;
+    if (lnum > buf_line_count(curbuf))
+	lnum = buf_line_count(curbuf);
 
     // When the cursor didn't move at all we fail.
     if (lnum == curwin->w_cursor.lnum)
@@ -4608,8 +4608,8 @@ diff_get_corresponding_line(buf_T *buf1, linenr_T lnum1)
     linenr_T lnum = diff_get_corresponding_line_int(buf1, lnum1);
 
     // don't end up past the end of the file
-    if (lnum > curbuf->b_ml.ml_line_count)
-	return curbuf->b_ml.ml_line_count;
+    if (lnum > buf_line_count(curbuf))
+	return buf_line_count(curbuf);
     return lnum;
 }
 
@@ -4639,8 +4639,8 @@ diff_lnum_win(linenr_T lnum, win_T *wp)
 
     // When after the last change, compute relative to the last line number.
     if (dp == NULL)
-	return wp->w_buffer->b_ml.ml_line_count
-					- (curbuf->b_ml.ml_line_count - lnum);
+	return buf_line_count(wp->w_buffer)
+					- (buf_line_count(curbuf) - lnum);
 
     // Find index for "wp".
     i = diff_buf_idx(wp->w_buffer);

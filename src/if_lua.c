@@ -2696,7 +2696,7 @@ ex_luado(exarg_T *eap)
     for (l = eap->line1; l <= eap->line2; l++)
     {
 	// Check the line number, the command may have deleted lines.
-	if (l > curbuf->b_ml.ml_line_count)
+	if (l > buf_line_count(curbuf))
 	    break;
 
 	lua_pushvalue(L, -1); // function
@@ -2710,7 +2710,7 @@ ex_luado(exarg_T *eap)
 
 	// Catch the command switching to another buffer.
 	// Check the line number, the command may have deleted lines.
-	if (curbuf != was_curbuf || l > curbuf->b_ml.ml_line_count)
+	if (curbuf != was_curbuf || l > buf_line_count(curbuf))
 	    break;
 
 	if (lua_isstring(L, -1)) // update line?

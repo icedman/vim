@@ -306,8 +306,8 @@ add_change_text(
     if (l == NULL)
 	return 0;
 
-    if (below > buf->b_ml.ml_line_count + 1)
-	below = buf->b_ml.ml_line_count + 1;
+    if (below > buf_line_count(buf) + 1)
+	below = buf_line_count(buf) + 1;
     for (linenr_T lp = lnum < 1 ? 1 : lnum; lp < below; ++lp)
     {
 	char_u	*line = buf_line(buf, lp, FALSE);
@@ -1006,7 +1006,7 @@ changed_bytes(linenr_T lnum, colnr_T col)
     // displayed.  Schedule the next line for redrawing just in case.
     // Don't do this when displaying '$' at the end of changed text.
     if (spell_check_window(curwin)
-	    && lnum < curbuf->b_ml.ml_line_count
+	    && lnum < buf_line_count(curbuf)
 	    && vim_strchr(p_cpo, CPO_DOLLAR) == NULL)
 	redrawWinline(curwin, lnum + 1);
 #endif
@@ -1238,7 +1238,7 @@ file_ff_differs(buf_T *buf, int ignore_empty)
 	return FALSE;
     if (ignore_empty
 	    && (buf->b_flags & BF_NEW)
-	    && buf->b_ml.ml_line_count == 1
+	    && buf_line_count(buf) == 1
 	    && *buf_line(buf, (linenr_T)1, FALSE) == NUL)
 	return FALSE;
     if (buf->b_start_ffc != *buf->b_p_ff)
@@ -1913,7 +1913,7 @@ open_line(
 		    int was_backslashed = FALSE;
 
 		    while ((ptr[0] == '#' || was_backslashed) &&
-			 curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+			 curwin->w_cursor.lnum < buf_line_count(curbuf))
 		    {
 			if (*ptr && ptr[STRLEN(ptr) - 1] == '\\')
 			    was_backslashed = TRUE;
@@ -2674,7 +2674,7 @@ del_lines(long nlines, int undo)
 	++n;
 
 	// If we delete the last line in the file, stop
-	if (first > curbuf->b_ml.ml_line_count)
+	if (first > buf_line_count(curbuf))
 	    break;
     }
 

@@ -1133,7 +1133,7 @@ arg_all_open_windows(arg_all_state_T *aall, int count)
 
     // ":tab drop file" should re-use an empty window to avoid "--remote-tab"
     // leaving an empty tab page when executed locally.
-    if (aall->keep_tabs && BUFEMPTY() && curbuf->b_nwindows == 1
+    if (aall->keep_tabs && buf_is_empty(curbuf) && curbuf->b_nwindows == 1
 			    && curbuf->b_ffname == NULL && !curbuf->b_changed)
     {
 	aall->use_firstwin = TRUE;

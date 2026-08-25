@@ -852,7 +852,7 @@ sign_mark_adjust(
         // If the new sign line number is past the last line in the buffer,
         // then don't adjust the line number. Otherwise, it will always be past
         // the last line and will not be visible.
-        if (new_lnum <= curbuf->b_ml.ml_line_count)
+        if (new_lnum <= buf_line_count(curbuf))
             sign->se_lnum = new_lnum;
     }
 }

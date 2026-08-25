@@ -599,7 +599,7 @@ bufselfcmd(
 		err = TCL_ERROR;
 		break;
 	    }
-	    val1 = (int)buf->b_ml.ml_line_count;
+	    val1 = (int)buf_line_count(buf);
 	    if (opt)
 		val1 = row2tcl(val1);
 
@@ -1196,7 +1196,7 @@ tclgetlinenum(
 	    case LN_BOTTOM:
 	    case LN_END:
 	    case LN_LAST:
-		*valueP = buf->b_ml.ml_line_count;
+		*valueP = buf_line_count(buf);
 		break;
 	}
 	return TCL_OK;
@@ -1207,7 +1207,7 @@ tclgetlinenum(
     if (err != TCL_OK)
 	return err;
     i = row2vim(i);
-    if (i < 1  ||  i > buf->b_ml.ml_line_count)
+    if (i < 1  ||  i > buf_line_count(buf))
     {
 	Tcl_SetResult(interp, _("line number out of range"), TCL_STATIC);
 	return TCL_ERROR;
@@ -1995,7 +1995,7 @@ ex_tcldo(exarg_T *eap)
     }
     while (err == TCL_OK  &&  rs <= re)
     {
-	if ((linenr_T)rs > curbuf->b_ml.ml_line_count)
+	if ((linenr_T)rs > buf_line_count(curbuf))
 	    break;
 	line = (char *)buf_line(curbuf, (linenr_T)rs, FALSE);
 	if (!line)
@@ -2013,7 +2013,7 @@ ex_tcldo(exarg_T *eap)
 	    || Tcl_LimitExceeded(tclinfo.interp)
 #endif
 	    || curbuf != was_curbuf
-	    || (linenr_T)rs > curbuf->b_ml.ml_line_count)
+	    || (linenr_T)rs > buf_line_count(curbuf))
 	    break;
 	line = (char *)Tcl_GetVar(tclinfo.interp, var_line, 0);
 	if (line)

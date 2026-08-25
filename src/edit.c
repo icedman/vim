@@ -232,7 +232,7 @@ edit(
 #ifdef FEAT_EVAL
 		&& *get_vim_var_str(VV_CHAR) == NUL
 #endif
-		&& save_cursor.lnum <= curbuf->b_ml.ml_line_count)
+		&& save_cursor.lnum <= buf_line_count(curbuf))
 	{
 	    int save_state = State;
 
@@ -297,7 +297,7 @@ edit(
     {
 	State = MODE_VREPLACE;
 	replaceState = MODE_VREPLACE;
-	orig_line_count = curbuf->b_ml.ml_line_count;
+	orig_line_count = buf_line_count(curbuf);
 	vr_lines_changed = 1;
     }
     else
@@ -2566,7 +2566,7 @@ stop_arrow(void)
 	ai_col = 0;
 	if (State & VREPLACE_FLAG)
 	{
-	    orig_line_count = curbuf->b_ml.ml_line_count;
+	    orig_line_count = buf_line_count(curbuf);
 	    vr_lines_changed = 1;
 	}
 	ResetRedobuff();
@@ -2679,7 +2679,7 @@ stop_insert(
 	// got changed unexpectedly.
 	if (!nomove && did_ai && (esc || (vim_strchr(p_cpo, CPO_INDENT) == NULL
 			&& curwin->w_cursor.lnum != end_insert_pos->lnum))
-		&& end_insert_pos->lnum <= curbuf->b_ml.ml_line_count)
+		&& end_insert_pos->lnum <= buf_line_count(curbuf))
 	{
 	    pos_T	tpos = curwin->w_cursor;
 	    colnr_T	prev_col = end_insert_pos->col;
@@ -3030,7 +3030,7 @@ cursor_up(
 cursor_down_inner(win_T *wp, long n)
 {
     linenr_T	lnum = wp->w_cursor.lnum;
-    linenr_T	line_count = wp->w_buffer->b_ml.ml_line_count;
+    linenr_T	line_count = buf_line_count(wp->w_buffer);
 
     if (lnum + n >= line_count)
 	lnum = line_count;
@@ -3069,7 +3069,7 @@ cursor_down(
     int		upd_topline)	    // When TRUE: update topline
 {
     linenr_T	lnum = curwin->w_cursor.lnum;
-    linenr_T	line_count = curwin->w_buffer->b_ml.ml_line_count;
+    linenr_T	line_count = buf_line_count(curwin->w_buffer);
     // This fails if the cursor is already in the last (folded) line, or would
     // move beyond the last line and '-' is in 'cpoptions'.
 #ifdef FEAT_FOLDING
@@ -4167,8 +4167,8 @@ ins_del(void)
 	    // have been added. That makes sure, that open_line() later
 	    // can access all buffer lines correctly
 	    if (State & VREPLACE_FLAG &&
-		    orig_line_count > curbuf->b_ml.ml_line_count)
-		orig_line_count = curbuf->b_ml.ml_line_count;
+		    orig_line_count > buf_line_count(curbuf))
+		orig_line_count = buf_line_count(curbuf);
 	}
     }
     else if (del_char(FALSE) == FAIL)  // delete char under cursor
@@ -4226,7 +4226,7 @@ ins_bs(
      * can't backup past starting point unless 'backspace' > 1
      * can backup to a previous line if 'backspace' == 0
      */
-    if (       BUFEMPTY()
+    if (       buf_is_empty(curbuf)
 	    || (
 #ifdef FEAT_RIGHTLEFT
 		!revins_on &&
@@ -4880,7 +4880,7 @@ ins_end(int c)
     undisplay_dollar();
     tpos = curwin->w_cursor;
     if (c == K_C_END)
-	curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	curwin->w_cursor.lnum = buf_line_count(curbuf);
     coladvance((colnr_T)MAXCOL);
     curwin->w_curswant = MAXCOL;
 
@@ -4944,7 +4944,7 @@ ins_right(void)
     // if 'whichwrap' set for cursor in insert mode, may move the
     // cursor to the next line
     else if (vim_strchr(p_ww, ']') != NULL
-	    && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+	    && curwin->w_cursor.lnum < buf_line_count(curbuf))
     {
 	start_arrow(&curwin->w_cursor);
 	curwin->w_set_curswant = true;
@@ -4965,7 +4965,7 @@ ins_s_right(void)
 	foldOpenCursor();
 #endif
     undisplay_dollar();
-    if (curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count
+    if (curwin->w_cursor.lnum < buf_line_count(curbuf)
 	    || gchar_cursor() != NUL)
     {
 	start_arrow_with_change(&curwin->w_cursor, end_change);
@@ -5531,7 +5531,7 @@ ins_copychar(linenr_T lnum)
     char_u	    *line;
     chartabsize_T   cts;
 
-    if (lnum < 1 || lnum > curbuf->b_ml.ml_line_count)
+    if (lnum < 1 || lnum > buf_line_count(curbuf))
     {
 	vim_beep(BO_COPY);
 	return NUL;
@@ -5613,7 +5613,7 @@ get_nolist_virtcol(void)
     // check validity of cursor in current buffer
     if (curwin->w_buffer == NULL
 	|| curwin->w_buffer->b_ml.ml_mfp == NULL
-	|| curwin->w_cursor.lnum > curwin->w_buffer->b_ml.ml_line_count)
+	|| curwin->w_cursor.lnum > buf_line_count(curwin->w_buffer))
 	return 0;
     if (curwin->w_p_list && vim_strchr(p_cpo, CPO_LISTWM) == NULL)
 	return getvcol_nolist(&curwin->w_cursor);

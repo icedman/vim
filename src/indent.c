@@ -840,7 +840,7 @@ get_number_indent(linenr_T lnum)
     regmatch_T	regmatch;
     int		lead_len = 0;	// length of comment leader
 
-    if (lnum > curbuf->b_ml.ml_line_count)
+    if (lnum > buf_line_count(curbuf))
 	return -1;
     pos.lnum = 0;
 
@@ -2318,7 +2318,7 @@ f_indent(typval_T *argvars, typval_T *rettv)
 	return;
 
     lnum = tv_get_lnum(argvars);
-    if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count)
+    if (lnum >= 1 && lnum <= buf_line_count(curbuf))
 	rettv->vval.v_number = get_indent_lnum(lnum);
     else
     {
@@ -2342,7 +2342,7 @@ f_lispindent(typval_T *argvars UNUSED, typval_T *rettv)
 
     pos = curwin->w_cursor;
     lnum = tv_get_lnum(argvars);
-    if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count)
+    if (lnum >= 1 && lnum <= buf_line_count(curbuf))
     {
 	curwin->w_cursor.lnum = lnum;
 	rettv->vval.v_number = get_lisp_indent();

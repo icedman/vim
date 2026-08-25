@@ -2942,7 +2942,7 @@ tv_get_lnum_buf(typval_T *argvars, buf_T *buf)
 	    && argvars[0].vval.v_string[0] == '$'
 	    && argvars[0].vval.v_string[1] == NUL
 	    && buf != NULL)
-	return buf->b_ml.ml_line_count;
+	return buf_line_count(buf);
     return (linenr_T)tv_get_number_chk(&argvars[0], NULL);
 }
 

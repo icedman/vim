@@ -1579,7 +1579,7 @@ msg_start(void)
 
 	    // start a new line
 	    curbuf = wp->w_buffer;
-	    ml_append(wp->w_buffer->b_ml.ml_line_count,
+	    ml_append(buf_line_count(wp->w_buffer),
 					      (char_u *)"", (colnr_T)0, FALSE);
 	    curbuf = curwin->w_buffer;
 	}

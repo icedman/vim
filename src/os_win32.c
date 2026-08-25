@@ -5180,7 +5180,7 @@ sub_process_writer(LPVOID param)
 		|| (!curbuf->b_p_bin
 		    && curbuf->b_p_fixeol)
 		|| (lnum != curbuf->b_no_eol_lnum
-		    && (lnum != curbuf->b_ml.ml_line_count
+		    && (lnum != buf_line_count(curbuf)
 			|| curbuf->b_p_eol)))
 	    {
 		WriteFile(g_hChildStd_IN_Wr, "\n", 1,

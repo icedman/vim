@@ -1949,8 +1949,8 @@ do_put(
     if (y_type == MBLOCK)
     {
 	lnum = curwin->w_cursor.lnum + y_size + 1;
-	if (lnum > curbuf->b_ml.ml_line_count)
-	    lnum = curbuf->b_ml.ml_line_count + 1;
+	if (lnum > buf_line_count(curbuf))
+	    lnum = buf_line_count(curbuf) + 1;
 	if (u_save(curwin->w_cursor.lnum - 1, lnum) == FAIL)
 	    goto end;
     }
@@ -1969,7 +1969,7 @@ do_put(
 	    ++lnum;
 	// In an empty buffer the empty line is going to be replaced, include
 	// it in the saved lines.
-	if ((BUFEMPTY() ? u_save(0, 2) : u_save(lnum - 1, lnum)) == FAIL)
+	if ((buf_is_empty(curbuf) ? u_save(0, 2) : u_save(lnum - 1, lnum)) == FAIL)
 	    goto end;
 #ifdef FEAT_FOLDING
 	if (dir == FORWARD)
@@ -2068,9 +2068,9 @@ do_put(
 	    delcount = 0;
 
 	    // add a new line
-	    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
+	    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
 	    {
-		if (ml_append(curbuf->b_ml.ml_line_count, (char_u *)"",
+		if (ml_append(buf_line_count(curbuf), (char_u *)"",
 						   (colnr_T)1, FALSE) == FAIL)
 		    break;
 		++nr_lines;
@@ -2503,8 +2503,8 @@ error:
 		// put cursor after inserted text
 		if (y_type == MLINE)
 		{
-		    if (lnum >= curbuf->b_ml.ml_line_count)
-			curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+		    if (lnum >= buf_line_count(curbuf))
+			curwin->w_cursor.lnum = buf_line_count(curbuf);
 		    else
 			curwin->w_cursor.lnum = lnum + 1;
 		    curwin->w_cursor.col = 0;

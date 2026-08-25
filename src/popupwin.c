@@ -509,7 +509,7 @@ popup_handle_scrollbar_click(win_T *wp, int row, int col)
     if (row >= height / 2)
     {
 	// Click in lower half, scroll down.
-	if (wp->w_topline < wp->w_buffer->b_ml.ml_line_count)
+	if (wp->w_topline < buf_line_count(wp->w_buffer))
 	    ++new_topline;
     }
     else if (wp->w_topline > 1)
@@ -757,10 +757,10 @@ popup_show_curline(win_T *wp)
 	wp->w_topline = wp->w_cursor.lnum - wp->w_height + 1;
 	if (wp->w_topline < 1)
 	    wp->w_topline = 1;
-	else if (wp->w_topline > wp->w_buffer->b_ml.ml_line_count)
-	    wp->w_topline = wp->w_buffer->b_ml.ml_line_count;
+	else if (wp->w_topline > buf_line_count(wp->w_buffer))
+	    wp->w_topline = buf_line_count(wp->w_buffer);
 	while (wp->w_topline < wp->w_cursor.lnum
-		&& wp->w_topline < wp->w_buffer->b_ml.ml_line_count
+		&& wp->w_topline < buf_line_count(wp->w_buffer)
 		&& plines_m_win(wp, wp->w_topline, wp->w_cursor.lnum,
 					    wp->w_height + 1) > wp->w_height)
 	    ++wp->w_topline;
@@ -1428,8 +1428,8 @@ apply_options(win_T *wp, dict_T *dict, int create)
     // above or below the displayed lines, move the cursor to "firstline".
     if (wp->w_firstline > 0 && (wp->w_popup_flags & POPF_CURSORLINE))
     {
-	if (wp->w_firstline > wp->w_buffer->b_ml.ml_line_count)
-	    wp->w_cursor.lnum = wp->w_buffer->b_ml.ml_line_count;
+	if (wp->w_firstline > buf_line_count(wp->w_buffer))
+	    wp->w_cursor.lnum = buf_line_count(wp->w_buffer);
 	else if (wp->w_cursor.lnum < wp->w_firstline
 		|| wp->w_cursor.lnum >= wp->w_firstline + wp->w_height)
 	    wp->w_cursor.lnum = wp->w_firstline;
@@ -2505,7 +2505,7 @@ popup_adjust_position(win_T *wp)
 	    // calling update_screen() will set it only later.
 	    compute_cmdrow();
 	    wp->w_winrow = MAX(cmdline_row
-				    - wp->w_buffer->b_ml.ml_line_count - 1, 0);
+				    - buf_line_count(wp->w_buffer) - 1, 0);
 	}
 
 	if (!use_wantcol)
@@ -2578,15 +2578,15 @@ popup_adjust_position(win_T *wp)
 	// If firstline is beyond the buffer content, reset it to auto-position.
 	// This can happen when the popup was scrolled and then the buffer
 	// content was changed to have fewer lines.
-	if (wp->w_firstline > wp->w_buffer->b_ml.ml_line_count)
+	if (wp->w_firstline > buf_line_count(wp->w_buffer))
 	    wp->w_firstline = 0;
 	else
 	    wp->w_topline = wp->w_firstline;
     }
     if (wp->w_topline < 1)
 	wp->w_topline = 1;
-    else if (wp->w_topline > wp->w_buffer->b_ml.ml_line_count)
-	wp->w_topline = wp->w_buffer->b_ml.ml_line_count;
+    else if (wp->w_topline > buf_line_count(wp->w_buffer))
+	wp->w_topline = buf_line_count(wp->w_buffer);
 
     // Compute width based on longest text line and the 'wrap' option.
     // Use a minimum width of one, so that something shows when there is no
@@ -2603,7 +2603,7 @@ popup_adjust_position(win_T *wp)
 
 	if (wp->w_width < maxwidth)
 	    wp->w_width = maxwidth;
-	for (ln = 1; ln <= wp->w_buffer->b_ml.ml_line_count; ++ln)
+	for (ln = 1; ln <= buf_line_count(wp->w_buffer); ++ln)
 	{
 	    int len = linetabsize(wp, ln) + margin_width;
 
@@ -2617,10 +2617,10 @@ popup_adjust_position(win_T *wp)
 	wp->w_width = saved_w_width;
     }
     if (wp->w_firstline < 0)
-	lnum = wp->w_buffer->b_ml.ml_line_count;
+	lnum = buf_line_count(wp->w_buffer);
     else
 	lnum = wp->w_topline;
-    while (lnum >= 1 && lnum <= wp->w_buffer->b_ml.ml_line_count)
+    while (lnum >= 1 && lnum <= buf_line_count(wp->w_buffer))
     {
 	int len;
 	int w_width = wp->w_width;
@@ -2687,7 +2687,7 @@ popup_adjust_position(win_T *wp)
 	if (maxheight > 0
 		   && (wp->w_firstline >= 0
 			       ? lnum - wp->w_topline
-			       : wp->w_buffer->b_ml.ml_line_count - lnum)
+			       : buf_line_count(wp->w_buffer) - lnum)
 		       + wrapped >= maxheight)
 	    break;
     }
@@ -2696,7 +2696,7 @@ popup_adjust_position(win_T *wp)
 	wp->w_topline = lnum + 1;
 
     wp->w_has_scrollbar = wp->w_want_scrollbar
-	   && (wp->w_topline > 1 || lnum <= wp->w_buffer->b_ml.ml_line_count);
+	   && (wp->w_topline > 1 || lnum <= buf_line_count(wp->w_buffer));
 #ifdef FEAT_TERMINAL
     if (wp->w_buffer->b_term != NULL && !term_is_finished(wp->w_buffer))
 	// Terminal window with running job never has a scrollbar, adjusts to
@@ -2795,7 +2795,7 @@ popup_adjust_position(win_T *wp)
 	}
     }
 
-    wp->w_height = wp->w_buffer->b_ml.ml_line_count - wp->w_topline
+    wp->w_height = buf_line_count(wp->w_buffer) - wp->w_topline
 								 + 1 + wrapped;
     if (minheight > 0 && wp->w_height < minheight)
 	wp->w_height = minheight;
@@ -3059,7 +3059,7 @@ popup_set_buffer_text(buf_T *buf, typval_T text)
 
     // Clear the buffer, then replace the lines.
     curbuf = buf;
-    for (lnum = buf->b_ml.ml_line_count; lnum > 0; --lnum)
+    for (lnum = buf_line_count(buf); lnum > 0; --lnum)
 	ml_delete(lnum);
     curbuf = curwin->w_buffer;
 
@@ -3090,7 +3090,7 @@ popup_set_buffer_text(buf_T *buf, typval_T text)
 
     // delete the line that was in the empty buffer
     curbuf = buf;
-    ml_delete(buf->b_ml.ml_line_count);
+    ml_delete(buf_line_count(buf));
     curbuf = curwin->w_buffer;
 }
 
@@ -3726,7 +3726,7 @@ popup_create(typval_T *argvars, typval_T *rettv, create_type_T type)
     if (popup_is_notification(type))
     {
 	win_T  *twp, *nextwin;
-	int	height = buf->b_ml.ml_line_count + 3;
+	int	height = buf_line_count(buf) + 3;
 
 	// Try to not overlap with another global popup.  Guess we need 3
 	// more screen lines than buffer lines.
@@ -4128,11 +4128,11 @@ f_popup_filter_menu(typval_T *argvars, typval_T *rettv)
 	if (wp->w_cursor.lnum > 1)
 	    --wp->w_cursor.lnum;
 	else
-	    wp->w_cursor.lnum = wp->w_buffer->b_ml.ml_line_count;
+	    wp->w_cursor.lnum = buf_line_count(wp->w_buffer);
     }
     if (c == 'j' || c == 'J' || c == K_DOWN || c == Ctrl_N)
     {
-	if (wp->w_cursor.lnum < wp->w_buffer->b_ml.ml_line_count)
+	if (wp->w_cursor.lnum < buf_line_count(wp->w_buffer))
 	    ++wp->w_cursor.lnum;
 	else
 	    wp->w_cursor.lnum = 1;
@@ -4909,7 +4909,7 @@ refill_pum_bg_row_from_buffer(int r, int left, int right)
     row_for_lnum = line_cp;
     if (mouse_comp_pos(wp, &row_for_lnum, &col_for_lnum, &lnum, NULL))
 	return;	// past end of buffer
-    if (lnum < 1 || lnum > wp->w_buffer->b_ml.ml_line_count)
+    if (lnum < 1 || lnum > buf_line_count(wp->w_buffer))
 	return;
 
     line = buf_line(wp->w_buffer, lnum, FALSE);
@@ -5217,7 +5217,7 @@ f_popup_setoptions(typval_T *argvars, typval_T *rettv UNUSED)
     // Keep "firstline" sticky across popup_setoptions(): when it is set, any
     // property update should reapply it and restore the displayed top line.
     if (wp->w_firstline > 0
-	    && wp->w_firstline <= wp->w_buffer->b_ml.ml_line_count)
+	    && wp->w_firstline <= buf_line_count(wp->w_buffer))
 	wp->w_topline = wp->w_firstline;
 
     // Check if visual options changed and redraw if needed
@@ -7781,7 +7781,7 @@ update_popups(void (*win_update)(win_T *wp))
 	// Compute scrollbar thumb position and size.
 	if (wp->w_has_scrollbar)
 	{
-	    linenr_T	linecount = wp->w_buffer->b_ml.ml_line_count;
+	    linenr_T	linecount = buf_line_count(wp->w_buffer);
 	    int		height = wp->w_height;
 	    int		last;
 
@@ -8123,8 +8123,8 @@ popup_scroll_info(int dir, bool by_page)
     new_topline = wp->w_topline + (dir < 0 ? -by : by);
     if (new_topline < 1)
 	new_topline = 1;
-    if (new_topline > wp->w_buffer->b_ml.ml_line_count)
-	new_topline = wp->w_buffer->b_ml.ml_line_count;
+    if (new_topline > buf_line_count(wp->w_buffer))
+	new_topline = buf_line_count(wp->w_buffer);
     if (new_topline != wp->w_topline)
     {
 	set_topline(wp, new_topline);

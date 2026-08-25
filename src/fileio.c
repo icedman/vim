@@ -813,7 +813,7 @@ readfile(
      * Set linecnt now, before the "retry" caused by a wrong guess for
      * fileformat, and after the autocommands, which may change them.
      */
-    linecnt = curbuf->b_ml.ml_line_count;
+    linecnt = buf_line_count(curbuf);
 
     // "++bad=" argument.
     if (eap != NULL && eap->bad_char != 0)
@@ -1479,12 +1479,12 @@ retry:
 			    if (can_retry)
 				goto rewind_retry;
 			    if (conv_error == 0)
-				conv_error = curbuf->b_ml.ml_line_count
+				conv_error = buf_line_count(curbuf)
 								- linecnt + 1;
 			}
 			// Remember the first linenr with an illegal byte
 			else if (illegal_byte == 0)
-			    illegal_byte = curbuf->b_ml.ml_line_count
+			    illegal_byte = buf_line_count(curbuf)
 								- linecnt + 1;
 			if (bad_char_behavior == BAD_DROP)
 			{
@@ -2490,13 +2490,13 @@ failed:
 #ifdef FEAT_NETBEANS_INTG
 	    netbeansFireChanges = 0;
 #endif
-	    ml_delete(curbuf->b_ml.ml_line_count);
+	    ml_delete(buf_line_count(curbuf));
 #ifdef FEAT_NETBEANS_INTG
 	    netbeansFireChanges = 1;
 #endif
 	    --linecnt;
 	}
-	linecnt = curbuf->b_ml.ml_line_count - linecnt;
+	linecnt = buf_line_count(curbuf) - linecnt;
 	if (filesize == 0)
 	    linecnt = 0;
 	if (newfile || read_buffer)
@@ -2838,7 +2838,7 @@ readfile_linenr(
     char_u	*s;
     linenr_T	lnum;
 
-    lnum = curbuf->b_ml.ml_line_count - linecnt + 1;
+    lnum = buf_line_count(curbuf) - linecnt + 1;
     for (s = p; s < endp; ++s)
 	if (*s == '\n')
 	    ++lnum;
@@ -4222,7 +4222,7 @@ move_lines(buf_T *frombuf, buf_T *tobuf)
     if (retval != FAIL)
     {
 	curbuf = frombuf;
-	for (lnum = curbuf->b_ml.ml_line_count; lnum > 0; --lnum)
+	for (lnum = buf_line_count(curbuf); lnum > 0; --lnum)
 	    if (ml_delete(lnum) == FAIL)
 	    {
 		// Oops!  We could try putting back the saved lines, but that
@@ -4621,12 +4621,12 @@ buf_reload(buf_T *buf, int orig_mode, int reload_options)
 	old_cursor = curwin->w_cursor;
 	old_topline = curwin->w_topline;
 
-	if (p_ur < 0 || curbuf->b_ml.ml_line_count <= p_ur)
+	if (p_ur < 0 || buf_line_count(curbuf) <= p_ur)
 	{
 	    // Save all the text, so that the reload can be undone.
 	    // Sync first so that this is a separate undo-able action.
 	    u_sync(FALSE);
-	    saved = u_savecommon(0, curbuf->b_ml.ml_line_count + 1, 0, TRUE);
+	    saved = u_savecommon(0, buf_line_count(curbuf) + 1, 0, TRUE);
 	    flags |= READ_KEEP_UNDO;
 	}
 
@@ -4637,7 +4637,7 @@ buf_reload(buf_T *buf, int orig_mode, int reload_options)
 	 * the old contents.  Can't use memory only, the file might be
 	 * too big.  Use a hidden buffer to move the buffer contents to.
 	 */
-	if (BUFEMPTY() || saved == FAIL)
+	if (buf_is_empty(curbuf) || saved == FAIL)
 	    savebuf = NULL;
 	else
 	{
@@ -4683,8 +4683,8 @@ buf_reload(buf_T *buf, int orig_mode, int reload_options)
 		{
 		    // Put the text back from the save buffer.  First
 		    // delete any lines that readfile() added.
-		    while (!BUFEMPTY())
-			if (ml_delete(buf->b_ml.ml_line_count) == FAIL)
+		    while (!buf_is_empty(curbuf))
+			if (ml_delete(buf_line_count(buf)) == FAIL)
 			    break;
 		    (void)move_lines(savebuf, buf);
 		}
@@ -4716,8 +4716,8 @@ buf_reload(buf_T *buf, int orig_mode, int reload_options)
 
 	// Restore the topline and cursor position and check it (lines may
 	// have been removed).
-	if (old_topline > curbuf->b_ml.ml_line_count)
-	    curwin->w_topline = curbuf->b_ml.ml_line_count;
+	if (old_topline > buf_line_count(curbuf))
+	    curwin->w_topline = buf_line_count(curbuf);
 	else
 	    curwin->w_topline = old_topline;
 	curwin->w_cursor = old_cursor;

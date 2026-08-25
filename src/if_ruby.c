@@ -890,7 +890,7 @@ ex_rubydo(exarg_T *eap)
     {
 	VALUE line;
 
-	if (i > curbuf->b_ml.ml_line_count)
+	if (i > buf_line_count(curbuf))
 	    break;
 	line = vim_str2rb_enc_str((char *)ml_get(i));
 	rb_lastline_set(line);
@@ -900,7 +900,7 @@ ex_rubydo(exarg_T *eap)
 	    error_print(state);
 	    break;
 	}
-	if (was_curbuf != curbuf || i > curbuf->b_ml.ml_line_count)
+	if (was_curbuf != curbuf || i > buf_line_count(curbuf))
 	    break;
 	line = rb_lastline_get();
 	if (!NIL_P(line))
@@ -1358,13 +1358,13 @@ buffer_count(VALUE self)
 {
     buf_T *buf = get_buf(self);
 
-    return INT2NUM(buf->b_ml.ml_line_count);
+    return INT2NUM(buf_line_count(buf));
 }
 
     static VALUE
 get_buffer_line(buf_T *buf, linenr_T n)
 {
-    if (n <= 0 || n > buf->b_ml.ml_line_count)
+    if (n <= 0 || n > buf_line_count(buf))
 	rb_raise(rb_eIndexError, "line number %ld out of range", (long)n);
     return vim_str2rb_enc_str((char *)buf_line(buf, n, FALSE));
 }
@@ -1385,7 +1385,7 @@ set_buffer_line(buf_T *buf, linenr_T n, VALUE str)
     char	*line = StringValuePtr(str);
     aco_save_T	aco;
 
-    if (n > 0 && n <= buf->b_ml.ml_line_count && line != NULL)
+    if (n > 0 && n <= buf_line_count(buf) && line != NULL)
     {
 	// Set curwin/curbuf for "buf" and save some things.
 	aucmd_prepbuf(&aco, buf);
@@ -1432,7 +1432,7 @@ buffer_delete(VALUE self, VALUE num)
     long	n = NUM2LONG(num);
     aco_save_T	aco;
 
-    if (n > 0 && n <= buf->b_ml.ml_line_count)
+    if (n > 0 && n <= buf_line_count(buf))
     {
 	// Set curwin/curbuf for "buf" and save some things.
 	aucmd_prepbuf(&aco, buf);
@@ -1476,7 +1476,7 @@ buffer_append(VALUE self, VALUE num, VALUE str)
     {
 	rb_raise(rb_eIndexError, "NULL line");
     }
-    else if (n >= 0 && n <= buf->b_ml.ml_line_count)
+    else if (n >= 0 && n <= buf_line_count(buf))
     {
 	// set curwin/curbuf for "buf" and save some things
 	aucmd_prepbuf(&aco, buf);

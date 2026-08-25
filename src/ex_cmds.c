@@ -941,7 +941,7 @@ do_move(linenr_T line1, linenr_T line2, linenr_T dest)
      * And Finally we adjust the marks we put at the end of the file back to
      * their final destination at the new text position -- webb
      */
-    last_line = curbuf->b_ml.ml_line_count;
+    last_line = buf_line_count(curbuf);
     mark_adjust_nofold(line1, line2, last_line - line2, 0L);
     if (dest >= line2)
     {
@@ -1004,7 +1004,7 @@ do_move(linenr_T line1, linenr_T line2, linenr_T dest)
     if (line1 < dest)
     {
 	dest += num_lines + 1;
-	last_line = curbuf->b_ml.ml_line_count;
+	last_line = buf_line_count(curbuf);
 	if (dest > last_line + 1)
 	    dest = last_line + 1;
 	changed_lines(line1, 0, dest, 0L);
@@ -1426,7 +1426,7 @@ do_filter(
 	}
 	redraw_curbuf_later(UPD_VALID);
     }
-    read_linecount = curbuf->b_ml.ml_line_count;
+    read_linecount = buf_line_count(curbuf);
 
     /*
      * When call_shell() fails wait_return() is called to give the user a
@@ -1473,7 +1473,7 @@ do_filter(
 		goto filterend;
 	}
 
-	read_linecount = curbuf->b_ml.ml_line_count - read_linecount;
+	read_linecount = buf_line_count(curbuf) - read_linecount;
 
 	if (shell_flags & SHELL_READ)
 	{
@@ -1520,7 +1520,7 @@ do_filter(
 	    {
 		// no filter output: clamp '[ and '] to a valid line
 		curbuf->b_op_start.lnum = curbuf->b_op_end.lnum =
-					MIN(line1, curbuf->b_ml.ml_line_count);
+					MIN(line1, buf_line_count(curbuf));
 		curbuf->b_op_start.col = curbuf->b_op_end.col = 0;
 	    }
 	    else
@@ -2122,7 +2122,7 @@ ex_write(exarg_T *eap)
     {
 	// :saveas does not take a range, uses all lines.
 	eap->line1 = 1;
-	eap->line2 = curbuf->b_ml.ml_line_count;
+	eap->line2 = buf_line_count(curbuf);
     }
 
     if (eap->usefilter)		// input lines to shell command
@@ -2241,7 +2241,7 @@ do_write(exarg_T *eap)
 	 * Not writing the whole file is only allowed with '!'.
 	 */
 	if (	   (eap->line1 != 1
-		    || eap->line2 != curbuf->b_ml.ml_line_count)
+		    || eap->line2 != buf_line_count(curbuf))
 		&& !eap->forceit
 		&& !eap->append
 		&& !p_wa)
@@ -2497,7 +2497,7 @@ ex_wnext(exarg_T *eap)
     else
 	i = curwin->w_arg_idx - (int)eap->line2;
     eap->line1 = 1;
-    eap->line2 = curbuf->b_ml.ml_line_count;
+    eap->line2 = buf_line_count(curbuf);
     if (do_write(eap) != FAIL)
 	do_argfile(eap, i);
 }
@@ -3252,11 +3252,11 @@ do_ecmd(
 	// the reload can be undone.  Do not do this if the (empty) buffer is
 	// being re-used for another file.
 	if (!(curbuf->b_flags & BF_NEVERLOADED)
-		&& (p_ur < 0 || curbuf->b_ml.ml_line_count <= p_ur))
+		&& (p_ur < 0 || buf_line_count(curbuf) <= p_ur))
 	{
 	    // Sync first so that this is a separate undo-able action.
 	    u_sync(FALSE);
-	    if (u_savecommon(0, curbuf->b_ml.ml_line_count + 1, 0, TRUE)
+	    if (u_savecommon(0, buf_line_count(curbuf) + 1, 0, TRUE)
 								     == FAIL)
 	    {
 		vim_free(new_name);
@@ -3457,7 +3457,7 @@ do_ecmd(
 	else			// no line number, go to last line in Ex mode
 	{
 	    if (exmode_active)
-		curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+		curwin->w_cursor.lnum = buf_line_count(curbuf);
 	    beginline(BL_WHITE | BL_FIX);
 	}
     }
@@ -3718,8 +3718,8 @@ ex_append(exarg_T *eap)
     // it is the same as "start"  -- Acevedo
     if ((cmdmod.cmod_flags & CMOD_LOCKMARKS) == 0)
     {
-	curbuf->b_op_start.lnum = (eap->line2 < curbuf->b_ml.ml_line_count) ?
-	    eap->line2 + 1 : curbuf->b_ml.ml_line_count;
+	curbuf->b_op_start.lnum = (eap->line2 < buf_line_count(curbuf)) ?
+	    eap->line2 + 1 : buf_line_count(curbuf);
 	if (eap->cmdidx != CMD_append)
 	    --curbuf->b_op_start.lnum;
 	curbuf->b_op_end.lnum = (eap->line2 < lnum)
@@ -3812,8 +3812,8 @@ ex_z(exarg_T *eap)
 	    bigness = atol((char *)x);
 
 	    // bigness could be < 0 if atol(x) overflows.
-	    if (bigness > 2 * curbuf->b_ml.ml_line_count || bigness < 0)
-		bigness = 2 * curbuf->b_ml.ml_line_count;
+	    if (bigness > 2 * buf_line_count(curbuf) || bigness < 0)
+		bigness = 2 * buf_line_count(curbuf);
 
 	    p_window = bigness;
 	    if (*kind == '=')
@@ -3867,11 +3867,11 @@ ex_z(exarg_T *eap)
     if (start < 1)
 	start = 1;
 
-    if (end > curbuf->b_ml.ml_line_count)
-	end = curbuf->b_ml.ml_line_count;
+    if (end > buf_line_count(curbuf))
+	end = buf_line_count(curbuf);
 
-    if (curs > curbuf->b_ml.ml_line_count)
-	curs = curbuf->b_ml.ml_line_count;
+    if (curs > buf_line_count(curbuf))
+	curs = buf_line_count(curbuf);
     else if (curs < 1)
 	curs = 1;
 
@@ -4033,7 +4033,7 @@ ex_substitute(exarg_T *eap)
     linenr_T	first_line = 0;		// first changed line
     linenr_T	last_line = 0;		// below last changed line AFTER the
 					// change
-    linenr_T	old_line_count = curbuf->b_ml.ml_line_count;
+    linenr_T	old_line_count = buf_line_count(curbuf);
     linenr_T	line2;
     long	nmatch;			// number of lines in match
     string_T	sub_firstline;		// allocated copy of first sub line
@@ -4197,7 +4197,7 @@ ex_substitute(exarg_T *eap)
 	// The number of lines joined is the number of lines in the range plus
 	// one.  One less when the last line is included.
 	joined_lines_count = eap->line2 - eap->line1 + 1;
-	if (eap->line2 < curbuf->b_ml.ml_line_count)
+	if (eap->line2 < buf_line_count(curbuf))
 	    ++joined_lines_count;
 	if (joined_lines_count > 1)
 	{
@@ -4313,8 +4313,8 @@ ex_substitute(exarg_T *eap)
 	}
 	eap->line1 = eap->line2;
 	eap->line2 += i - 1;
-	if (eap->line2 > curbuf->b_ml.ml_line_count)
-	    eap->line2 = curbuf->b_ml.ml_line_count;
+	if (eap->line2 > buf_line_count(curbuf))
+	    eap->line2 = buf_line_count(curbuf);
     }
 
     /*
@@ -4507,7 +4507,7 @@ ex_substitute(exarg_T *eap)
 
 		// Match might be after the last line for "\n\zs" matching at
 		// the end of the last line.
-		if (lnum > curbuf->b_ml.ml_line_count)
+		if (lnum > buf_line_count(curbuf))
 		    break;
 
 		if (sub_firstline.string == NULL)
@@ -4853,9 +4853,9 @@ ex_substitute(exarg_T *eap)
 
 		// When the match included the "$" of the last line it may
 		// go beyond the last line of the buffer.
-		if (nmatch > curbuf->b_ml.ml_line_count - sub_firstlnum + 1)
+		if (nmatch > buf_line_count(curbuf) - sub_firstlnum + 1)
 		{
-		    nmatch = curbuf->b_ml.ml_line_count - sub_firstlnum + 1;
+		    nmatch = buf_line_count(curbuf) - sub_firstlnum + 1;
 		    skip_match = TRUE;
 		    // safety check
 		    if (nmatch < 0)
@@ -5289,7 +5289,7 @@ skip:
 	// Need to subtract the number of added lines from "last_line" to get
 	// the line number before the change (same as adding the number of
 	// deleted lines).
-	i = curbuf->b_ml.ml_line_count - old_line_count;
+	i = buf_line_count(curbuf) - old_line_count;
 	changed_lines(first_line, 0, last_line - i, i);
     }
 
@@ -5458,7 +5458,7 @@ ex_global(exarg_T *eap)
     // When nesting the command works on one line.  This allows for
     // ":g/found/v/notfound/command".
     if (global_busy && (eap->line1 != 1
-				  || eap->line2 != curbuf->b_ml.ml_line_count))
+				  || eap->line2 != buf_line_count(curbuf)))
     {
 	// will increment global_busy to break out of the loop
 	emsg(_(e_cannot_do_global_recursive_with_range));
@@ -5622,7 +5622,7 @@ global_exe(char_u *cmd)
     sub_nlines = 0;
     global_need_beginline = FALSE;
     global_busy = 1;
-    old_lcount = curbuf->b_ml.ml_line_count;
+    old_lcount = buf_line_count(curbuf);
     while (!got_int && (lnum = ml_firstmarked()) != 0 && global_busy == 1)
     {
 	global_exe_one(cmd, lnum);
@@ -5649,7 +5649,7 @@ global_exe(char_u *cmd)
     // Don't report extra or deleted lines in the edge case where the buffer
     // we are in after execution is different from the buffer we started in.
     if (!do_sub_msg(FALSE) && curbuf == old_buf)
-	msgmore(curbuf->b_ml.ml_line_count - old_lcount);
+	msgmore(buf_line_count(curbuf) - old_lcount);
 }
 
 #ifdef FEAT_VIMINFO

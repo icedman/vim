@@ -1282,8 +1282,8 @@ f_winrestview(typval_T *argvars, typval_T *rettv UNUSED)
 
     if (curwin->w_topline <= 0)
 	curwin->w_topline = 1;
-    if (curwin->w_topline > curbuf->b_ml.ml_line_count)
-	curwin->w_topline = curbuf->b_ml.ml_line_count;
+    if (curwin->w_topline > buf_line_count(curbuf))
+	curwin->w_topline = buf_line_count(curbuf);
 # ifdef FEAT_DIFF
     check_topfill(curwin, TRUE);
 # endif

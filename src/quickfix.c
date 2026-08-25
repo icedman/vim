@@ -3671,8 +3671,8 @@ qf_jump_goto_line(
 	i = qf_lnum;
 	if (i > 0)
 	{
-	    if (i > curbuf->b_ml.ml_line_count)
-		i = curbuf->b_ml.ml_line_count;
+	    if (i > buf_line_count(curbuf))
+		i = buf_line_count(curbuf);
 	    curwin->w_cursor.lnum = i;
 	}
 	if (qf_col > 0)
@@ -4990,7 +4990,7 @@ qf_update_buffer(qf_info_T *qi, qfline_T *old_last)
     if (buf == NULL)
 	return;
 
-    linenr_T	old_line_count = buf->b_ml.ml_line_count;
+    linenr_T	old_line_count = buf_line_count(buf);
     int		qf_winid = 0;
 
     if (IS_LL_STACK(qi))
@@ -5251,7 +5251,7 @@ qf_fill_buffer(qf_list_T *qfl, buf_T *buf, qfline_T *old_last, int qf_winid)
 		qfp = old_last->qf_next;
 	    else
 		qfp = old_last;
-	    lnum = buf->b_ml.ml_line_count;
+	    lnum = buf_line_count(buf);
 	}
 
 	qftf_list = call_qftf_func(qfl, qf_winid, (long)(lnum + 1),
@@ -6505,7 +6505,7 @@ vgr_match_buflines(
     if (pat_len > FUZZY_MATCH_MAX_LEN)
 	pat_len = FUZZY_MATCH_MAX_LEN;
 
-    for (lnum = 1; lnum <= buf->b_ml.ml_line_count && *tomatch > 0; ++lnum)
+    for (lnum = 1; lnum <= buf_line_count(buf) && *tomatch > 0; ++lnum)
     {
 	col = 0;
 	if (!(flags & VGR_FUZZY))
@@ -8537,11 +8537,11 @@ cbuffer_process_args(
     if (eap->addr_count == 0)
     {
 	eap->line1 = 1;
-	eap->line2 = buf->b_ml.ml_line_count;
+	eap->line2 = buf_line_count(buf);
     }
 
-    if (eap->line1 < 1 || eap->line1 > buf->b_ml.ml_line_count
-	    || eap->line2 < 1 || eap->line2 > buf->b_ml.ml_line_count)
+    if (eap->line1 < 1 || eap->line1 > buf_line_count(buf)
+	    || eap->line2 < 1 || eap->line2 > buf_line_count(buf))
     {
 	emsg(_(e_invalid_range));
 	return FAIL;

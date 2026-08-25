@@ -804,7 +804,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
      * Check if cursor.lnum is valid, since win_redr_ruler() may be called
      * after deleting lines, before cursor.lnum is corrected.
      */
-    if (wp->w_cursor.lnum > wp->w_buffer->b_ml.ml_line_count)
+    if (wp->w_cursor.lnum > buf_line_count(wp->w_buffer))
 	return;
 
     // Don't draw the ruler while doing insert-completion, it might overwrite
@@ -844,7 +844,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
 	    || wp->w_virtcol != wp->w_ru_virtcol
 	    || wp->w_cursor.coladd != wp->w_ru_cursor.coladd
 	    || wp->w_topline != wp->w_ru_topline
-	    || wp->w_buffer->b_ml.ml_line_count != wp->w_ru_line_count
+	    || buf_line_count(wp->w_buffer) != wp->w_ru_line_count
 #ifdef FEAT_DIFF
 	    || wp->w_topfill != wp->w_ru_topfill
 #endif
@@ -967,7 +967,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
 	wp->w_ru_virtcol = wp->w_virtcol;
 	wp->w_ru_empty = empty_line;
 	wp->w_ru_topline = wp->w_topline;
-	wp->w_ru_line_count = wp->w_buffer->b_ml.ml_line_count;
+	wp->w_ru_line_count = buf_line_count(wp->w_buffer);
 #ifdef FEAT_DIFF
 	wp->w_ru_topfill = wp->w_topfill;
 #endif
@@ -2392,7 +2392,7 @@ win_update(win_T *wp)
 	}
 
 	// stop updating when hit the end of the file
-	if (lnum > buf->b_ml.ml_line_count)
+	if (lnum > buf_line_count(buf))
 	{
 	    eof = TRUE;
 	    break;
@@ -2746,7 +2746,7 @@ win_update(win_T *wp)
 #endif
 	}
 
-	if (lnum > buf->b_ml.ml_line_count)
+	if (lnum > buf_line_count(buf))
 	{
 	    eof = TRUE;
 	    break;
@@ -2873,7 +2873,7 @@ win_update(win_T *wp)
 	draw_vsep_win(wp, row);
 	if (eof)		// we hit the end of the file
 	{
-	    wp->w_botline = buf->b_ml.ml_line_count + 1;
+	    wp->w_botline = buf_line_count(buf) + 1;
 #ifdef FEAT_DIFF
 	    j = diff_check_fill(wp, wp->w_botline);
 	    if (j > 0 && !wp->w_botfill)

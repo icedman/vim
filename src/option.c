@@ -1356,7 +1356,7 @@ set_init_3(void)
     }
 #endif
 
-    if (BUFEMPTY())
+    if (buf_is_empty(curbuf))
     {
 	int idx_ffs = findoption((char_u *)"ffs");
 

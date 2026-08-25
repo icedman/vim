@@ -6975,8 +6975,8 @@ buf_byteidx_to_charidx(buf_T *buf, int lnum, int byteidx)
     if (buf == NULL || buf->b_ml.ml_mfp == NULL)
 	return -1;
 
-    if (lnum > buf->b_ml.ml_line_count)
-	lnum = buf->b_ml.ml_line_count;
+    if (lnum > buf_line_count(buf))
+	lnum = buf_line_count(buf);
 
     str = buf_line(buf, lnum, FALSE);
     if (str == NULL)
@@ -7013,8 +7013,8 @@ buf_charidx_to_byteidx(buf_T *buf, int lnum, int charidx)
     if (buf == NULL || buf->b_ml.ml_mfp == NULL)
 	return -1;
 
-    if (lnum > buf->b_ml.ml_line_count)
-	lnum = buf->b_ml.ml_line_count;
+    if (lnum > buf_line_count(buf))
+	lnum = buf_line_count(buf);
 
     str = buf_line(buf, lnum, FALSE);
     if (str == NULL)
@@ -7057,7 +7057,7 @@ var2fpos(
 
 	// Get the line number
 	pos.lnum = list_find_nr(l, 0L, &error);
-	if (error || pos.lnum <= 0 || pos.lnum > curbuf->b_ml.ml_line_count)
+	if (error || pos.lnum <= 0 || pos.lnum > buf_line_count(curbuf))
 	    return NULL;	// invalid line number
 	if (charcol)
 	    len = (long)mb_charlen(ml_get(pos.lnum));
@@ -7179,7 +7179,7 @@ var2fpos(
     {
 	if (dollar_lnum)
 	{
-	    pos.lnum = curbuf->b_ml.ml_line_count;
+	    pos.lnum = buf_line_count(curbuf);
 	    pos.col = 0;
 	}
 	else
