@@ -4,7 +4,8 @@
 By default this checks added lines relative to ``HEAD`` and untracked source
 files.  Use ``--all`` to audit every source file; that mode reports the legacy
 accesses that still need migration.  Memline/memfile implementation files and
-the buffer façade/lifecycle code are source-file exceptions.
+the buffer façade/lifecycle code are source-file exceptions.  Writable buffer
+line access is checked separately against an explicit audited-caller allowlist.
 """
 
 from __future__ import annotations
@@ -22,6 +23,24 @@ IMPLEMENTATION_FILES = {
     "src/memline.c",
     "src/proto/memline.pro",
 }
+MUTABLE_LINE_FILES = {
+    "src/buffer.c",
+    "src/ex_cmds.c",
+    "src/help.c",
+    "src/misc1.c",
+    "src/normal.c",
+    "src/ops.c",
+    "src/proto/buffer.pro",
+}
+MUTABLE_LINE_RULES = (
+    (
+        "legacy writable buffer line access",
+        re.compile(
+            r"\bbuf_line\s*\(\s*[^,]+,\s*[^,]+,\s*(?:TRUE|true)\s*\)"
+        ),
+    ),
+    ("mutable buffer line access", re.compile(r"\bbuf_line_mutable\s*\(")),
+)
 RULES = (
     ("direct b_ml access", re.compile(r"(?:->|\.)b_ml\b")),
     ("memline line pointer access", re.compile(r"(?:->|\.)ml_line_ptr\b")),
@@ -108,11 +127,12 @@ def check(repo_root: Path, audit_all: bool) -> list[str]:
     errors: list[str] = []
     for path, line_number, text in lines:
         stripped = text.lstrip()
-        if (
-            not source_path(path)
-            or path in IMPLEMENTATION_FILES
-            or stripped.startswith(("//", "/*", "*"))
-        ):
+        if not source_path(path) or stripped.startswith(("//", "/*", "*")):
+            continue
+        for name, pattern in MUTABLE_LINE_RULES:
+            if pattern.search(text) and path not in MUTABLE_LINE_FILES:
+                errors.append(f"{path}:{line_number}: [{name}] {text}")
+        if path in IMPLEMENTATION_FILES:
             continue
         for name, pattern in RULES:
             if pattern.search(text):

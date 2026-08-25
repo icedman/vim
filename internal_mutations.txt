@@ -11,38 +11,57 @@ Rules:
 
 src/buffer.c
 ============
-src/buffer.c:853: [direct memline state mutation]     buf->b_ml.ml_line_count = 1;
-src/buffer.c:862: [direct memline state mutation]     buf->b_ml.ml_mfp = NULL;
-src/buffer.c:863: [direct memline state mutation]     buf->b_ml.ml_flags = ML_EMPTY;		// empty buffer
-src/buffer.c:977: [direct memline state mutation]     buf->b_ml.ml_line_count = 0;    // no lines in buffer
-src/buffer.c:6549: [direct memline state mutation]     buf->b_ml.ml_line_ptr = line;
-src/buffer.c:6550: [direct memline state mutation]     buf->b_ml.ml_line_len = line_len;
-src/buffer.c:6552: [direct memline state mutation] 	buf->b_ml.ml_line_textlen = 0;
-src/buffer.c:6554: [direct memline state mutation] 	buf->b_ml.ml_line_textlen += textlen_adjust;
-src/buffer.c:6555: [direct memline state mutation]     buf->b_ml.ml_flags |= ML_LINE_DIRTY;
-src/buffer.c:6557: [direct memline state mutation] 	buf->b_ml.ml_flags &= ~ML_EMPTY;
-src/buffer.c:6566: [direct memline state mutation]     buf->b_ml.ml_line_len += amount;
-src/buffer.c:6567: [direct memline state mutation]     buf->b_ml.ml_line_textlen = textlen;
-src/buffer.c:6604: [direct memline state mutation] 	buf->b_ml.ml_flags |= ML_EMPTY;
-src/buffer.c:6606: [direct memline state mutation] 	buf->b_ml.ml_flags &= ~ML_EMPTY;
-src/buffer.c:6653: [explicit line mutation]     return ml_append_buf(buf, lnum, line, len, flags != 0);
-Stats: 15 mutation finding(s); 0 line pointer follow-up candidate(s); explicit line mutation=1; direct memline state mutation=14
+src/buffer.c:856: [direct memline state mutation]     buf->b_ml.ml_line_count = 1;
+src/buffer.c:865: [direct memline state mutation]     buf->b_ml.ml_mfp = NULL;
+src/buffer.c:866: [direct memline state mutation]     buf->b_ml.ml_flags = ML_EMPTY;		// empty buffer
+src/buffer.c:981: [direct memline state mutation]     buf->b_ml.ml_line_count = 0;    // no lines in buffer
+src/buffer.c:6519: [writable line access] buf_line_mutable(buf_T *buf, linenr_T lnum)
+src/buffer.c:6521: [writable line access]     return ml_get_buf(buf, lnum, TRUE);
+src/buffer.c:6546: [writable line access] 	(void)buf_line_mutable(buf, lnum);
+src/buffer.c:6564: [direct memline state mutation]     buf->b_ml.ml_line_ptr = line;
+src/buffer.c:6565: [direct memline state mutation]     buf->b_ml.ml_line_len = line_len;
+src/buffer.c:6567: [direct memline state mutation] 	buf->b_ml.ml_line_textlen = 0;
+src/buffer.c:6569: [direct memline state mutation] 	buf->b_ml.ml_line_textlen += textlen_adjust;
+src/buffer.c:6570: [direct memline state mutation]     buf->b_ml.ml_flags |= ML_LINE_DIRTY;
+src/buffer.c:6572: [direct memline state mutation] 	buf->b_ml.ml_flags &= ~ML_EMPTY;
+src/buffer.c:6581: [direct memline state mutation]     buf->b_ml.ml_line_len += amount;
+src/buffer.c:6582: [direct memline state mutation]     buf->b_ml.ml_line_textlen = textlen;
+src/buffer.c:6619: [direct memline state mutation] 	buf->b_ml.ml_flags |= ML_EMPTY;
+src/buffer.c:6621: [direct memline state mutation] 	buf->b_ml.ml_flags &= ~ML_EMPTY;
+src/buffer.c:6698: [explicit line mutation]     ret = ml_append_buf(buf, lnum, line, len, flags != 0);
+Stats: 18 mutation finding(s); 0 line pointer follow-up candidate(s); explicit line mutation=1; writable line access=3; direct memline state mutation=14
 
 src/change.c
 ============
-src/change.c:1612: [implicit line mutation]     // netbeans_removed(), which deallocates the line.	Let ml_replace() take
+src/change.c:1624: [implicit line mutation]     // netbeans_removed(), which deallocates the line.	Let ml_replace() take
 Stats: 1 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=1
 
 src/ex_cmds.c
 =============
 src/ex_cmds.c:604: [implicit line mutation] 	    // ml_append(). And it's needed for "unique".
+src/ex_cmds.c:758: [writable line access] 		s = buf_line_mutable(curbuf, get_lnum);
 src/ex_cmds.c:1053: [implicit line mutation] 	// ml_append()
-Stats: 2 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=2
+Line pointer follow-up candidates:
+src/ex_cmds.c:779: s from line 758 is written: 	    s[end_col] = NUL;
+
+Stats: 3 mutation finding(s); 1 line pointer follow-up candidate(s); implicit line mutation=2; writable line access=1
 
 src/fileio.c
 ============
 src/fileio.c:107: [implicit line mutation]  * 3. The lines are inserted in the buffer with ml_append().
 Stats: 1 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=1
+
+src/help.c
+==========
+src/help.c:730: [writable line access] 		    line = buf_line_mutable(curbuf, lnum);
+src/help.c:740: [writable line access] 		    line = buf_line_mutable(curbuf, lnum);
+src/help.c:747: [writable line access] 		    line = buf_line_mutable(curbuf, lnum);
+Line pointer follow-up candidates:
+src/help.c:731: line from line 730 is written: 		    line[0] = ' ';
+src/help.c:741: line from line 740 is written: 		    line[len - 1] = ' ';
+src/help.c:748: line from line 747 is written: 		    line[len - 1] = ' ';
+
+Stats: 3 mutation finding(s); 3 line pointer follow-up candidate(s); writable line access=3
 
 src/if_py_both.h
 ================
@@ -64,135 +83,160 @@ src/memline.c:324: [direct memline state mutation]     buf->b_ml.ml_line_count =
 src/memline.c:420: [direct memline state mutation]     buf->b_ml.ml_mfp = NULL;
 src/memline.c:563: [direct memline state mutation] 	buf->b_ml.ml_stack_top = 0;
 src/memline.c:565: [direct memline state mutation] 	buf->b_ml.ml_stack_size = 0;	// no stack yet
-src/memline.c:889: [direct memline state mutation]     buf->b_ml.ml_mfp = NULL;
-src/memline.c:1273: [direct memline state mutation]     buf->b_ml.ml_stack_size = 0;	// no stack yet
-src/memline.c:1274: [direct memline state mutation]     buf->b_ml.ml_stack = NULL;		// no stack yet
-src/memline.c:1275: [direct memline state mutation]     buf->b_ml.ml_stack_top = 0;		// nothing in the stack
-src/memline.c:1276: [direct memline state mutation]     buf->b_ml.ml_line_lnum = 0;		// no cached line
-src/memline.c:1277: [direct memline state mutation]     buf->b_ml.ml_locked = NULL;		// no locked block
-src/memline.c:1278: [direct memline state mutation]     buf->b_ml.ml_flags = 0;
-src/memline.c:1297: [direct memline state mutation]     buf->b_ml.ml_mfp = mfp;
-src/memline.c:1465: [implicit line mutation] 	ml_delete((linenr_T)1);
-src/memline.c:1520: [direct memline state mutation]     buf->b_ml.ml_stack_top = 0;
-src/memline.c:1521: [direct memline state mutation]     buf->b_ml.ml_stack = NULL;
-src/memline.c:1522: [direct memline state mutation]     buf->b_ml.ml_stack_size = 0;	// no stack yet
-src/memline.c:1546: [implicit line mutation] 	    ml_append(lnum++, (char_u *)_("???MANY LINES MISSING"),
-src/memline.c:1576: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("???LINE COUNT WRONG"),
-src/memline.c:1583: [implicit line mutation] 		    ml_append(lnum++, (char_u *)_("???EMPTY BLOCK"),
-src/memline.c:1613: [implicit line mutation] 			    ml_append(lnum++, (char_u *)_("???LINES MISSING"),
-src/memline.c:1645: [implicit line mutation] 			ml_append(lnum++,
-src/memline.c:1672: [implicit line mutation] 		    ml_append(lnum++, (char_u *)_("???BLOCK MISSING"),
-src/memline.c:1692: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("??? BLOCK PAGE COUNT MISMATCH"),
-src/memline.c:1701: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("??? from here until ???END lines may be messed up"),
-src/memline.c:1711: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("??? block header corrupted"),
-src/memline.c:1725: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("??? from here until ???END lines may have been inserted/deleted"),
-src/memline.c:1739: [implicit line mutation] 			    ml_append(lnum++,
-src/memline.c:1761: [implicit line mutation] 			ml_append(lnum++, p, (colnr_T)0, TRUE);
-src/memline.c:1764: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("???END"),
-src/memline.c:1822: [implicit line mutation] 	ml_delete(curbuf->b_ml.ml_line_count);
-src/memline.c:2649: [direct memline state mutation]     buf->b_ml.ml_stack_top = 0;
-src/memline.c:2681: [direct memline state mutation] 	buf->b_ml.ml_stack_top = 0;	    // stack is invalid now
-src/memline.c:2780: [direct memline state mutation] 	buf->b_ml.ml_line_textlen = (int)STRLEN(line) + 1;
-src/memline.c:2814: [direct memline state mutation] 	buf->b_ml.ml_line_len = 4;
-src/memline.c:2815: [direct memline state mutation] 	buf->b_ml.ml_line_textlen = buf->b_ml.ml_line_len;
-src/memline.c:2816: [direct memline state mutation] 	buf->b_ml.ml_line_lnum = lnum;
-src/memline.c:2824: [direct memline state mutation] 	buf->b_ml.ml_line_len = 1;
-src/memline.c:2825: [direct memline state mutation] 	buf->b_ml.ml_line_textlen = buf->b_ml.ml_line_len;
-src/memline.c:2874: [direct memline state mutation] 	buf->b_ml.ml_line_ptr = (char_u *)dp + start;
-src/memline.c:2875: [direct memline state mutation] 	buf->b_ml.ml_line_len = end - start;
-src/memline.c:2881: [direct memline state mutation] 	    buf->b_ml.ml_line_textlen = 0;  // call STRLEN() later when needed
-src/memline.c:2884: [direct memline state mutation] 	    buf->b_ml.ml_line_textlen = buf->b_ml.ml_line_len;
-src/memline.c:2885: [direct memline state mutation] 	buf->b_ml.ml_line_lnum = lnum;
-src/memline.c:2886: [direct memline state mutation] 	buf->b_ml.ml_flags &= ~(ML_LINE_DIRTY | ML_ALLOCATED);
-src/memline.c:2890: [direct memline state mutation] 	buf->b_ml.ml_flags |= (ML_LOCKED_DIRTY | ML_LOCKED_POS);
-src/memline.c:2894: [direct memline state mutation] 	    buf->b_ml.ml_flags |= ML_LINE_DIRTY;
-src/memline.c:2908: [direct memline state mutation] 	    buf->b_ml.ml_line_ptr = p;
-src/memline.c:2909: [direct memline state mutation] 	    buf->b_ml.ml_flags |= ML_ALLOCATED;
-src/memline.c:2912: [direct memline state mutation] 		buf->b_ml.ml_flags |= ML_LINE_DIRTY;
-src/memline.c:3005: [explicit line mutation] ml_append_int(
-src/memline.c:3077: [direct memline state mutation]     buf->b_ml.ml_flags &= ~ML_EMPTY;
-src/memline.c:3163: [direct memline state mutation] 	buf->b_ml.ml_flags |= ML_LOCKED_DIRTY;
-src/memline.c:3165: [direct memline state mutation] 	    buf->b_ml.ml_flags |= ML_LOCKED_POS;
-src/memline.c:3339: [direct memline state mutation] 	    buf->b_ml.ml_flags |= ML_LOCKED_DIRTY;
-src/memline.c:3341: [direct memline state mutation] 	    buf->b_ml.ml_flags |= ML_LOCKED_POS;
-src/memline.c:3350: [direct memline state mutation] 	buf->b_ml.ml_locked_lineadd = 0;
-src/memline.c:3395: [direct memline state mutation] 		buf->b_ml.ml_stack_top = stack_idx + 1;	    // truncate stack
-src/memline.c:3508: [direct memline state mutation] 	    buf->b_ml.ml_stack_top = 0;	// invalidate stack
-src/memline.c:3546: [explicit line mutation]  * Flush any pending change and call ml_append_int()
-src/memline.c:3549: [explicit line mutation] ml_append_flush(
-src/memline.c:3560: [explicit line mutation] 	// This may also invoke ml_append_int().
-src/memline.c:3575: [explicit line mutation]     return ml_append_int(buf, lnum, line, len, flags);
-src/memline.c:3591: [implicit line mutation] ml_append(
-src/memline.c:3597: [implicit line mutation]     return ml_append_flags(lnum, line, len, newfile ? ML_APPEND_NEW : 0);
-src/memline.c:3601: [implicit line mutation] ml_append_flags(
-src/memline.c:3610: [explicit line mutation]     return ml_append_flush(curbuf, lnum, line, len, flags);
-src/memline.c:3615: [implicit line mutation]  * Like ml_append() but for an arbitrary buffer.  The buffer must already have
-src/memline.c:3619: [explicit line mutation] ml_append_buf(
-src/memline.c:3628: [explicit line mutation]     return ml_append_flush(buf, lnum, line, len, newfile ? ML_APPEND_NEW : 0);
-src/memline.c:3637: [implicit line mutation]  * Do not use it after calling ml_replace().
-src/memline.c:3645: [implicit line mutation] ml_replace(linenr_T lnum, char_u *line, int copy)
-src/memline.c:3651: [implicit line mutation]     return ml_replace_len(lnum, line, len, FALSE, copy);
-src/memline.c:3655: [implicit line mutation]  * Replace a line for the current buffer.  Like ml_replace() with:
-src/memline.c:3663: [implicit line mutation] ml_replace_len(
-src/memline.c:3710: [writable line access] 	    ml_get_buf(curbuf, lnum, TRUE);
-src/memline.c:3742: [direct memline state mutation]     curbuf->b_ml.ml_line_ptr = line;
-src/memline.c:3743: [direct memline state mutation]     curbuf->b_ml.ml_line_len = len;
-src/memline.c:3744: [direct memline state mutation]     curbuf->b_ml.ml_line_textlen = !has_props ? len_arg + 1 : 0;
-src/memline.c:3745: [direct memline state mutation]     curbuf->b_ml.ml_line_lnum = lnum;
-src/memline.c:3746: [direct memline state mutation]     curbuf->b_ml.ml_flags = (curbuf->b_ml.ml_flags | ML_LINE_DIRTY) & ~ML_EMPTY;
-src/memline.c:3863: [direct memline state mutation] 	    buf->b_ml.ml_flags |= (ML_LOCKED_DIRTY | ML_LOCKED_POS);
-src/memline.c:3877: [explicit line mutation] ml_delete_int(buf_T *buf, linenr_T lnum, int flags)
-src/memline.c:3913: [implicit line mutation] 	i = ml_replace((linenr_T)1, (char_u *)"", TRUE);
-src/memline.c:3914: [direct memline state mutation] 	buf->b_ml.ml_flags |= ML_EMPTY;
-src/memline.c:3975: [direct memline state mutation] 	buf->b_ml.ml_locked = NULL;
-src/memline.c:3980: [direct memline state mutation] 	    buf->b_ml.ml_stack_top = 0;	    // stack is invalid when failing
-src/memline.c:4002: [direct memline state mutation] 		buf->b_ml.ml_stack_top = stack_idx;	// truncate stack
-src/memline.c:4040: [direct memline state mutation] 	buf->b_ml.ml_flags |= (ML_LOCKED_DIRTY | ML_LOCKED_POS);
-src/memline.c:4097: [implicit line mutation] 	return ml_replace(lnum, line, copy);
-src/memline.c:4098: [implicit line mutation]     return ml_replace_len(lnum, line, len, has_props, copy);
-src/memline.c:4111: [implicit line mutation] ml_delete(linenr_T lnum)
-src/memline.c:4113: [implicit line mutation]     return ml_delete_flags(lnum, 0);
-src/memline.c:4117: [implicit line mutation]  * Like ml_delete() but using flags (see ml_delete_int()).
-src/memline.c:4117: [explicit line mutation]  * Like ml_delete() but using flags (see ml_delete_int()).
-src/memline.c:4134: [explicit line mutation]     return ml_delete_int(buf, lnum, flags);
-src/memline.c:4138: [implicit line mutation] ml_delete_flags(linenr_T lnum, int flags)
-src/memline.c:4169: [direct memline state mutation]     curbuf->b_ml.ml_flags |= ML_LOCKED_DIRTY;
-src/memline.c:4207: [direct memline state mutation] 		curbuf->b_ml.ml_flags |= ML_LOCKED_DIRTY;
-src/memline.c:4250: [direct memline state mutation] 		curbuf->b_ml.ml_flags |= ML_LOCKED_DIRTY;
-src/memline.c:4338: [direct memline state mutation] 		buf->b_ml.ml_flags |= (ML_LOCKED_DIRTY | ML_LOCKED_POS);
-src/memline.c:4355: [explicit line mutation] 		 * Append first, because ml_delete_int() cannot delete the
-src/memline.c:4361: [explicit line mutation] 		(void)ml_append_int(buf, lnum, new_line, new_len,
-src/memline.c:4367: [explicit line mutation] 		(void)ml_delete_int(buf, lnum, ML_DEL_NOPROP);
-src/memline.c:4377: [direct memline state mutation]     buf->b_ml.ml_flags &= ~(ML_LINE_DIRTY | ML_ALLOCATED);
-src/memline.c:4378: [direct memline state mutation]     buf->b_ml.ml_line_lnum = 0;
-src/memline.c:4485: [direct memline state mutation] 	buf->b_ml.ml_locked = NULL;
-src/memline.c:4513: [direct memline state mutation] 		buf->b_ml.ml_stack_top = top;	// truncate stack at prev entry
-src/memline.c:4518: [direct memline state mutation] 	    buf->b_ml.ml_stack_top = 0;		// not found, start at the root
-src/memline.c:4521: [direct memline state mutation] 	buf->b_ml.ml_stack_top = 0;	// start at the root
-src/memline.c:4542: [direct memline state mutation] 	    buf->b_ml.ml_locked = hp;
-src/memline.c:4543: [direct memline state mutation] 	    buf->b_ml.ml_locked_low = low;
-src/memline.c:4544: [direct memline state mutation] 	    buf->b_ml.ml_locked_high = high;
-src/memline.c:4545: [direct memline state mutation] 	    buf->b_ml.ml_locked_lineadd = 0;
-src/memline.c:4546: [direct memline state mutation] 	    buf->b_ml.ml_flags &= ~(ML_LOCKED_DIRTY | ML_LOCKED_POS);
-src/memline.c:4630: [direct memline state mutation]     buf->b_ml.ml_stack_top = 0;
-src/memline.c:4659: [direct memline state mutation] 	buf->b_ml.ml_stack = newstack;
-src/memline.c:4660: [direct memline state mutation] 	buf->b_ml.ml_stack_size += STACK_INCR;
-src/memline.c:4663: [direct memline state mutation]     buf->b_ml.ml_stack_top++;
-src/memline.c:5873: [direct memline state mutation] 	buf->b_ml.ml_chunksize = ALLOC_MULT(chunksize_T, 100);
-src/memline.c:5876: [direct memline state mutation] 	    buf->b_ml.ml_usedchunks = -1;
-src/memline.c:5879: [direct memline state mutation] 	buf->b_ml.ml_numchunks = 100;
-src/memline.c:5880: [direct memline state mutation] 	buf->b_ml.ml_usedchunks = 1;
-src/memline.c:5890: [direct memline state mutation] 	buf->b_ml.ml_usedchunks = 1;
-src/memline.c:5930: [direct memline state mutation] 	    buf->b_ml.ml_numchunks = buf->b_ml.ml_numchunks * 3 / 2;
-src/memline.c:5931: [direct memline state mutation] 	    buf->b_ml.ml_chunksize = vim_realloc(buf->b_ml.ml_chunksize,
-src/memline.c:5937: [direct memline state mutation] 		buf->b_ml.ml_usedchunks = -1;
-src/memline.c:5962: [direct memline state mutation] 		    buf->b_ml.ml_usedchunks = -1;
-src/memline.c:6010: [direct memline state mutation] 	    buf->b_ml.ml_usedchunks++;
-src/memline.c:6023: [direct memline state mutation] 	    buf->b_ml.ml_usedchunks++;
-src/memline.c:6038: [direct memline state mutation] 		    buf->b_ml.ml_usedchunks = -1;
-src/memline.c:6068: [direct memline state mutation] 	    buf->b_ml.ml_usedchunks--;
-src/memline.c:6083: [direct memline state mutation] 	buf->b_ml.ml_usedchunks--;
+src/memline.c:890: [direct memline state mutation]     buf->b_ml.ml_mfp = NULL;
+src/memline.c:1274: [direct memline state mutation]     buf->b_ml.ml_stack_size = 0;	// no stack yet
+src/memline.c:1275: [direct memline state mutation]     buf->b_ml.ml_stack = NULL;		// no stack yet
+src/memline.c:1276: [direct memline state mutation]     buf->b_ml.ml_stack_top = 0;		// nothing in the stack
+src/memline.c:1277: [direct memline state mutation]     buf->b_ml.ml_line_lnum = 0;		// no cached line
+src/memline.c:1278: [direct memline state mutation]     buf->b_ml.ml_locked = NULL;		// no locked block
+src/memline.c:1279: [direct memline state mutation]     buf->b_ml.ml_flags = 0;
+src/memline.c:1298: [direct memline state mutation]     buf->b_ml.ml_mfp = mfp;
+src/memline.c:1466: [implicit line mutation] 	ml_delete((linenr_T)1);
+src/memline.c:1521: [direct memline state mutation]     buf->b_ml.ml_stack_top = 0;
+src/memline.c:1522: [direct memline state mutation]     buf->b_ml.ml_stack = NULL;
+src/memline.c:1523: [direct memline state mutation]     buf->b_ml.ml_stack_size = 0;	// no stack yet
+src/memline.c:1547: [implicit line mutation] 	    ml_append(lnum++, (char_u *)_("???MANY LINES MISSING"),
+src/memline.c:1577: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("???LINE COUNT WRONG"),
+src/memline.c:1584: [implicit line mutation] 		    ml_append(lnum++, (char_u *)_("???EMPTY BLOCK"),
+src/memline.c:1614: [implicit line mutation] 			    ml_append(lnum++, (char_u *)_("???LINES MISSING"),
+src/memline.c:1646: [implicit line mutation] 			ml_append(lnum++,
+src/memline.c:1673: [implicit line mutation] 		    ml_append(lnum++, (char_u *)_("???BLOCK MISSING"),
+src/memline.c:1693: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("??? BLOCK PAGE COUNT MISMATCH"),
+src/memline.c:1702: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("??? from here until ???END lines may be messed up"),
+src/memline.c:1712: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("??? block header corrupted"),
+src/memline.c:1726: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("??? from here until ???END lines may have been inserted/deleted"),
+src/memline.c:1740: [implicit line mutation] 			    ml_append(lnum++,
+src/memline.c:1762: [implicit line mutation] 			ml_append(lnum++, p, (colnr_T)0, TRUE);
+src/memline.c:1765: [implicit line mutation] 			ml_append(lnum++, (char_u *)_("???END"),
+src/memline.c:1823: [implicit line mutation] 	ml_delete(curbuf->b_ml.ml_line_count);
+src/memline.c:2650: [direct memline state mutation]     buf->b_ml.ml_stack_top = 0;
+src/memline.c:2682: [direct memline state mutation] 	buf->b_ml.ml_stack_top = 0;	    // stack is invalid now
+src/memline.c:2781: [direct memline state mutation] 	buf->b_ml.ml_line_textlen = (int)STRLEN(line) + 1;
+src/memline.c:2815: [direct memline state mutation] 	buf->b_ml.ml_line_len = 4;
+src/memline.c:2816: [direct memline state mutation] 	buf->b_ml.ml_line_textlen = buf->b_ml.ml_line_len;
+src/memline.c:2817: [direct memline state mutation] 	buf->b_ml.ml_line_lnum = lnum;
+src/memline.c:2825: [direct memline state mutation] 	buf->b_ml.ml_line_len = 1;
+src/memline.c:2826: [direct memline state mutation] 	buf->b_ml.ml_line_textlen = buf->b_ml.ml_line_len;
+src/memline.c:2875: [direct memline state mutation] 	buf->b_ml.ml_line_ptr = (char_u *)dp + start;
+src/memline.c:2876: [direct memline state mutation] 	buf->b_ml.ml_line_len = end - start;
+src/memline.c:2882: [direct memline state mutation] 	    buf->b_ml.ml_line_textlen = 0;  // call STRLEN() later when needed
+src/memline.c:2885: [direct memline state mutation] 	    buf->b_ml.ml_line_textlen = buf->b_ml.ml_line_len;
+src/memline.c:2886: [direct memline state mutation] 	buf->b_ml.ml_line_lnum = lnum;
+src/memline.c:2887: [direct memline state mutation] 	buf->b_ml.ml_flags &= ~(ML_LINE_DIRTY | ML_ALLOCATED);
+src/memline.c:2891: [direct memline state mutation] 	buf->b_ml.ml_flags |= (ML_LOCKED_DIRTY | ML_LOCKED_POS);
+src/memline.c:2895: [direct memline state mutation] 	    buf->b_ml.ml_flags |= ML_LINE_DIRTY;
+src/memline.c:2909: [direct memline state mutation] 	    buf->b_ml.ml_line_ptr = p;
+src/memline.c:2910: [direct memline state mutation] 	    buf->b_ml.ml_flags |= ML_ALLOCATED;
+src/memline.c:2913: [direct memline state mutation] 		buf->b_ml.ml_flags |= ML_LINE_DIRTY;
+src/memline.c:3006: [explicit line mutation] ml_append_int(
+src/memline.c:3078: [direct memline state mutation]     buf->b_ml.ml_flags &= ~ML_EMPTY;
+src/memline.c:3164: [direct memline state mutation] 	buf->b_ml.ml_flags |= ML_LOCKED_DIRTY;
+src/memline.c:3166: [direct memline state mutation] 	    buf->b_ml.ml_flags |= ML_LOCKED_POS;
+src/memline.c:3340: [direct memline state mutation] 	    buf->b_ml.ml_flags |= ML_LOCKED_DIRTY;
+src/memline.c:3342: [direct memline state mutation] 	    buf->b_ml.ml_flags |= ML_LOCKED_POS;
+src/memline.c:3351: [direct memline state mutation] 	buf->b_ml.ml_locked_lineadd = 0;
+src/memline.c:3396: [direct memline state mutation] 		buf->b_ml.ml_stack_top = stack_idx + 1;	    // truncate stack
+src/memline.c:3509: [direct memline state mutation] 	    buf->b_ml.ml_stack_top = 0;	// invalidate stack
+src/memline.c:3547: [explicit line mutation]  * Flush any pending change and call ml_append_int()
+src/memline.c:3550: [explicit line mutation] ml_append_flush(
+src/memline.c:3561: [explicit line mutation] 	// This may also invoke ml_append_int().
+src/memline.c:3576: [explicit line mutation]     return ml_append_int(buf, lnum, line, len, flags);
+src/memline.c:3592: [implicit line mutation] ml_append(
+src/memline.c:3598: [implicit line mutation]     return ml_append_flags(lnum, line, len, newfile ? ML_APPEND_NEW : 0);
+src/memline.c:3602: [implicit line mutation] ml_append_flags(
+src/memline.c:3611: [explicit line mutation]     return ml_append_flush(curbuf, lnum, line, len, flags);
+src/memline.c:3616: [implicit line mutation]  * Like ml_append() but for an arbitrary buffer.  The buffer must already have
+src/memline.c:3620: [explicit line mutation] ml_append_buf(
+src/memline.c:3629: [explicit line mutation]     return ml_append_flush(buf, lnum, line, len, newfile ? ML_APPEND_NEW : 0);
+src/memline.c:3638: [implicit line mutation]  * Do not use it after calling ml_replace().
+src/memline.c:3646: [implicit line mutation] ml_replace(linenr_T lnum, char_u *line, int copy)
+src/memline.c:3652: [implicit line mutation]     return ml_replace_len(lnum, line, len, FALSE, copy);
+src/memline.c:3656: [implicit line mutation]  * Replace a line for the current buffer.  Like ml_replace() with:
+src/memline.c:3664: [implicit line mutation] ml_replace_len(
+src/memline.c:3711: [writable line access] 	    ml_get_buf(curbuf, lnum, TRUE);
+src/memline.c:3743: [direct memline state mutation]     curbuf->b_ml.ml_line_ptr = line;
+src/memline.c:3744: [direct memline state mutation]     curbuf->b_ml.ml_line_len = len;
+src/memline.c:3745: [direct memline state mutation]     curbuf->b_ml.ml_line_textlen = !has_props ? len_arg + 1 : 0;
+src/memline.c:3746: [direct memline state mutation]     curbuf->b_ml.ml_line_lnum = lnum;
+src/memline.c:3747: [direct memline state mutation]     curbuf->b_ml.ml_flags = (curbuf->b_ml.ml_flags | ML_LINE_DIRTY) & ~ML_EMPTY;
+src/memline.c:3864: [direct memline state mutation] 	    buf->b_ml.ml_flags |= (ML_LOCKED_DIRTY | ML_LOCKED_POS);
+src/memline.c:3878: [explicit line mutation] ml_delete_int(buf_T *buf, linenr_T lnum, int flags)
+src/memline.c:3914: [implicit line mutation] 	i = ml_replace((linenr_T)1, (char_u *)"", TRUE);
+src/memline.c:3915: [direct memline state mutation] 	buf->b_ml.ml_flags |= ML_EMPTY;
+src/memline.c:3976: [direct memline state mutation] 	buf->b_ml.ml_locked = NULL;
+src/memline.c:3981: [direct memline state mutation] 	    buf->b_ml.ml_stack_top = 0;	    // stack is invalid when failing
+src/memline.c:4003: [direct memline state mutation] 		buf->b_ml.ml_stack_top = stack_idx;	// truncate stack
+src/memline.c:4041: [direct memline state mutation] 	buf->b_ml.ml_flags |= (ML_LOCKED_DIRTY | ML_LOCKED_POS);
+src/memline.c:4098: [implicit line mutation] 	return ml_replace(lnum, line, copy);
+src/memline.c:4099: [implicit line mutation]     return ml_replace_len(lnum, line, len, has_props, copy);
+src/memline.c:4112: [implicit line mutation] ml_delete(linenr_T lnum)
+src/memline.c:4114: [implicit line mutation]     return ml_delete_flags(lnum, 0);
+src/memline.c:4118: [implicit line mutation]  * Like ml_delete() but using flags (see ml_delete_int()).
+src/memline.c:4118: [explicit line mutation]  * Like ml_delete() but using flags (see ml_delete_int()).
+src/memline.c:4135: [explicit line mutation]     return ml_delete_int(buf, lnum, flags);
+src/memline.c:4139: [implicit line mutation] ml_delete_flags(linenr_T lnum, int flags)
+src/memline.c:4170: [direct memline state mutation]     curbuf->b_ml.ml_flags |= ML_LOCKED_DIRTY;
+src/memline.c:4208: [direct memline state mutation] 		curbuf->b_ml.ml_flags |= ML_LOCKED_DIRTY;
+src/memline.c:4251: [direct memline state mutation] 		curbuf->b_ml.ml_flags |= ML_LOCKED_DIRTY;
+src/memline.c:4339: [direct memline state mutation] 		buf->b_ml.ml_flags |= (ML_LOCKED_DIRTY | ML_LOCKED_POS);
+src/memline.c:4356: [explicit line mutation] 		 * Append first, because ml_delete_int() cannot delete the
+src/memline.c:4362: [explicit line mutation] 		(void)ml_append_int(buf, lnum, new_line, new_len,
+src/memline.c:4368: [explicit line mutation] 		(void)ml_delete_int(buf, lnum, ML_DEL_NOPROP);
+src/memline.c:4378: [direct memline state mutation]     buf->b_ml.ml_flags &= ~(ML_LINE_DIRTY | ML_ALLOCATED);
+src/memline.c:4379: [direct memline state mutation]     buf->b_ml.ml_line_lnum = 0;
+src/memline.c:4486: [direct memline state mutation] 	buf->b_ml.ml_locked = NULL;
+src/memline.c:4514: [direct memline state mutation] 		buf->b_ml.ml_stack_top = top;	// truncate stack at prev entry
+src/memline.c:4519: [direct memline state mutation] 	    buf->b_ml.ml_stack_top = 0;		// not found, start at the root
+src/memline.c:4522: [direct memline state mutation] 	buf->b_ml.ml_stack_top = 0;	// start at the root
+src/memline.c:4543: [direct memline state mutation] 	    buf->b_ml.ml_locked = hp;
+src/memline.c:4544: [direct memline state mutation] 	    buf->b_ml.ml_locked_low = low;
+src/memline.c:4545: [direct memline state mutation] 	    buf->b_ml.ml_locked_high = high;
+src/memline.c:4546: [direct memline state mutation] 	    buf->b_ml.ml_locked_lineadd = 0;
+src/memline.c:4547: [direct memline state mutation] 	    buf->b_ml.ml_flags &= ~(ML_LOCKED_DIRTY | ML_LOCKED_POS);
+src/memline.c:4631: [direct memline state mutation]     buf->b_ml.ml_stack_top = 0;
+src/memline.c:4660: [direct memline state mutation] 	buf->b_ml.ml_stack = newstack;
+src/memline.c:4661: [direct memline state mutation] 	buf->b_ml.ml_stack_size += STACK_INCR;
+src/memline.c:4664: [direct memline state mutation]     buf->b_ml.ml_stack_top++;
+src/memline.c:5874: [direct memline state mutation] 	buf->b_ml.ml_chunksize = ALLOC_MULT(chunksize_T, 100);
+src/memline.c:5877: [direct memline state mutation] 	    buf->b_ml.ml_usedchunks = -1;
+src/memline.c:5880: [direct memline state mutation] 	buf->b_ml.ml_numchunks = 100;
+src/memline.c:5881: [direct memline state mutation] 	buf->b_ml.ml_usedchunks = 1;
+src/memline.c:5891: [direct memline state mutation] 	buf->b_ml.ml_usedchunks = 1;
+src/memline.c:5931: [direct memline state mutation] 	    buf->b_ml.ml_numchunks = buf->b_ml.ml_numchunks * 3 / 2;
+src/memline.c:5932: [direct memline state mutation] 	    buf->b_ml.ml_chunksize = vim_realloc(buf->b_ml.ml_chunksize,
+src/memline.c:5938: [direct memline state mutation] 		buf->b_ml.ml_usedchunks = -1;
+src/memline.c:5963: [direct memline state mutation] 		    buf->b_ml.ml_usedchunks = -1;
+src/memline.c:6011: [direct memline state mutation] 	    buf->b_ml.ml_usedchunks++;
+src/memline.c:6024: [direct memline state mutation] 	    buf->b_ml.ml_usedchunks++;
+src/memline.c:6039: [direct memline state mutation] 		    buf->b_ml.ml_usedchunks = -1;
+src/memline.c:6069: [direct memline state mutation] 	    buf->b_ml.ml_usedchunks--;
+src/memline.c:6084: [direct memline state mutation] 	buf->b_ml.ml_usedchunks--;
 Stats: 141 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=31; explicit line mutation=14; writable line access=1; direct memline state mutation=95
+
+src/misc1.c
+===========
+src/misc1.c:596: [writable line access]     *(buf_line_mutable(curbuf, curwin->w_cursor.lnum)
+Stats: 1 mutation finding(s); 0 line pointer follow-up candidate(s); writable line access=1
+
+src/normal.c
+============
+src/normal.c:4996: [writable line access] 		  ptr = buf_line_mutable(curbuf,
+src/normal.c:5003: [writable line access] 		    ptr = buf_line_mutable(curbuf,
+Line pointer follow-up candidates:
+src/normal.c:4999: ptr from line 4996 is written: 		    ptr[curwin->w_cursor.col] = c;
+src/normal.c:5005: ptr from line 5003 is written: 		    ptr[curwin->w_cursor.col] = cap->nchar;
+
+Stats: 2 mutation finding(s); 2 line pointer follow-up candidate(s); writable line access=2
+
+src/ops.c
+=========
+src/ops.c:4647: [writable line access]     char_u *p = buf_line_mutable(curbuf, lp.lnum);
+Stats: 1 mutation finding(s); 0 line pointer follow-up candidate(s); writable line access=1
+
+src/proto/buffer.pro
+====================
+src/proto/buffer.pro:75: [writable line access] char_u *buf_line_mutable(buf_T *buf, linenr_T lnum);
+Stats: 1 mutation finding(s); 0 line pointer follow-up candidate(s); writable line access=1
 
 src/proto/memline.pro
 =====================
@@ -202,7 +246,7 @@ src/proto/memline.pro:31: [explicit line mutation] int ml_append_buf(buf_T *buf,
 src/proto/memline.pro:32: [implicit line mutation] int ml_replace(linenr_T lnum, char_u *line, int copy);
 src/proto/memline.pro:33: [implicit line mutation] int ml_replace_len(linenr_T lnum, char_u *line_arg, colnr_T len_arg, int has_props, int copy);
 src/proto/memline.pro:35: [implicit line mutation] int ml_delete(linenr_T lnum);
-src/proto/memline.pro:36: [implicit line mutation] int ml_delete_flags(linenr_T lnum, int flags);
+src/proto/memline.pro:37: [implicit line mutation] int ml_delete_flags(linenr_T lnum, int flags);
 Stats: 7 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=6; explicit line mutation=1
 
 src/quickfix.c
@@ -212,17 +256,17 @@ Stats: 1 mutation finding(s); 0 line pointer follow-up candidate(s); implicit li
 
 src/structs.h
 =============
-src/structs.h:890: [implicit line mutation] // Values for the flags argument of ml_delete_flags().
-src/structs.h:895: [explicit line mutation] // Values for the flags argument of ml_append_int().
+src/structs.h:891: [implicit line mutation] // Values for the flags argument of ml_delete_flags().
+src/structs.h:896: [explicit line mutation] // Values for the flags argument of ml_append_int().
 Stats: 2 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=1; explicit line mutation=1
 
 Totals
 ======
-Source files scanned: 449
-Files with findings: 9
-Total mutation findings: 171
-Line pointer follow-up candidates: 0
+Source files scanned: 451
+Files with findings: 14
+Total mutation findings: 183
+Line pointer follow-up candidates: 6
 implicit line mutation: 44
 explicit line mutation: 17
-writable line access: 1
+writable line access: 13
 direct memline state mutation: 109

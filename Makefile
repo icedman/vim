@@ -37,6 +37,9 @@ tags notags:
 check-buffer-interface:
 	python3 tools/check_buffer_interface.py
 
+audit-buffer-interface:
+	python3 tools/check_buffer_interface.py --all
+
 # Some make programs use the last target for the $@ default; put the other
 # targets separately to always let $@ expand to "first" by default.
 all install uninstall tools config configure reconfig proto depend lint types test scripttests testtiny test_libvterm unittests testclean clean distclean:

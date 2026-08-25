@@ -545,9 +545,9 @@ commit boundary and remove or annotate any newly discovered mutation bypasses.
 
 - [x] Encapsulate writable `buf_line(..., TRUE)` access behind the explicit
   `buf_line_mutable()` interface.
-- [ ] Require all text mutations to update the canonical revision through the
+- [x] Require all text mutations to update the canonical revision through the
   buffer API.
-- [ ] Extend interface enforcement and run a full-source audit.
+- [x] Extend interface enforcement and run a full-source audit.
 - [x] Define behavior for load, reload, unload, wipeout, recovery, and buffer
   replacement.
 
@@ -568,6 +568,25 @@ own their immutable revision and remain valid.  A subsequent load or successful
 recovery therefore starts with no live revision and lazily publishes one from
 the replacement contents.  Lifecycle tests cover unload, reload, forced reload,
 and wipeout while retaining the pre-unload generation.
+
+#### Phase 3B status: mutation boundary enforcement
+
+`tools/check_buffer_interface.py` now rejects legacy writable
+`buf_line(..., TRUE)` calls and new `buf_line_mutable()` callers outside the
+explicitly audited set.  These rules are enforced even for files otherwise
+classified as buffer or memline implementation exceptions.  Existing mutable
+callers either restore temporary bytes before notification or reach an audited
+`changed_*()` boundary that synchronizes the finalized text.  External direct
+memline mutations remain forbidden, so text mutation consumers must use the
+buffer-owned mutation API.
+
+`make check-buffer-interface` checks added source lines and
+`make audit-buffer-interface` checks the full source tree.  Both pass.  The
+regenerated `internal_mutations.txt` scans 451 source files and reports 13
+writable-access occurrences and six pointer-write candidates.  Review found
+only the mutable accessor and prototype, one internal memline cache preparation,
+and the already audited callers; there are no unclassified mutation bypasses.
+Phase 3 is complete.
 
 ### Phase 4: consolidate storage
 

@@ -209,6 +209,10 @@ buffer convenience wrapper only where the caller truly means `curbuf`.
 - [x] Re-run the inventory and require zero unclassified consumer accesses.
   `python3 tools/check_buffer_interface.py --all` passes for the full source
   tree.
+- [x] Enforce writable-line access separately from implementation exceptions.
+  Legacy `buf_line(..., TRUE)` calls and new `buf_line_mutable()` callers
+  outside the audited allowlist are rejected.  Run `make audit-buffer-interface`
+  for the full-tree check.
 
 ### Phase 4: harden and optimize
 

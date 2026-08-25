@@ -48,7 +48,10 @@ RULES: tuple[Rule, ...] = (
     ),
     Rule(
         "writable line access",
-        re.compile(r"\bml_get_buf\s*\([^\n]*,\s*(?:TRUE|true)\s*\)"),
+        re.compile(
+            r"\b(?:ml_get_buf\s*\([^\n]*,\s*(?:TRUE|true)\s*\)"
+            + r"|buf_line_mutable\s*\()"
+        ),
     ),
     Rule(
         "direct memline state mutation",
@@ -76,7 +79,7 @@ class PointerMutation:
 
 LINE_ACCESS = re.compile(
     r"(?P<variable>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*"
-    + r"ml_(?:get|get_buf)\s*\("
+    + r"(?:ml_(?:get|get_buf)|buf_line_mutable)\s*\("
 )
 VARIABLE_MUTATION = re.compile(
     r"(?:\*\s*(?P<variable>[A-Za-z_][A-Za-z0-9_]*)|"
