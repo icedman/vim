@@ -747,6 +747,7 @@ prop_add_one(
 
 	// Fetch the line to get the ml_line_len field updated.
 	proplen = get_text_props(buf, lnum, &props, TRUE);
+	text = buf_line(buf, lnum, TRUE);
 	textlen = buf_line_len(buf, lnum) + 1;
 
 	// prop_count is a uint16_t; stop before proplen + 1 wraps to zero.
@@ -912,7 +913,7 @@ prop_add_one(
     res = OK;
 
 theend:
-    vim_free(text);
+    vim_free(text_arg);
     return res;
 }
 
