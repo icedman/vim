@@ -148,21 +148,34 @@ Phase 1 remains open until its API checks and debug assertions are added.
   `buf_line_count()` and `buf_is_empty()` in consumer code.
 - [x] Replace loaded-state null checks with `buf_is_loaded()` in consumer
   code, preserving inverse checks and compound conditions.
-- [ ] Migrate implicit-current-buffer reads and mutation operations.
+- [ ] Migrate implicit-current-buffer reads.
+- [x] Added buffer-owned mutation APIs: `buf_append_line()`,
+  `buf_replace_line()`, and `buf_delete_line()`.
+- [x] Migrated mutation consumers, including language integrations and
+  `if_py_both.h`, away from `ml_append()`, `ml_replace()`, and `ml_delete()`.
+- [x] Added `tools/check_internal_mutations.py` and generated
+  `internal_mutations.txt` as the mutation inventory.
 
-The inventory now reports 1,075 access findings, including 514 direct
-`b_ml` accesses, 460 implicit-current-buffer line accesses, and one writable
-line access. The remaining `ml_get_buf*()` calls are implementation or
-façade calls, except for any cases that require deliberate review.
+The access inventory reports 1,075 findings, including 514 direct `b_ml`
+accesses, 460 implicit-current-buffer line accesses, and one writable line
+access. The mutation inventory reports 186 findings after the consumer
+migration: 44 implicit mutation references, 17 explicit/internal mutation
+references, one writable line access, 124 direct memline state mutations, and
+two line-pointer follow-up candidates. Remaining mutation findings are
+primarily implementation-side operations in `memline.c` and direct cache/state
+management that still require deliberate review.
 
 - Convert reads before mutations, grouping changes by subsystem to keep each
   patch buildable.
 - Replace line-count and loaded-state field reads with accessors.
 - Replace `BUFEMPTY()` with an explicit-buffer operation; retain a current-
-  buffer convenience wrapper only where the caller truly means `curbuf`.
-- Convert mutation calls to explicit-buffer operations. Where memline
-  currently requires `curbuf`, arrange the implementation so the buffer is
-  passed all the way down rather than temporarily changing global state.
+buffer convenience wrapper only where the caller truly means `curbuf`.
+- [x] Convert consumer mutation calls to buffer-owned API operations. The
+  façade carries the target `buf_T *`; replace/delete compatibility entry
+  points still rely on current-buffer context inside the memline implementation
+  and return `FAIL` for a non-current buffer until that layer is refactored.
+- Continue migrating implicit-current-buffer reads and remove the remaining
+  memline context dependency from mutation implementations.
 - Update language integrations and any code in headers/macros, not just `.c`
   files. Pay special attention to `if_py_both.h`, where buffer access is
   exposed through several collection operations.

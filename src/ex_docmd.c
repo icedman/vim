@@ -8071,7 +8071,7 @@ ex_read(exarg_T *eap)
 		lnum = 1;
 	    if (*ml_get(lnum) == NUL && u_savedel(lnum, 1L) == OK)
 	    {
-		ml_delete(lnum);
+		buf_delete_line(curbuf, lnum, 0);
 		if (curwin->w_cursor.lnum > 1
 			&& curwin->w_cursor.lnum >= lnum)
 		    --curwin->w_cursor.lnum;

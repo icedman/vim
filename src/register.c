@@ -1912,7 +1912,7 @@ do_put(
 	    ptr = vim_strnsave(p, plen - (size_t)(p - p_orig));
 	    if (ptr == NULL)
 		goto end;
-	    ml_append(curwin->w_cursor.lnum, ptr, (colnr_T)0, FALSE);
+	    buf_append_line(curbuf, curwin->w_cursor.lnum, ptr, (colnr_T)0, FALSE);
 	    vim_free(ptr);
 
 	    oldp = ml_get_curline();
@@ -1922,7 +1922,7 @@ do_put(
 	    ptr = vim_strnsave(oldp, (size_t)(p - oldp));
 	    if (ptr == NULL)
 		goto end;
-	    ml_replace(curwin->w_cursor.lnum, ptr, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum,  ptr, -1, FALSE,  FALSE);
 	    ++nr_lines;
 	    dir = FORWARD;
 	}
@@ -2070,7 +2070,7 @@ do_put(
 	    // add a new line
 	    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
 	    {
-		if (ml_append(buf_line_count(curbuf), (char_u *)"",
+		if (buf_append_line(curbuf, buf_line_count(curbuf), (char_u *)"",
 						   (colnr_T)1, FALSE) == FAIL)
 		    break;
 		++nr_lines;
@@ -2181,7 +2181,7 @@ do_put(
 	    // move the text after the cursor to the end of the line.
 	    mch_memmove(ptr, oldp + bd.textcol + delcount,
 				(size_t)(oldlen - bd.textcol - delcount + 1));
-	    ml_replace(curwin->w_cursor.lnum, newp, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum,  newp, -1, FALSE,  FALSE);
 
 	    ++curwin->w_cursor.lnum;
 	    if (i == 0)
@@ -2329,7 +2329,7 @@ do_put(
 		    first_byte_off = mb_head_off(newp, ptr - 1);
 
 		    // Note: this may free "newp"
-		    ml_replace(lnum, newp, FALSE);
+		    buf_replace_line(curbuf, lnum,  newp, -1, FALSE,  FALSE);
 
 		    inserted_bytes(lnum, col, totlen);
 
@@ -2391,7 +2391,7 @@ do_put(
 		    STRCPY(newp, y_array[y_size - 1].string);
 		    STRCPY(newp + totlen, ptr);
 		    // insert second line
-		    ml_append(lnum, newp, (colnr_T)0, FALSE);
+		    buf_append_line(curbuf, lnum, newp, (colnr_T)0, FALSE);
 		    ++new_lnum;
 		    vim_free(newp);
 
@@ -2403,7 +2403,7 @@ do_put(
 		    mch_memmove(newp, oldp, (size_t)col);
 					    // append to first line
 		    mch_memmove(newp + col, y_array[0].string, (size_t)(yanklen + 1));
-		    ml_replace(lnum, newp, FALSE);
+		    buf_replace_line(curbuf, lnum,  newp, -1, FALSE,  FALSE);
 
 		    curwin->w_cursor.lnum = lnum;
 		    i = 1;
@@ -2413,7 +2413,7 @@ do_put(
 		{
 		    if (y_type != MCHAR || i < y_size - 1)
 		    {
-			if (ml_append(lnum, y_array[i].string, (colnr_T)0, FALSE)
+			if (buf_append_line(curbuf, lnum, y_array[i].string, (colnr_T)0, FALSE)
 								      == FAIL)
 			    goto error;
 			new_lnum++;

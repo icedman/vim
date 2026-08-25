@@ -1415,7 +1415,7 @@ ins_char_bytes(char_u *buf, int charlen)
 	p[i++] = ' ';
 
     // Replace the line in the buffer.
-    ml_replace(lnum, newp, FALSE);
+    buf_replace_line(curbuf, lnum,  newp, -1, FALSE,  FALSE);
 
     // mark the buffer as changed and prepare for displaying
     changed_bytes(lnum, col);
@@ -1475,7 +1475,7 @@ ins_str(char_u *s, size_t slen)
 	mch_memmove(newp, oldp, (size_t)col);
     mch_memmove(newp + col, s, slen);
     mch_memmove(newp + col + slen, oldp + col, (size_t)(oldlen - col + 1));
-    ml_replace(lnum, newp, FALSE);
+    buf_replace_line(curbuf, lnum,  newp, -1, FALSE,  FALSE);
     inserted_bytes(lnum, col, (int)slen);
     curwin->w_cursor.col += (colnr_T)slen;
 }
@@ -1628,7 +1628,7 @@ del_bytes(
     }
     mch_memmove(newp + col, oldp + col + count, (size_t)movelen);
     if (alloc_newp)
-	ml_replace(lnum, newp, FALSE);
+	buf_replace_line(curbuf, lnum,  newp, -1, FALSE,  FALSE);
     else
     {
 #ifdef FEAT_PROP_POPUP
@@ -2428,7 +2428,7 @@ open_line(
 	--curwin->w_cursor.lnum;
     if (!(State & VREPLACE_FLAG) || old_cursor.lnum >= orig_line_count)
     {
-	if (ml_append(curwin->w_cursor.lnum, p_extra, (colnr_T)0, FALSE)
+	if (buf_append_line(curbuf, curwin->w_cursor.lnum, p_extra, (colnr_T)0, FALSE)
 								      == FAIL)
 	    goto theend;
 	// Postpone calling changed_lines(), because it would mess up folding
@@ -2453,7 +2453,7 @@ open_line(
 	    (void)u_save_cursor();		    // errors are ignored!
 	    vr_lines_changed++;
 	}
-	ml_replace(curwin->w_cursor.lnum, p_extra, TRUE);
+	buf_replace_line(curbuf, curwin->w_cursor.lnum,  p_extra, -1, FALSE,  TRUE);
 	changed_bytes(curwin->w_cursor.lnum, 0);
 	curwin->w_cursor.lnum--;
 	did_append = FALSE;
@@ -2513,7 +2513,7 @@ open_line(
 	    // Remove trailing white space, unless OPENLINE_KEEPTRAIL used.
 	    if (trunc_line && !(flags & OPENLINE_KEEPTRAIL))
 		truncate_spaces(saved_line, curwin->w_cursor.col);
-	    ml_replace(curwin->w_cursor.lnum, saved_line, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum,  saved_line, -1, FALSE,  FALSE);
 	    saved_line = NULL;
 	    if (did_append)
 	    {
@@ -2591,7 +2591,7 @@ open_line(
 	    goto theend;
 
 	// Put back original line
-	ml_replace(curwin->w_cursor.lnum, next_line, FALSE);
+	buf_replace_line(curbuf, curwin->w_cursor.lnum,  next_line, -1, FALSE,  FALSE);
 
 	// Insert new stuff into line again
 	curwin->w_cursor.col = 0;
@@ -2636,7 +2636,7 @@ truncate_line(int fixpos)
     if (newp == NULL)
 	return FAIL;
 
-    ml_replace(lnum, newp, FALSE);
+    buf_replace_line(curbuf, lnum,  newp, -1, FALSE,  FALSE);
 
     // mark the buffer as changed and prepare for displaying
     inserted_bytes(lnum, curwin->w_cursor.col, -deleted);
@@ -2670,7 +2670,7 @@ del_lines(long nlines, int undo)
 	if (curbuf->b_ml.ml_flags & ML_EMPTY)	    // nothing to delete
 	    break;
 
-	ml_delete_flags(first, ML_DEL_MESSAGE);
+	buf_delete_line(curbuf, first, ML_DEL_MESSAGE);
 	++n;
 
 	// If we delete the last line in the file, stop

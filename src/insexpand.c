@@ -5863,7 +5863,7 @@ ins_compl_delete(void)
 	}
 	while (curwin->w_cursor.lnum > compl_lnum)
 	{
-	    if (ml_delete(curwin->w_cursor.lnum) == FAIL)
+	    if (buf_delete_line(curbuf, curwin->w_cursor.lnum, 0) == FAIL)
 	    {
 		if (remaining.string)
 		    vim_free(remaining.string);

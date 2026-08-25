@@ -271,7 +271,7 @@ set_buffer_lines(
 	{
 	    // Existing line, replace it.
 	    // Removes any existing text properties.
-	    if (u_savesub(lnum) == OK && ml_replace_len(
+	    if (u_savesub(lnum) == OK && buf_replace_line(curbuf,
 		      lnum, line, (colnr_T)STRLEN(line) + 1, TRUE, TRUE) == OK)
 	    {
 		changed_bytes(lnum, 0);
@@ -284,7 +284,7 @@ set_buffer_lines(
 	{
 	    // append the line
 	    ++added;
-	    if (ml_append(lnum - 1, line, (colnr_T)0, FALSE) == OK)
+	    if (buf_append_line(curbuf, lnum - 1, line, (colnr_T)0, FALSE) == OK)
 		rettv->vval.v_number = 0;	// OK
 	}
 
@@ -608,7 +608,7 @@ f_deletebufline(typval_T *argvars, typval_T *rettv)
 	goto cleanup;
 
     for (lnum = first; lnum <= last; ++lnum)
-	ml_delete_flags(first, ML_DEL_MESSAGE);
+	buf_delete_line(curbuf, first, ML_DEL_MESSAGE);
 
     FOR_ALL_TAB_WINDOWS(tp, wp)
 	if (wp->w_buffer == buf)

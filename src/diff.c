@@ -4300,7 +4300,7 @@ ex_diffgetput(exarg_T *eap)
 	    {
 		// remember deleting the last line of the buffer
 		buf_empty = buf_line_count(curbuf) == 1;
-		if (ml_delete(lnum) == OK)
+		if (buf_delete_line(curbuf, lnum, 0) == OK)
 		    --added;
 	    }
 	    for (i = 0; i < dp->df_count[idx_from] - start_skip - end_skip; ++i)
@@ -4314,7 +4314,7 @@ ex_diffgetput(exarg_T *eap)
 								  nr, FALSE));
 		if (p != NULL)
 		{
-		    ml_append(lnum + i - 1, p, 0, FALSE);
+		    buf_append_line(curbuf, lnum + i - 1, p, 0, FALSE);
 		    vim_free(p);
 		    ++added;
 		    if (buf_empty && buf_line_count(curbuf) == 2)
@@ -4322,7 +4322,7 @@ ex_diffgetput(exarg_T *eap)
 			// Added the first line into an empty buffer, need to
 			// delete the dummy empty line.
 			buf_empty = FALSE;
-			ml_delete((linenr_T)2);
+			buf_delete_line(curbuf, (linenr_T)2, 0);
 		    }
 		}
 	    }

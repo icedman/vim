@@ -3007,7 +3007,7 @@ ex_spellrepall(exarg_T *eap UNUSED)
 	    mch_memmove(p, line, curwin->w_cursor.col);
 	    STRCPY(p + curwin->w_cursor.col, repl_to);
 	    STRCAT(p, line + curwin->w_cursor.col + repl_from_len);
-	    ml_replace(curwin->w_cursor.lnum, p, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum,  p, -1, FALSE,  FALSE);
 	    changed_bytes(curwin->w_cursor.lnum, curwin->w_cursor.col);
 #if defined(FEAT_PROP_POPUP)
 	    if (curbuf->b_has_textprop && addlen != 0)
@@ -3947,7 +3947,7 @@ ex_spelldump(exarg_T *eap)
 
     // Delete the empty line that we started with.
     if (buf_line_count(curbuf) > 1)
-	ml_delete(buf_line_count(curbuf));
+	buf_delete_line(curbuf, buf_line_count(curbuf), 0);
 
     redraw_later(UPD_NOT_VALID);
 }
@@ -4022,7 +4022,7 @@ spell_dump_compl(
     if (do_region && region_names != NULL && pat == NULL)
     {
 	vim_snprintf((char *)IObuff, IOSIZE, "/regions=%s", region_names);
-	ml_append(lnum++, IObuff, (colnr_T)0, FALSE);
+	buf_append_line(curbuf, lnum++, IObuff, (colnr_T)0, FALSE);
     }
     else
 	do_region = FALSE;
@@ -4040,7 +4040,7 @@ spell_dump_compl(
 	if (pat == NULL)
 	{
 	    vim_snprintf((char *)IObuff, IOSIZE, "# file: %s", slang->sl_fname);
-	    ml_append(lnum++, IObuff, (colnr_T)0, FALSE);
+	    buf_append_line(curbuf, lnum++, IObuff, (colnr_T)0, FALSE);
 	}
 
 	// When matching with a pattern and there are no prefixes only use
@@ -4224,7 +4224,7 @@ dump_word(
 	    }
 	}
 
-	ml_append(lnum, p, (colnr_T)0, FALSE);
+	buf_append_line(curbuf, lnum, p, (colnr_T)0, FALSE);
     }
     else if (((dumpflags & DUMPFLAG_ICASE)
 		    ? MB_STRNICMP(p, pat, STRLEN(pat)) == 0

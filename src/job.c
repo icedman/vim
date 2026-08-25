@@ -1568,7 +1568,7 @@ invoke_prompt_callback(void)
 
     // Add a new line for the prompt before invoking the callback, so that
     // text can always be inserted above the last line.
-    ml_append(lnum, (char_u  *)"", 0, FALSE);
+    buf_append_line(curbuf, lnum, (char_u  *)"", 0, FALSE);
     curwin->w_cursor.lnum = lnum + 1;
     curwin->w_cursor.col = 0;
 
@@ -1646,9 +1646,9 @@ init_prompt(int cmdchar_todo)
     {
 	// prompt is missing, insert it or append a line with it
 	if (*text == NUL)
-	    ml_replace(buf_line_count(curbuf), prompt, TRUE);
+	    buf_replace_line(curbuf, buf_line_count(curbuf),  prompt, -1, FALSE,  TRUE);
 	else
-	    ml_append(buf_line_count(curbuf), prompt, 0, FALSE);
+	    buf_append_line(curbuf, buf_line_count(curbuf), prompt, 0, FALSE);
 	curwin->w_cursor.lnum = buf_line_count(curbuf);
 	coladvance((colnr_T)MAXCOL);
 	changed_bytes(buf_line_count(curbuf), 0);

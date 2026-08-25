@@ -4926,7 +4926,7 @@ open_cmdwin(void)
 		if (++i == get_hislen())
 		    i = 0;
 		if (get_histentry(histtype)[i].hisstr != NULL)
-		    ml_append(lnum++, get_histentry(histtype)[i].hisstr,
+		    buf_append_line(curbuf, lnum++, get_histentry(histtype)[i].hisstr,
 							   (colnr_T)0, FALSE);
 	    }
 	    while (i != *get_hisidx(histtype));
@@ -4935,7 +4935,7 @@ open_cmdwin(void)
 
     // Replace the empty last line with the current command-line and put the
     // cursor there.
-    ml_replace(buf_line_count(curbuf), ccline.cmdbuff, TRUE);
+    buf_replace_line(curbuf, buf_line_count(curbuf),  ccline.cmdbuff, -1, FALSE,  TRUE);
     curwin->w_cursor.lnum = buf_line_count(curbuf);
     curwin->w_cursor.col = ccline.cmdpos;
     changed_line_abv_curs();

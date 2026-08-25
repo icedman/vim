@@ -244,7 +244,7 @@ coladvance2(
 
 		newline[idx + correct] = NUL;
 
-		ml_replace(pos->lnum, newline, FALSE);
+		buf_replace_line(curbuf, pos->lnum,  newline, -1, FALSE,  FALSE);
 		changed_bytes(pos->lnum, (colnr_T)idx);
 		idx += correct;
 		col = wcol;
@@ -275,7 +275,7 @@ coladvance2(
 
 		newline[linelen + csize - 1] = NUL;
 
-		ml_replace(pos->lnum, newline, FALSE);
+		buf_replace_line(curbuf, pos->lnum,  newline, -1, FALSE,  FALSE);
 		changed_bytes(pos->lnum, idx);
 		idx += (csize - 1 + correct);
 		col += correct;

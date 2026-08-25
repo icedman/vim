@@ -2834,7 +2834,7 @@ u_undoredo(int undo)
 		// dummy empty line will be inserted
 		if (buf_line_count(curbuf) == 1)
 		    empty_buffer = TRUE;
-		ml_delete_flags(lnum, ML_DEL_UNDO);
+		buf_delete_line(curbuf, lnum, ML_DEL_UNDO);
 	    }
 	}
 	else
@@ -2853,10 +2853,10 @@ u_undoredo(int undo)
 		// If the file is empty, there is an empty line 1 that we
 		// should get rid of, by replacing it with the new line.
 		if (empty_buffer && lnum == 0)
-		    ml_replace_len((linenr_T)1, uep->ue_array[i].ul_line,
+		    buf_replace_line(curbuf, (linenr_T)1, uep->ue_array[i].ul_line,
 					  uep->ue_array[i].ul_len, TRUE, TRUE);
 		else
-		    ml_append_flags(lnum, uep->ue_array[i].ul_line,
+		    buf_append_line(curbuf, lnum, uep->ue_array[i].ul_line,
 			     (colnr_T)uep->ue_array[i].ul_len, ML_APPEND_UNDO);
 		vim_free(uep->ue_array[i].ul_line);
 	    }
@@ -3618,7 +3618,7 @@ u_undoline(void)
 	do_outofmem_msg((long_u)0);
 	return;
     }
-    ml_replace_len(curbuf->b_u_line_lnum, curbuf->b_u_line_ptr.ul_line,
+    buf_replace_line(curbuf, curbuf->b_u_line_lnum, curbuf->b_u_line_ptr.ul_line,
 				     curbuf->b_u_line_ptr.ul_len, TRUE, FALSE);
     changed_bytes(curbuf->b_u_line_lnum, 0);
     curbuf->b_u_line_ptr = oldp;

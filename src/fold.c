@@ -1823,7 +1823,7 @@ foldAddMarker(linenr_T lnum, char_u *marker, int markerlen)
 	STRCPY(newline + line_len + (p - cms) + markerlen, p + 2);
     }
 
-    ml_replace(lnum, newline, FALSE);
+    buf_replace_line(curbuf, lnum,  newline, -1, FALSE,  FALSE);
 }
 
 // deleteFoldMarkers() {{{2
@@ -1895,7 +1895,7 @@ foldDelMarker(linenr_T lnum, char_u *marker, int markerlen)
 		{
 		    STRNCPY(newline, line, p - line);
 		    STRCPY(newline + (p - line), p + len);
-		    ml_replace(lnum, newline, FALSE);
+		    buf_replace_line(curbuf, lnum,  newline, -1, FALSE,  FALSE);
 		}
 	    }
 	    break;

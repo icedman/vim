@@ -619,7 +619,7 @@ shift_block(oparg_T *oap, int amount)
 	STRCPY(newp + newlen + fill, non_white);
     }
     // replace the line
-    ml_replace(curwin->w_cursor.lnum, newp, FALSE);
+    buf_replace_line(curbuf, curwin->w_cursor.lnum,  newp, -1, FALSE,  FALSE);
 
     // compute the number of bytes added or subtracted.
     // note new_line_len and oldlen are unsigned so we have
@@ -742,7 +742,7 @@ block_insert(
 	    offset += count;
 	STRCPY(newp + offset, oldp);
 
-	ml_replace(lnum, newp, FALSE);
+	buf_replace_line(curbuf, lnum,  newp, -1, FALSE,  FALSE);
 
 	if (b_insert)
 	    // correct any text properties
@@ -979,7 +979,7 @@ op_delete(oparg_T *oap)
 	    STRCPY(newp + bd.textcol + bd.startspaces + bd.endspaces,
 				    oldp + bd.textcol + bd.textlen);
 	    // replace the line
-	    ml_replace(lnum, newp, FALSE);
+	    buf_replace_line(curbuf, lnum,  newp, -1, FALSE,  FALSE);
 
 #ifdef FEAT_PROP_POPUP
 	    if (curbuf->b_has_textprop && n != 0)
@@ -1326,10 +1326,10 @@ op_replace(oparg_T *oap, int c)
 	    }
 
 	    // replace the line
-	    ml_replace(curwin->w_cursor.lnum, newp, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum,  newp, -1, FALSE,  FALSE);
 	    if (after_p != NULL)
 	    {
-		ml_append(curwin->w_cursor.lnum++, after_p, 0, FALSE);
+		buf_append_line(curbuf, curwin->w_cursor.lnum++, after_p, 0, FALSE);
 		appended_lines_mark(curwin->w_cursor.lnum, 1L);
 		oap->end.lnum++;
 		vim_free(after_p);
@@ -2018,7 +2018,7 @@ op_change(oparg_T *oap)
 			newlen += vpos.coladd;
 			mch_memmove(newp + newlen, ins_text, ins_len);
 			STRCPY(newp + newlen + ins_len, oldp + bd.textcol);
-			ml_replace(linenr, newp, FALSE);
+			buf_replace_line(curbuf, linenr,  newp, -1, FALSE,  FALSE);
 #ifdef FEAT_PROP_POPUP
 			// Shift the properties for linenr as edit() would do.
 			if (curbuf->b_has_textprop)
@@ -2357,7 +2357,7 @@ do_join(
     }
     else
 #endif
-    ml_replace_len(curwin->w_cursor.lnum, newp, (colnr_T)newp_len, TRUE, FALSE);
+    buf_replace_line(curbuf, curwin->w_cursor.lnum, newp, (colnr_T)newp_len, TRUE, FALSE);
 
     if (setmark && (cmdmod.cmod_flags & CMOD_LOCKMARKS) == 0)
     {

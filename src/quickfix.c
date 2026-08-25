@@ -5119,7 +5119,7 @@ qf_buf_add_line(
     }
 
     ga_append(gap, NUL);
-    if (ml_append_buf(buf, lnum, gap->ga_data, gap->ga_len, FALSE) == FAIL)
+    if (buf_append_line(buf, lnum, gap->ga_data, gap->ga_len, FALSE) == FAIL)
 	return FAIL;
 
     return OK;
@@ -5220,7 +5220,7 @@ qf_fill_buffer(qf_list_T *qfl, buf_T *buf, qfline_T *old_last, int qf_winid)
 	// So we need to clean up undo information
 	// otherwise autocommands may invalidate the undo stack
 	while ((curbuf->b_ml.ml_flags & ML_EMPTY) == 0)
-	    (void)ml_delete((linenr_T)1);
+	    (void)buf_delete_line(curbuf, (linenr_T)1, 0);
 
 	FOR_ALL_TAB_WINDOWS(tp, wp)
 	    if (wp->w_buffer == curbuf)
@@ -5289,7 +5289,7 @@ qf_fill_buffer(qf_list_T *qfl, buf_T *buf, qfline_T *old_last, int qf_winid)
 
 	if (old_last == NULL)
 	    // Delete the empty line which is now at the end
-	    (void)ml_delete(lnum + 1);
+	    (void)buf_delete_line(curbuf, lnum + 1, 0);
 
 	qfga_clear();
     }

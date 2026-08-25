@@ -910,7 +910,7 @@ ex_rubydo(exarg_T *eap)
 		emsg(_(e_dollar_must_be_an_instance_of_string));
 		return;
 	    }
-	    ml_replace(i, (char_u *) StringValuePtr(line), 1);
+	    buf_replace_line(curbuf, i,  (char_u *) StringValuePtr(line), -1, FALSE,  1);
 	    changed();
 #ifdef SYNTAX_HL
 	    syn_changed(i); // recompute syntax hl. for this line
@@ -1394,7 +1394,7 @@ set_buffer_line(buf_T *buf, linenr_T n, VALUE str)
 	    // Only when it worked to set "curbuf".
 	    if (u_savesub(n) == OK)
 	    {
-		ml_replace(n, (char_u *)line, TRUE);
+		buf_replace_line(curbuf, n,  (char_u *)line, -1, FALSE,  TRUE);
 		changed();
 #ifdef SYNTAX_HL
 		syn_changed(n); // recompute syntax hl. for this line
@@ -1441,7 +1441,7 @@ buffer_delete(VALUE self, VALUE num)
 	    // Only when it worked to set "curbuf".
 	    if (u_savedel(n, 1) == OK)
 	    {
-		ml_delete(n);
+		buf_delete_line(curbuf, n, 0);
 
 		// Changes to non-active buffers should properly refresh
 		//   SegPhault - 01/09/05
@@ -1485,7 +1485,7 @@ buffer_append(VALUE self, VALUE num, VALUE str)
 	    // Only when it worked to set "curbuf".
 	    if (u_inssub(n + 1) == OK)
 	    {
-		ml_append(n, (char_u *) line, (colnr_T) 0, FALSE);
+		buf_append_line(curbuf, n, (char_u *) line, (colnr_T) 0, FALSE);
 
 		//  Changes to non-active buffers should properly refresh screen
 		//    SegPhault - 12/20/04

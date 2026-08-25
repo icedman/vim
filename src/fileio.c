@@ -930,7 +930,7 @@ retry:
 	}
 	// Delete the previously read lines.
 	while (lnum > from)
-	    ml_delete(lnum--);
+	    buf_delete_line(curbuf, lnum--, 0);
 	file_rewind = FALSE;
 	if (set_options)
 	{
@@ -2253,7 +2253,7 @@ rewind_retry:
 		    {
 			*ptr = NUL;	    // end of line
 			len = (colnr_T) (ptr - line_start + 1);
-			if (ml_append(lnum, line_start, len, newfile) == FAIL)
+			if (buf_append_line(curbuf, lnum, line_start, len, newfile) == FAIL)
 			{
 			    error = TRUE;
 			    break;
@@ -2350,7 +2350,7 @@ rewind_retry:
 			    ff_error = EOL_DOS;
 			}
 		    }
-		    if (ml_append(lnum, line_start, len, newfile) == FAIL)
+		    if (buf_append_line(curbuf, lnum, line_start, len, newfile) == FAIL)
 		    {
 			error = TRUE;
 			break;
@@ -2411,7 +2411,7 @@ failed:
 	    curbuf->b_p_eol = FALSE;
 	*ptr = NUL;
 	len = (colnr_T)(ptr - line_start + 1);
-	if (ml_append(lnum, line_start, len, newfile) == FAIL)
+	if (buf_append_line(curbuf, lnum, line_start, len, newfile) == FAIL)
 	    error = TRUE;
 	else
 	{
@@ -2490,7 +2490,7 @@ failed:
 #ifdef FEAT_NETBEANS_INTG
 	    netbeansFireChanges = 0;
 #endif
-	    ml_delete(buf_line_count(curbuf));
+	    buf_delete_line(curbuf, buf_line_count(curbuf), 0);
 #ifdef FEAT_NETBEANS_INTG
 	    netbeansFireChanges = 1;
 #endif
@@ -4209,7 +4209,7 @@ move_lines(buf_T *frombuf, buf_T *tobuf)
     for (lnum = 1; lnum <= frombuf->b_ml.ml_line_count; ++lnum)
     {
 	p = vim_strnsave(buf_line(frombuf, lnum, FALSE), buf_line_len(frombuf, lnum));
-	if (p == NULL || ml_append(lnum - 1, p, 0, FALSE) == FAIL)
+	if (p == NULL || buf_append_line(curbuf, lnum - 1, p, 0, FALSE) == FAIL)
 	{
 	    vim_free(p);
 	    retval = FAIL;
@@ -4223,7 +4223,7 @@ move_lines(buf_T *frombuf, buf_T *tobuf)
     {
 	curbuf = frombuf;
 	for (lnum = buf_line_count(curbuf); lnum > 0; --lnum)
-	    if (ml_delete(lnum) == FAIL)
+	    if (buf_delete_line(curbuf, lnum, 0) == FAIL)
 	    {
 		// Oops!  We could try putting back the saved lines, but that
 		// might fail again...
@@ -4684,7 +4684,7 @@ buf_reload(buf_T *buf, int orig_mode, int reload_options)
 		    // Put the text back from the save buffer.  First
 		    // delete any lines that readfile() added.
 		    while (!buf_is_empty(curbuf))
-			if (ml_delete(buf_line_count(buf)) == FAIL)
+			if (buf_delete_line(curbuf, buf_line_count(buf), 0) == FAIL)
 			    break;
 		    (void)move_lines(savebuf, buf);
 		}

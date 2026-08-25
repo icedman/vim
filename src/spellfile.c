@@ -772,7 +772,7 @@ someerror:
 		    if (c == NUL)
 			break;
 		}
-		if (ml_append_buf(slang->sl_sugbuf, (linenr_T)wordnr,
+		if (buf_append_line(slang->sl_sugbuf, (linenr_T)wordnr,
 					 ga.ga_data, ga.ga_len, TRUE) == FAIL)
 		    goto someerror;
 	    }
@@ -5835,7 +5835,7 @@ sug_filltable(
 	    // add the NUL byte
 	    ((char_u *)gap->ga_data)[gap->ga_len++] = NUL;
 
-	    if (ml_append_buf(spin->si_spellbuf, (linenr_T)wordnr,
+	    if (buf_append_line(spin->si_spellbuf, (linenr_T)wordnr,
 				     gap->ga_data, gap->ga_len, TRUE) == FAIL)
 		return -1;
 	    ++wordnr;

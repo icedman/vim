@@ -603,7 +603,7 @@ ex_sort(exarg_T *eap)
 	    // Copy the line into a buffer, it may become invalid in
 	    // ml_append(). And it's needed for "unique".
 	    STRCPY(sortbuf1, s);
-	    if (ml_append(lnum++, sortbuf1, (colnr_T)0, FALSE) == FAIL)
+	    if (buf_append_line(curbuf, lnum++, sortbuf1, (colnr_T)0, FALSE) == FAIL)
 		break;
 	}
 	fast_breakcheck();
@@ -614,7 +614,7 @@ ex_sort(exarg_T *eap)
     // delete the original lines if appending worked
     if (i == count)
 	for (i = 0; i < count; ++i)
-	    ml_delete(eap->line1);
+	    buf_delete_line(curbuf, eap->line1, 0);
     else
 	count = 0;
 
@@ -839,7 +839,7 @@ ex_uniq(exarg_T *eap)
 
 	if (delete_lnum > 0)
 	{
-	    ml_delete(delete_lnum);
+	    buf_delete_line(curbuf, delete_lnum, 0);
 	    i -= get_lnum - delete_lnum + 1;
 	    count--;
 	    deleted++;
@@ -919,7 +919,7 @@ do_move(linenr_T line1, linenr_T line2, linenr_T dest)
 	str = vim_strnsave(ml_get(l + extra), ml_get_len(l + extra));
 	if (str != NULL)
 	{
-	    ml_append(dest + l - line1, str, (colnr_T)0, FALSE);
+	    buf_append_line(curbuf, dest + l - line1, str, (colnr_T)0, FALSE);
 	    vim_free(str);
 	    if (dest < line1)
 		extra++;
@@ -987,7 +987,7 @@ do_move(linenr_T line1, linenr_T line2, linenr_T dest)
 	return FAIL;
 
     for (l = line1; l <= line2; l++)
-	ml_delete_flags(line1 + extra, ML_DEL_MESSAGE);
+	buf_delete_line(curbuf, line1 + extra, ML_DEL_MESSAGE);
 
     if (!global_busy && num_lines > p_report)
 	smsg(NGETTEXT("%ld line moved", "%ld lines moved", num_lines),
@@ -1054,7 +1054,7 @@ ex_copy(linenr_T line1, linenr_T line2, linenr_T n)
 	p = vim_strnsave(ml_get(line1), ml_get_len(line1));
 	if (p != NULL)
 	{
-	    ml_append(curwin->w_cursor.lnum, p, (colnr_T)0, FALSE);
+	    buf_append_line(curbuf, curwin->w_cursor.lnum, p, (colnr_T)0, FALSE);
 	    vim_free(p);
 	}
 	// situation 2: skip already copied lines
@@ -3691,7 +3691,7 @@ ex_append(exarg_T *eap)
 	    theline[0] = NUL;
 
 	did_undo = TRUE;
-	ml_append(lnum, theline, (colnr_T)0, FALSE);
+	buf_append_line(curbuf, lnum, theline, (colnr_T)0, FALSE);
 	if (empty)
 	    // there are no marks below the inserted lines
 	    appended_lines(lnum, 1L);
@@ -3703,7 +3703,7 @@ ex_append(exarg_T *eap)
 
 	if (empty)
 	{
-	    ml_delete(2L);
+	    buf_delete_line(curbuf, 2L, 0);
 	    empty = FALSE;
 	}
     }
@@ -3758,7 +3758,7 @@ ex_change(exarg_T *eap)
     {
 	if (curbuf->b_ml.ml_flags & ML_EMPTY)	    // nothing to delete
 	    break;
-	ml_delete(eap->line1);
+	buf_delete_line(curbuf, eap->line1, 0);
     }
 
     // make sure the cursor is not beyond the end of the file now
@@ -4692,7 +4692,7 @@ ex_substitute(exarg_T *eap)
 					len_change =
 					    (int)new_line.length - (int)orig_line.length;
 					curwin->w_cursor.col += len_change;
-					ml_replace(lnum, new_line.string, FALSE);
+					buf_replace_line(curbuf, lnum,  new_line.string, -1, FALSE,  FALSE);
 				    }
 				}
 			    }
@@ -4750,7 +4750,7 @@ ex_substitute(exarg_T *eap)
 
 			    // restore the line
 			    if (orig_line.string != NULL)
-				ml_replace(lnum, orig_line.string, FALSE);
+				buf_replace_line(curbuf, lnum,  orig_line.string, -1, FALSE,  FALSE);
 			}
 
 			need_wait_return = FALSE; // no hit-return prompt
@@ -5107,7 +5107,7 @@ ex_substitute(exarg_T *eap)
 			    colnr_T	plen = (colnr_T)(p1 - new_start.string + 1);
 
 			    *p1 = NUL;		    // truncate up to the CR
-			    ml_append(lnum - 1, new_start.string, plen, FALSE);
+			    buf_append_line(curbuf, lnum - 1, new_start.string, plen, FALSE);
 			    mark_adjust(lnum + 1, (linenr_T)MAXLNUM, 1L, 0L);
 			    if (subflags.do_ask)
 				appended_lines(lnum - 1, 1L);
@@ -5197,7 +5197,7 @@ skip:
 
 			if (u_savesub(lnum) != OK)
 			    break;
-			ml_replace(lnum, new_start.string, TRUE);
+			buf_replace_line(curbuf, lnum,  new_start.string, -1, FALSE,  TRUE);
 #ifdef FEAT_PROP_POPUP
 			if (text_props != NULL)
 			    add_text_props(lnum, text_props, text_prop_count);
@@ -5214,7 +5214,7 @@ skip:
 			    if (u_savedel(lnum, nmatch_tl) != OK)
 				break;
 			    for (i = 0; i < nmatch_tl; ++i)
-				ml_delete(lnum);
+				buf_delete_line(curbuf, lnum, 0);
 			    if (copycol > 0)
 				mark_adjust(lnum, lnum + nmatch_tl - 1,
 						   (long)MAXLNUM, -nmatch_tl);

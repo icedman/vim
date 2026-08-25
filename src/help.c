@@ -907,7 +907,7 @@ fix_help_buffer(void)
 				    }
 				    convert_setup(&vc, NULL, NULL);
 
-				    ml_append(lnum, cp, (colnr_T)0, FALSE);
+				    buf_append_line(curbuf, lnum, cp, (colnr_T)0, FALSE);
 				    if (cp != IObuff)
 					vim_free(cp);
 				    ++lnum;

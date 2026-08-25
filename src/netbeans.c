@@ -965,7 +965,7 @@ nb_partialremove(linenr_T lnum, colnr_T first, colnr_T last)
     mch_memmove(newtext, oldtext, first);
     STRMOVE(newtext + first, oldtext + lastbyte + 1);
     nbdebug(("    NEW LINE %ld: %s\n", lnum, newtext));
-    ml_replace(lnum, newtext, FALSE);
+    buf_replace_line(curbuf, lnum,  newtext, -1, FALSE,  FALSE);
 }
 
 /*
@@ -986,7 +986,7 @@ nb_joinlines(linenr_T first, linenr_T other)
 
     mch_memmove(p, ml_get(first), len_first);
     mch_memmove(p + len_first, ml_get(other), len_other + 1);
-    ml_replace(first, p, FALSE);
+    buf_replace_line(curbuf, first,  p, -1, FALSE,  FALSE);
 }
 
 #define SKIP_STOP 2
@@ -1430,14 +1430,14 @@ nb_do_cmd(
 			    newline[col] = NUL;
 			    STRCAT(newline, args);
 			    STRCAT(newline, oldline + col);
-			    ml_replace(lnum, newline, FALSE);
+			    buf_replace_line(curbuf, lnum,  newline, -1, FALSE,  FALSE);
 			}
 		    }
 		    else
 		    {
 			// Append a new line.  Not that we always do this,
 			// also when the text doesn't end in a "\n".
-			ml_append((linenr_T)(lnum - 1), args,
+			buf_append_line(curbuf, (linenr_T)(lnum - 1), args,
 						   (colnr_T)(len + 1), FALSE);
 			++added;
 		    }

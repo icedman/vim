@@ -1458,7 +1458,7 @@ add_popup_strings(buf_T *buf, list_T *l)
 	if (li->li_tv.v_type == VAR_STRING)
 	{
 	    p = li->li_tv.vval.v_string;
-	    ml_append_buf(buf, lnum++,
+	    buf_append_line(buf, lnum++,
 			       p == NULL ? (char_u *)"" : p, (colnr_T)0, TRUE);
 	}
 }
@@ -1485,7 +1485,7 @@ add_popup_dicts(buf_T *buf, list_T *l)
 	}
 	dict = li->li_tv.vval.v_dict;
 	p = dict == NULL ? NULL : dict_get_string(dict, "text", FALSE);
-	ml_append_buf(buf, lnum++,
+	buf_append_line(buf, lnum++,
 			       p == NULL ? (char_u *)"" : p, (colnr_T)0, TRUE);
     }
 
@@ -3060,7 +3060,7 @@ popup_set_buffer_text(buf_T *buf, typval_T text)
     // Clear the buffer, then replace the lines.
     curbuf = buf;
     for (lnum = buf_line_count(buf); lnum > 0; --lnum)
-	ml_delete(lnum);
+	buf_delete_line(curbuf, lnum, 0);
     curbuf = curwin->w_buffer;
 
     // Add text to the buffer.
@@ -3069,7 +3069,7 @@ popup_set_buffer_text(buf_T *buf, typval_T text)
 	char_u *s = text.vval.v_string;
 
 	// just a string
-	ml_append_buf(buf, 0, s == NULL ? (char_u *)"" : s, (colnr_T)0, TRUE);
+	buf_append_line(buf, 0, s == NULL ? (char_u *)"" : s, (colnr_T)0, TRUE);
     }
     else
     {
@@ -3090,7 +3090,7 @@ popup_set_buffer_text(buf_T *buf, typval_T text)
 
     // delete the line that was in the empty buffer
     curbuf = buf;
-    ml_delete(buf_line_count(buf));
+    buf_delete_line(curbuf, buf_line_count(buf), 0);
     curbuf = curwin->w_buffer;
 }
 

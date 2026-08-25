@@ -139,13 +139,13 @@ read_buffer(
     {
 	// Delete the binary lines.
 	while (--line_count >= 0)
-	    ml_delete((linenr_T)1);
+	    buf_delete_line(curbuf, (linenr_T)1, 0);
     }
     else
     {
 	// Delete the converted lines.
 	while (curbuf->b_ml.ml_line_count > line_count)
-	    ml_delete(line_count);
+	    buf_delete_line(curbuf, line_count, 0);
     }
     // Put the cursor on the first line.
     curwin->w_cursor.lnum = 1;
@@ -6533,6 +6533,38 @@ buf_is_empty(buf_T *buf)
 {
     return buf_line_count(buf) == 1
 	&& *buf_line(buf, (linenr_T)1, FALSE) == NUL;
+}
+
+// Append a line to "buf".  "flags" currently has the ml_append new-file bit.
+    int
+buf_append_line(
+    buf_T	*buf,
+    linenr_T	lnum,
+    char_u	*line,
+    colnr_T	len,
+    int		flags)
+{
+    return ml_append_buf(buf, lnum, line, len, flags != 0);
+}
+
+// Replace a line in "buf", preserving the memline ownership contract.
+    int
+buf_replace_line(
+    buf_T	*buf,
+    linenr_T	lnum,
+    char_u	*line,
+    colnr_T	len,
+    int		has_props,
+    int		copy)
+{
+    return ml_replace_buf_len(buf, lnum, line, len, has_props, copy);
+}
+
+// Delete a line from "buf" using the memline deletion flags.
+    int
+buf_delete_line(buf_T *buf, linenr_T lnum, int flags)
+{
+    return ml_delete_buf_flags(buf, lnum, flags);
 }
 
 /*

@@ -1495,7 +1495,7 @@ luaV_buffer_newindex(lua_State *L)
 	    curbuf = buf;
 	    luaL_error(L, "cannot save undo information");
 	}
-	else if (ml_delete(n) == FAIL)
+	else if (buf_delete_line(curbuf, n, 0) == FAIL)
 	{
 	    curbuf = buf;
 	    luaL_error(L, "cannot delete line");
@@ -1530,7 +1530,7 @@ luaV_buffer_newindex(lua_State *L)
 	    curbuf = buf;
 	    luaL_error(L, "cannot save undo information");
 	}
-	else if (ml_replace(n, luaV_toline(L, 3), TRUE) == FAIL)
+	else if (buf_replace_line(curbuf, n,  luaV_toline(L, 3), -1, FALSE,  TRUE) == FAIL)
 	{
 	    curbuf = buf;
 	    luaL_error(L, "cannot replace line");
@@ -1569,7 +1569,7 @@ luaV_buffer_insert(lua_State *L)
 	curbuf = buf;
 	luaL_error(L, "cannot save undo information");
     }
-    else if (ml_append(n, luaV_toline(L, 2), 0, FALSE) == FAIL)
+    else if (buf_append_line(curbuf, n, luaV_toline(L, 2), 0, FALSE) == FAIL)
     {
 	curbuf = buf;
 	luaL_error(L, "cannot insert line");
@@ -2718,7 +2718,7 @@ ex_luado(exarg_T *eap)
 # ifdef HAVE_SANDBOX
 	    luaV_checksandbox(L);
 # endif
-	    ml_replace(l, luaV_toline(L, -1), TRUE);
+	    buf_replace_line(curbuf, l,  luaV_toline(L, -1), -1, FALSE,  TRUE);
 	    changed_bytes(l, 0);
 	    lua_pop(L, 1); // result from luaV_toline
 	}

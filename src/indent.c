@@ -789,7 +789,7 @@ set_indent(
 	colnr_T new_offset = (colnr_T)(s - newline);
 
 	// this may free "newline"
-	ml_replace(curwin->w_cursor.lnum, newline, FALSE);
+	buf_replace_line(curbuf, curwin->w_cursor.lnum,  newline, -1, FALSE,  FALSE);
 	if (flags & SIN_CHANGED)
 	    changed_bytes(curwin->w_cursor.lnum, 0);
 
@@ -1522,7 +1522,7 @@ change_indent(
 	new_line[curwin->w_cursor.col] = NUL;
 
 	// Put back original line
-	ml_replace(curwin->w_cursor.lnum, orig_line, FALSE);
+	buf_replace_line(curbuf, curwin->w_cursor.lnum,  orig_line, -1, FALSE,  FALSE);
 	curwin->w_cursor.col = orig_col;
 
 	// Backspace from cursor to start of line
@@ -1673,7 +1673,7 @@ copy_indent(int size, char_u *src)
     mch_memmove(p, ml_get_curline(), (size_t)line_len);
 
     // Replace the line
-    ml_replace(curwin->w_cursor.lnum, line, FALSE);
+    buf_replace_line(curbuf, curwin->w_cursor.lnum,  line, -1, FALSE,  FALSE);
 
     // Put the cursor after the indent.
     curwin->w_cursor.col = ind_len;
@@ -1859,7 +1859,7 @@ ex_retab(exarg_T *eap)
 			ptr = new_line + start_col;
 			for (col = 0; col < len; col++)
 			    ptr[col] = (col < num_tabs) ? '\t' : ' ';
-			if (ml_replace(lnum, new_line, FALSE) == OK)
+			if (buf_replace_line(curbuf, lnum,  new_line, -1, FALSE,  FALSE) == OK)
 			    // "new_line" may have been copied
 			    new_line = curbuf->b_ml.ml_line_ptr;
 			if (first_line == 0)

@@ -1145,8 +1145,8 @@ channel_find_buffer(char_u *name, int err, int msg)
 
     curbuf = buf;
     if (msg)
-	ml_replace(1, (char_u *)(err ? "Reading from channel error..."
-		    : "Reading from channel output..."), TRUE);
+	buf_replace_line(curbuf, 1,  (char_u *)(err ? "Reading from channel error..."
+		    : "Reading from channel output..."), -1, FALSE,  TRUE);
     changed_bytes(1, 0);
     curbuf = save_curbuf;
 
@@ -3160,11 +3160,11 @@ append_to_buffer(
     if (empty)
     {
 	// The buffer is empty, replace the first (dummy) line.
-	ml_replace(lnum, msg, TRUE);
+	buf_replace_line(curbuf, lnum,  msg, -1, FALSE,  TRUE);
 	lnum = 0;
     }
     else
-	ml_append(lnum, msg, 0, FALSE);
+	buf_append_line(curbuf, lnum, msg, 0, FALSE);
     appended_lines_mark(lnum, 1L);
 
     // reset notion of buffer

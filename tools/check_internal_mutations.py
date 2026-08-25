@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+"""Report buffer/memline mutations in Vim source files.
+
+The report is intended to track the mutation part of the buffer-interface
+migration described in UPGRADE.md.  This is a review inventory, not a C
+parser: findings must be checked against control flow and buffer ownership
+before they are migrated.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+from collections import Counter
+from collections.abc import Iterable
+from dataclasses import dataclass
+from pathlib import Path
+
+
+SOURCE_SUFFIXES = {
+    ".c",
+    ".cc",
+    ".cpp",
+    ".h",
+    ".inc",
+    ".pro",
+}
+
+
+@dataclass(frozen=True)
+class Rule:
+    name: str
+    pattern: re.Pattern[str]
+
+
+RULES: tuple[Rule, ...] = (
+    Rule(
+        "implicit line mutation",
+        re.compile(
+            r"\bml_(?:replace(?:_len)?|append(?:_flags)?|delete(?:_flags)?)\s*\("
+        ),
+    ),
+    Rule(
+        "explicit line mutation",
+        re.compile(
+            r"\bml_(?:append_buf|append_flush|append_int|delete_int)\s*\("
+        ),
+    ),
+    Rule(
+        "writable line access",
+        re.compile(r"\bml_get_buf\s*\([^\n]*,\s*(?:TRUE|true)\s*\)"),
+    ),
+    Rule(
+        "direct memline state mutation",
+        re.compile(
+            r"(?:->|\.)b_ml\.[A-Za-z_][A-Za-z0-9_]*\s*(?:=(?!\s*=)|\+=|-=|\+\+|--|&=|\|=)"
+        ),
+    ),
+)
+
+
+@dataclass(frozen=True)
+class Finding:
+    line_number: int
+    rule: str
+    text: str
+
+
+@dataclass(frozen=True)
+class PointerMutation:
+    access_line_number: int
+    mutation_line_number: int
+    variable: str
+    text: str
+
+
+LINE_ACCESS = re.compile(
+    r"(?P<variable>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*"
+    + r"ml_(?:get|get_buf)\s*\("
+)
+VARIABLE_MUTATION = re.compile(
+    r"(?:\*\s*(?P<variable>[A-Za-z_][A-Za-z0-9_]*)|"
+    + r"(?P<indexed>[A-Za-z_][A-Za-z0-9_]*)\s*\[[^\]]+\])\s*=(?!=)"
+    + r"|\b(?:STRCPY|STRCAT|mch_memmove|memmove|vim_memset)\s*\(\s*"
+    + r"(?P<argument>[A-Za-z_][A-Za-z0-9_]*)\b"
+)
+
+
+def source_files(source_root: Path) -> Iterable[Path]:
+    for path in sorted(source_root.rglob("*")):
+        if path.is_file() and path.suffix.lower() in SOURCE_SUFFIXES:
+            yield path
+
+
+def findings_for_line(line: str, line_number: int) -> list[Finding]:
+    findings: list[Finding] = []
+    for rule in RULES:
+        if rule.pattern.search(line):
+            findings.append(Finding(line_number, rule.name, line.rstrip("\n")))
+    return findings
+
+
+def pointer_mutations(lines: list[str]) -> list[PointerMutation]:
+    accesses: list[tuple[int, str]] = []
+    for line_number, line in enumerate(lines, start=1):
+        match = LINE_ACCESS.search(line)
+        if match:
+            accesses.append((line_number, match.group("variable")))
+
+    mutations: list[PointerMutation] = []
+    for access_line, variable in accesses:
+        # Keep this bounded: it is deliberately a heuristic and should not
+        # associate a later, unrelated reuse of the same variable.
+        for index in range(access_line, min(access_line + 80, len(lines))):
+            match = VARIABLE_MUTATION.search(lines[index])
+            if not match:
+                continue
+            mutated_variable = (
+                match.group("variable")
+                or match.group("indexed")
+                or match.group("argument")
+            )
+            if mutated_variable != variable:
+                continue
+            # Do not report the declaration/assignment that receives ml_get*.
+            if index + 1 == access_line:
+                continue
+            if match.group("variable") and re.search(
+                rf"^\s*[A-Za-z_][A-Za-z0-9_]*\s+\*\s*"
+                + rf"{re.escape(match.group('variable'))}\s*=",
+                lines[index],
+            ):
+                continue
+            mutations.append(
+                PointerMutation(
+                    access_line,
+                    index + 1,
+                    variable,
+                    lines[index].rstrip("\n"),
+                )
+            )
+            break
+    return mutations
+
+
+def scan_file(path: Path) -> tuple[list[Finding], list[PointerMutation]]:
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    findings: list[Finding] = []
+    for line_number, line in enumerate(lines, start=1):
+        findings.extend(findings_for_line(line, line_number))
+    return findings, pointer_mutations(lines)
+
+
+def write_report(report_path: Path, source_root: Path, repo_root: Path) -> tuple[int, int]:
+    scanned_files = 0
+    files_with_findings = 0
+    total_findings = 0
+    rule_totals: Counter[str] = Counter()
+    pointer_totals = 0
+
+    with report_path.open("w", encoding="utf-8") as report:
+        report.write("Vim internal buffer/memline mutation report\n")
+        report.write(f"Source root: {source_root.relative_to(repo_root)}\n")
+        report.write("Generated by: tools/check_internal_mutations.py\n\n")
+        report.write("Rules:\n")
+        for rule in RULES:
+            report.write(f"  - {rule.name}\n")
+        report.write(
+            "  - line pointer obtained from ml_get*() and subsequently written\n\n"
+        )
+
+        for path in source_files(source_root):
+            scanned_files += 1
+            findings, pointers = scan_file(path)
+            if not findings and not pointers:
+                continue
+
+            files_with_findings += 1
+            total_findings += len(findings)
+            pointer_totals += len(pointers)
+            relative_path = path.relative_to(repo_root)
+            report.write(f"{relative_path}\n")
+            report.write("=" * len(str(relative_path)) + "\n")
+            for finding in findings:
+                rule_totals[finding.rule] += 1
+                report.write(
+                    f"{relative_path}:{finding.line_number}: "
+                    f"[{finding.rule}] {finding.text}\n"
+                )
+
+            if pointers:
+                report.write("Line pointer follow-up candidates:\n")
+                for pointer in pointers:
+                    report.write(
+                        f"{relative_path}:{pointer.mutation_line_number}: "
+                        f"{pointer.variable} from line "
+                        f"{pointer.access_line_number} is written: "
+                        f"{pointer.text}\n"
+                    )
+                report.write("\n")
+
+            file_totals = Counter(finding.rule for finding in findings)
+            report.write(
+                f"Stats: {len(findings)} mutation finding(s); "
+                f"{len(pointers)} line pointer follow-up candidate(s)"
+            )
+            for rule in RULES:
+                if file_totals[rule.name]:
+                    report.write(f"; {rule.name}={file_totals[rule.name]}")
+            report.write("\n\n")
+
+        report.write("Totals\n======\n")
+        report.write(f"Source files scanned: {scanned_files}\n")
+        report.write(f"Files with findings: {files_with_findings}\n")
+        report.write(f"Total mutation findings: {total_findings}\n")
+        report.write(f"Line pointer follow-up candidates: {pointer_totals}\n")
+        for rule in RULES:
+            report.write(f"{rule.name}: {rule_totals[rule.name]}\n")
+
+    return scanned_files, total_findings + pointer_totals
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Scan Vim source files for buffer/memline mutations."
+    )
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=None,
+        help="repository root (default: inferred from this script's location)",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="report path (default: <root>/internal_mutations.txt)",
+    )
+    args = parser.parse_args()
+
+    repo_root = (args.root or Path(__file__).resolve().parents[1]).resolve()
+    source_root = repo_root / "src"
+    report_path = (args.output or repo_root / "internal_mutations.txt").resolve()
+
+    if not source_root.is_dir():
+        _ = parser.error(f"source directory does not exist: {source_root}")
+    if report_path.parent != repo_root:
+        _ = report_path.parent.mkdir(parents=True, exist_ok=True)
+
+    scanned_files, total_findings = write_report(report_path, source_root, repo_root)
+    print(
+        f"Scanned {scanned_files} source files; "
+        f"found {total_findings} mutation occurrence(s)."
+    )
+    print(f"Report written to {report_path.relative_to(repo_root)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

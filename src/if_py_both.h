@@ -5137,7 +5137,7 @@ SetBufferLine(buf_T *buf, PyInt n, PyObject *line, PyInt *len_change)
 
 	if (u_savedel((linenr_T)n, 1L) == FAIL)
 	    RAISE_UNDO_FAIL;
-	else if (ml_delete((linenr_T)n) == FAIL)
+	else if (buf_delete_line(curbuf, (linenr_T)n, 0) == FAIL)
 	    RAISE_DELETE_LINE_FAIL;
 	else
 	{
@@ -5180,7 +5180,7 @@ SetBufferLine(buf_T *buf, PyInt n, PyObject *line, PyInt *len_change)
 	    RAISE_UNDO_FAIL;
 	    vim_free(save);
 	}
-	else if (ml_replace((linenr_T)n, (char_u *)save, FALSE) == FAIL)
+	else if (buf_replace_line(curbuf, (linenr_T)n,  (char_u *)save, -1, FALSE,  FALSE) == FAIL)
 	{
 	    RAISE_REPLACE_LINE_FAIL;
 	    vim_free(save);
@@ -5250,7 +5250,7 @@ SetBufferLineList(
 	{
 	    for (i = 0; i < n; ++i)
 	    {
-		if (ml_delete((linenr_T)lo) == FAIL)
+		if (buf_delete_line(curbuf, (linenr_T)lo, 0) == FAIL)
 		{
 		    RAISE_DELETE_LINE_FAIL;
 		    break;
@@ -5327,7 +5327,7 @@ SetBufferLineList(
 	if (!PyErr_Occurred())
 	{
 	    for (i = 0; i < old_len - new_len; ++i)
-		if (ml_delete((linenr_T)lo) == FAIL)
+		if (buf_delete_line(curbuf, (linenr_T)lo, 0) == FAIL)
 		{
 		    RAISE_DELETE_LINE_FAIL;
 		    break;
@@ -5341,7 +5341,7 @@ SetBufferLineList(
 	if (!PyErr_Occurred())
 	{
 	    for (i = 0; i < old_len && i < new_len; ++i)
-		if (ml_replace((linenr_T)(lo+i), (char_u *)array[i], FALSE)
+		if (buf_replace_line(curbuf, (linenr_T)(lo+i),  (char_u *)array[i], -1, FALSE,  FALSE)
 								      == FAIL)
 		{
 		    RAISE_REPLACE_LINE_FAIL;
@@ -5358,7 +5358,7 @@ SetBufferLineList(
 	{
 	    while (i < new_len)
 	    {
-		if (ml_append((linenr_T)(lo + i - 1),
+		if (buf_append_line(curbuf, (linenr_T)(lo + i - 1),
 					(char_u *)array[i], 0, FALSE) == FAIL)
 		{
 		    RAISE_INSERT_LINE_FAIL;
@@ -5447,7 +5447,7 @@ InsertBufferLines(buf_T *buf, PyInt n, PyObject *lines, PyInt *len_change)
 
 	if (u_save((linenr_T)n, (linenr_T)(n + 1)) == FAIL)
 	    RAISE_UNDO_FAIL;
-	else if (ml_append((linenr_T)n, (char_u *)str, 0, FALSE) == FAIL)
+	else if (buf_append_line(curbuf, (linenr_T)n, (char_u *)str, 0, FALSE) == FAIL)
 	    RAISE_INSERT_LINE_FAIL;
 	else if (save_curbuf.br_buf == NULL)
 	    // Only adjust marks if we managed to switch to a window that
@@ -5503,7 +5503,7 @@ InsertBufferLines(buf_T *buf, PyInt n, PyObject *lines, PyInt *len_change)
 	{
 	    for (i = 0; i < size; ++i)
 	    {
-		if (ml_append((linenr_T)(n + i),
+		if (buf_append_line(curbuf, (linenr_T)(n + i),
 					(char_u *)array[i], 0, FALSE) == FAIL)
 		{
 		    RAISE_INSERT_LINE_FAIL;

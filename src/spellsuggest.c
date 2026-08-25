@@ -702,7 +702,7 @@ spell_suggest(int count)
 	    AppendCharToRedobuff(ESC);
 
 	    // "p" may be freed here
-	    ml_replace(curwin->w_cursor.lnum, p, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum,  p, -1, FALSE,  FALSE);
 	    curwin->w_cursor.col = c;
 
 	    changed_bytes(curwin->w_cursor.lnum, c);

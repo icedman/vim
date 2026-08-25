@@ -7104,7 +7104,7 @@ nv_edit(cmdarg_T *cap)
 		{
 		    if (u_save_cursor() == OK)
 		    {
-			ml_append(curwin->w_cursor.lnum, (char_u *)"", 0,
+			buf_append_line(curbuf, curwin->w_cursor.lnum, (char_u *)"", 0,
 									FALSE);
 			appended_lines(curwin->w_cursor.lnum++, 1L);
 		    }
@@ -7565,7 +7565,7 @@ nv_put_opt(cmdarg_T *cap, int fix_indent)
     // line that needs to be deleted now.
     if (empty && *ml_get(buf_line_count(curbuf)) == NUL)
     {
-	ml_delete_flags(buf_line_count(curbuf), ML_DEL_MESSAGE);
+	buf_delete_line(curbuf, buf_line_count(curbuf), ML_DEL_MESSAGE);
 	deleted_lines(buf_line_count(curbuf) + 1, 1);
 
 	// If the cursor was in that line, move it to the end of the last

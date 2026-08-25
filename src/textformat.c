@@ -768,7 +768,7 @@ auto_format(
 		return;
 	    pnew[len] = ' ';
 	    pnew[len + 1] = NUL;
-	    ml_replace(curwin->w_cursor.lnum, pnew, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum,  pnew, -1, FALSE,  FALSE);
 	    // remove the space later
 	    did_add_space = TRUE;
 	}
