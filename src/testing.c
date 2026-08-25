@@ -1116,7 +1116,8 @@ test_get_snapshot_lines(buf_snapshot_T *snapshot, typval_T *rettv)
 
 /*
  * Return snapshot storage statistics as:
- * [reachable, text, tables, leaves, branches, largest-leaf, shared].
+ * [reachable, text, tables, leaves, branches, largest-leaf, allocations,
+ * shared].
  */
     static void
 test_get_snapshot_stats(
@@ -1136,6 +1137,8 @@ test_get_snapshot_stats(
 	    || list_append_number(list, (varnumber_T)stats.bss_leaf_count) == FAIL
 	    || list_append_number(list, (varnumber_T)stats.bss_branch_count) == FAIL
 	    || list_append_number(list, (varnumber_T)stats.bss_largest_leaf) == FAIL
+	    || list_append_number(list,
+				(varnumber_T)stats.bss_allocation_count) == FAIL
 	    || list_append_number(list, (varnumber_T)buf_snapshot_shared_size(
 						 snapshot, other)) == FAIL)
     {

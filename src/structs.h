@@ -91,6 +91,7 @@ typedef struct
     size_t bss_leaf_count;
     size_t bss_branch_count;
     size_t bss_largest_leaf;
+    size_t bss_allocation_count;
 } buf_snapshot_stats_T;
 typedef struct terminal_S	term_T;
 

@@ -112,9 +112,7 @@ snapshot_node_unref(snapshot_node_T *node)
 #endif
     if (!is_last)
 	return;
-    if (node->sn_is_leaf)
-	snapshot_mem_free(node->sn_u.leaf.slab);
-    else
+    if (!node->sn_is_leaf)
     {
 	snapshot_node_unref(node->sn_u.branch.left);
 	snapshot_node_unref(node->sn_u.branch.right);
@@ -172,16 +170,13 @@ snapshot_leaf_new(const char_u **lines, const colnr_T *lengths, linenr_T count)
     if (table_size > SIZE_MAX - data_size)
 	return NULL;
     slab_size = table_size + data_size;
+    if (slab_size > SIZE_MAX - sizeof(*leaf))
+	return NULL;
 
-    leaf = alloc_clear_id(sizeof(*leaf), aid_buf_snapshot);
+    leaf = alloc_clear_id(sizeof(*leaf) + slab_size, aid_buf_snapshot);
     if (leaf == NULL)
 	return NULL;
-    leaf->sn_u.leaf.slab = alloc_clear_id(slab_size, aid_buf_snapshot);
-    if (leaf->sn_u.leaf.slab == NULL)
-    {
-	snapshot_mem_free(leaf);
-	return NULL;
-    }
+    leaf->sn_u.leaf.slab = leaf + 1;
     leaf->sn_refcount = 1;
     leaf->sn_line_count = count;
     leaf->sn_allocated = sizeof(*leaf) + slab_size;
@@ -772,6 +767,7 @@ buf_snapshot_size(const buf_snapshot_T *snapshot)
     static void
 snapshot_node_stats(snapshot_node_T *node, buf_snapshot_stats_T *stats)
 {
+    ++stats->bss_allocation_count;
     if (node->sn_is_leaf)
     {
 	size_t table_size = (size_t)node->sn_line_count
@@ -802,6 +798,7 @@ buf_snapshot_stats(const buf_snapshot_T *snapshot, buf_snapshot_stats_T *stats)
     if (snapshot == NULL)
 	return;
     stats->bss_reachable_bytes = snapshot->bs_allocated;
+    stats->bss_allocation_count = 1; // snapshot handle
     snapshot_node_stats(snapshot->bs_root, stats);
 }
 

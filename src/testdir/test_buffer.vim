@@ -1011,22 +1011,24 @@ func Test_buffer_snapshot_cow_tree()
   call assert_true(initial_stats[3] > 1)
   call assert_equal(initial_stats[3] - 1, initial_stats[4])
   call assert_true(initial_stats[5] <= 4096)
+  call assert_equal(initial_stats[3] + initial_stats[4] + 1,
+        \ initial_stats[6])
   let unchanged_tick = test_getvalue('buf_snapshot_tick')
   silent 1,$uniq
   call assert_equal(unchanged_tick, test_getvalue('buf_snapshot_tick'))
   call assert_equal(1, test_getvalue('buf_snapshot_save'))
   for i in range(1, 10)
-    call assert_equal(initial_stats[0 : 5],
-          \ test_getvalue('buf_snapshot_stats')[0 : 5])
+    call assert_equal(initial_stats[0 : 6],
+          \ test_getvalue('buf_snapshot_stats')[0 : 6])
   endfor
 
   normal! gg0rZ
   call assert_equal(getline(1, '$'), test_getvalue('buf_snapshot'))
   let changed_stats = test_getvalue('buf_snapshot_stats')
   let saved_stats = test_getvalue('buf_snapshot_saved_stats')
-  call assert_true(changed_stats[6] > 0)
-  call assert_true(changed_stats[6] < saved_stats[0])
-  call assert_equal(changed_stats[6], saved_stats[6])
+  call assert_true(changed_stats[7] > 0)
+  call assert_true(changed_stats[7] < saved_stats[0])
+  call assert_equal(changed_stats[7], saved_stats[7])
   call assert_equal(initial_stats[1], saved_stats[1])
 
   for i in range(1, 100)

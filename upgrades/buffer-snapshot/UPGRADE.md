@@ -596,6 +596,9 @@ Phase 3 is complete.
   consume the persistent store through a private adapter.
 - [ ] Tune leaf sizing, tree fanout, release batching, and allocator overhead
   from measurements.
+  - [ ] Compare the 1, 4, 16, and 64 KiB leaf targets.
+  - [ ] Evaluate tree fanout and final-release batching.
+  - [x] Reduce leaf allocator overhead.
 
 #### Phase 4A status: storage measurement primitives
 
@@ -618,6 +621,25 @@ within the configured target, and a single oversized line remains isolated in
 an oversized leaf.  These primitives establish the baseline needed to compare
 1, 4, 16, and 64 KiB targets and to quantify whether a future private memline
 adapter actually reduces total ownership rather than shifting overhead.
+
+#### Phase 4B status: packed leaf allocation
+
+The structural accounting showed that each leaf used two allocator calls: one
+for `snapshot_node_T` and one for its immutable slab.  Leaves now place the
+slab directly after the node in one aligned allocation.  This removes one
+allocation and one final-release free per leaf without changing packed offsets,
+line-pointer lifetime, reachable byte accounting, or COW sharing.
+
+Storage statistics now include allocation count.  A revision has exactly one
+allocation for its handle and one for every branch and leaf; tests enforce this
+relationship and continue to exercise allocation failures.  Compared with the
+previous layout, a revision with N leaves therefore performs N fewer persistent
+allocations.  Branch nodes remain separate because independently reference-
+counted branches are the unit of persistent path sharing.
+
+Leaf-target comparison, alternate fanout, and bounded final-release work remain
+open.  They require workload measurements rather than changing the balanced
+binary representation speculatively.
 
 ### Phase 5: enable worker consumers
 
