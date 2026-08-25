@@ -3233,7 +3233,8 @@ struct file_buffer
 {
     memline_T	b_ml;		// associated memline (also contains line
 				// count)
-    varnumber_T	b_snapshot_revision; // immutable text revision
+    buf_snapshot_T *b_snapshot;	// current immutable text revision
+    varnumber_T	b_snapshot_revision; // immutable text revision number
 
     buf_T	*b_next;	// links in list of buffers
     buf_T	*b_prev;

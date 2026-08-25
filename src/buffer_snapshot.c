@@ -155,11 +155,11 @@ snapshot_leaf_build(buf_T *buf, linenr_T first, linenr_T line_count,
 }
 
 /*
- * Capture the current text of "buf" in immutable storage.
+ * Build an immutable revision from the current text of "buf".
  * Must be called on the main editor thread.
  */
-    buf_snapshot_T *
-buf_snapshot_acquire(buf_T *buf)
+    static buf_snapshot_T *
+snapshot_build(buf_T *buf)
 {
     buf_snapshot_T	*snapshot;
     linenr_T		lnum;
@@ -208,6 +208,54 @@ buf_snapshot_acquire(buf_T *buf)
 					* (sizeof(size_t) + sizeof(colnr_T))
 		+ snapshot->bs_leaves[i]->sl_data_size;
     return snapshot;
+}
+
+/*
+ * Acquire the current immutable revision of "buf".  The first acquisition
+ * after initialization or invalidation rebuilds the mirror; repeated
+ * acquisitions are O(1).
+ */
+    buf_snapshot_T *
+buf_snapshot_acquire(buf_T *buf)
+{
+    if (buf == NULL || !buf_is_loaded(buf))
+	return NULL;
+    if (buf->b_snapshot == NULL)
+    {
+	buf->b_snapshot = snapshot_build(buf);
+	if (buf->b_snapshot == NULL)
+	    return NULL;
+    }
+    buf_snapshot_ref(buf->b_snapshot);
+    return buf->b_snapshot;
+}
+
+/*
+ * Drop the buffer-owned revision without changing its revision number.
+ */
+    void
+buf_snapshot_clear(buf_T *buf)
+{
+    if (buf == NULL || buf->b_snapshot == NULL)
+	return;
+    buf_snapshot_unref(buf->b_snapshot);
+    buf->b_snapshot = NULL;
+}
+
+/*
+ * Drop the buffer-owned revision after text may have changed.  Existing
+ * snapshot handles retain the old immutable revision.
+ */
+    void
+buf_snapshot_invalidate(buf_T *buf)
+{
+    if (buf == NULL || buf->b_snapshot == NULL)
+	return;
+    buf_snapshot_clear(buf);
+    if (buf->b_snapshot_revision < VARNUM_MAX)
+	++buf->b_snapshot_revision;
+    else
+	buf->b_snapshot_revision = 0;
 }
 
 /*

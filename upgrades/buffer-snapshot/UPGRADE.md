@@ -451,11 +451,46 @@ the backend list as final, especially for legacy toolchains.
 
 ### Phase 2: copy-on-write live revisions
 
-- Route append, replace, and delete through persistent path copying.
-- Publish root and tick as one revision after successful mutation.
-- Keep memline behavior, undo, swap, recovery, properties, and diagnostics
+- [x] Add a buffer-owned immutable revision and O(1) repeated acquisition.
+- [x] Retain old revisions independently when the live buffer is edited,
+  unloaded, or wiped.
+- [x] Invalidate the buffer-owned revision on writable line access, cached-line
+  replacement/length adjustment, and successful append/replace/delete façade
+  operations.
+- [x] Clear the buffer-owned reference during memline close and buffer teardown.
+- [ ] Replace conservative invalidation and lazy full rebuilding with persistent
+  AVL path copying for append, replace, and delete.
+- [ ] Publish root and tick as one revision after successful mutation.
+- [ ] Keep memline behavior, undo, swap, recovery, properties, and diagnostics
   unchanged while cross-checking both representations in debug/test builds.
-- Remove the one-time full copy from snapshot acquisition.
+- [ ] Remove the one-time full copy after invalidation from snapshot acquisition.
+
+#### Phase 2A status: live revision ownership
+
+The buffer now owns `b_snapshot`, one reference to its current immutable
+revision.  `buf_snapshot_acquire()` builds this revision lazily when absent and
+otherwise only increments its reference count, making repeated acquisition O(1)
+without duplicating text.  Existing handles keep the old revision alive after
+the buffer drops its reference.
+
+Until persistent tree mutation is implemented, any operation that may write
+text conservatively calls `buf_snapshot_invalidate()`.  The next acquisition
+rebuilds the full immutable mirror from final memline contents.  This closes
+stale-snapshot correctness holes, including direct cached-line writers, but is
+not the final low-memory copy-on-write design and can create false revisions for
+temporary writable access.  In particular, `buf_line(..., TRUE)` invalidates
+before the caller writes because the current API has no later commit boundary.
+
+The snapshot revision increments once when a previously published live revision
+is invalidated.  Further writes while no live revision exists do not increment
+again.  This gives stable identity to repeated acquisitions and a new identity
+after rebuilding changed text, but persistent publication will become the
+canonical increment point in Phase 2B.
+
+The next stage replaces the flat leaf array with a subtree-counted persistent
+AVL rope.  Leaves remain immutable packed slabs; append, replace, and delete
+copy the affected leaf and O(log n) interior path while sharing untouched
+subtrees.  This Phase 2A checkpoint must not be described as completed COW.
 
 ### Phase 3: close mutation bypasses
 

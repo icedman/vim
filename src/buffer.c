@@ -973,6 +973,7 @@ buf_freeall(buf_T *buf, int flags)
 #ifdef FEAT_TCL
     tcl_buffer_free(buf);
 #endif
+    buf_snapshot_clear(buf);
     ml_close(buf, TRUE);	    // close and delete the memline/memfile
     buf->b_ml.ml_line_count = 0;    // no lines in buffer
     if ((flags & BFA_KEEP_UNDO) == 0)
@@ -997,6 +998,7 @@ buf_freeall(buf_T *buf, int flags)
 free_buffer(buf_T *buf)
 {
     ++buf_free_count;
+    buf_snapshot_clear(buf);
     free_buffer_stuff(buf, TRUE);
 #ifdef FEAT_EVAL
     // b:changedtick uses an item in buf_T, remove it now
@@ -6503,6 +6505,8 @@ buf_line(
     linenr_T	lnum,
     int		will_change)
 {
+    if (will_change)
+	buf_snapshot_invalidate(buf);
     return ml_get_buf(buf, lnum, will_change);
 }
 
@@ -6544,6 +6548,7 @@ buf_replace_cached_line(
     int		invalidate_textlen,
     int		clear_empty)
 {
+    buf_snapshot_invalidate(buf);
     if (buf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
 	vim_free(buf->b_ml.ml_line_ptr);
     buf->b_ml.ml_line_ptr = line;
@@ -6563,6 +6568,7 @@ buf_replace_cached_line(
     void
 buf_adjust_cached_line_len(buf_T *buf, int amount, int textlen)
 {
+    buf_snapshot_invalidate(buf);
     buf->b_ml.ml_line_len += amount;
     buf->b_ml.ml_line_textlen = textlen;
 }
@@ -6650,7 +6656,11 @@ buf_append_line(
     colnr_T	len,
     int		flags)
 {
-    return ml_append_buf(buf, lnum, line, len, flags != 0);
+    int ret = ml_append_buf(buf, lnum, line, len, flags != 0);
+
+    if (ret == OK)
+	buf_snapshot_invalidate(buf);
+    return ret;
 }
 
 // Replace a line in "buf", preserving the memline ownership contract.
@@ -6663,14 +6673,22 @@ buf_replace_line(
     int		has_props,
     int		copy)
 {
-    return ml_replace_buf_len(buf, lnum, line, len, has_props, copy);
+    int ret = ml_replace_buf_len(buf, lnum, line, len, has_props, copy);
+
+    if (ret == OK)
+	buf_snapshot_invalidate(buf);
+    return ret;
 }
 
 // Delete a line from "buf" using the memline deletion flags.
     int
 buf_delete_line(buf_T *buf, linenr_T lnum, int flags)
 {
-    return ml_delete_buf_flags(buf, lnum, flags);
+    int ret = ml_delete_buf_flags(buf, lnum, flags);
+
+    if (ret == OK)
+	buf_snapshot_invalidate(buf);
+    return ret;
 }
 
 /*

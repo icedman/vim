@@ -967,9 +967,12 @@ func Test_buffer_snapshot_query()
   call assert_equal(['first', '', longline, 'last'],
         \ test_getvalue('buf_snapshot'))
   call assert_equal(1, test_getvalue('buf_snapshot_contract'))
+  let tick = test_getvalue('buf_snapshot_tick')
+  call assert_equal(tick, test_getvalue('buf_snapshot_tick'))
 
   call assert_equal(1, test_getvalue('buf_snapshot_save'))
   call setline(1, 'changed')
+  call assert_notequal(tick, test_getvalue('buf_snapshot_tick'))
   call assert_equal(['first', '', longline, 'last'],
         \ test_getvalue('buf_snapshot_saved'))
 

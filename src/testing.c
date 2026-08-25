@@ -1157,6 +1157,13 @@ f_test_getvalue(typval_T *argvars, typval_T *rettv)
     }
     else if (STRCMP(name, (char_u *)"buf_snapshot_threadsafe") == 0)
 	rettv->vval.v_number = buf_snapshot_threadsafe();
+    else if (STRCMP(name, (char_u *)"buf_snapshot_tick") == 0)
+    {
+	buf_snapshot_T *snapshot = buf_snapshot_acquire(curbuf);
+
+	rettv->vval.v_number = buf_snapshot_tick(snapshot);
+	buf_snapshot_unref(snapshot);
+    }
     else if (STRCMP(name, (char_u *)"buf_snapshot_threads") == 0)
     {
 	buf_snapshot_T *snapshot = buf_snapshot_acquire(curbuf);
