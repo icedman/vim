@@ -3290,7 +3290,7 @@ u_find_first_changed(void)
     for (lnum = 1; lnum < curbuf->b_ml.ml_line_count
 					      && lnum <= uep->ue_size; ++lnum)
     {
-	char_u *p = ml_get_buf(curbuf, lnum, FALSE);
+	char_u *p = buf_line(curbuf, lnum, FALSE);
 
 	if (uep->ue_array[lnum - 1].ul_len != curbuf->b_ml.ml_line_len
 		|| memcmp(p, uep->ue_array[lnum - 1].ul_line, uep->ue_array[lnum - 1].ul_len) != 0)

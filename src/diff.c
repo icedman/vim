@@ -657,7 +657,7 @@ diff_check_unchanged(tabpage_T *tp, diff_T *dp)
 	    // Copy the line, the next ml_get() will invalidate it.
 	    if (dir == BACKWARD)
 		off_org = dp->df_count[i_org] - 1;
-	    line_org = vim_strsave(ml_get_buf(tp->tp_diffbuf[i_org],
+	    line_org = vim_strsave(buf_line(tp->tp_diffbuf[i_org],
 					dp->df_lnum[i_org] + off_org, FALSE));
 	    if (line_org == NULL)
 		return;
@@ -670,7 +670,7 @@ diff_check_unchanged(tabpage_T *tp, diff_T *dp)
 		// if other buffer doesn't have this line, it was inserted
 		if (off_new < 0 || off_new >= dp->df_count[i_new])
 		    break;
-		if (diff_cmp(line_org, ml_get_buf(tp->tp_diffbuf[i_new],
+		if (diff_cmp(line_org, buf_line(tp->tp_diffbuf[i_new],
 				   dp->df_lnum[i_new] + off_new, FALSE)) != 0)
 		    break;
 	    }
@@ -813,7 +813,7 @@ diff_write_buffer(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
 
     // xdiff requires one big block of memory with all the text.
     for (lnum = start; lnum <= end; ++lnum)
-	len += ml_get_buf_len(buf, lnum) + 1;
+	len += buf_line_len(buf, lnum) + 1;
     ptr = alloc(len);
     if (ptr == NULL)
     {
@@ -836,7 +836,7 @@ diff_write_buffer(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
     len = 0;
     for (lnum = start; lnum <= end; ++lnum)
     {
-	for (s = ml_get_buf(buf, lnum, FALSE); *s != NUL; )
+	for (s = buf_line(buf, lnum, FALSE); *s != NUL; )
 	{
 	    if (diff_flags & DIFF_ICASE)
 	    {
@@ -2582,11 +2582,11 @@ diff_equal_entry(diff_T *dp, int idx1, int idx2)
 	return FALSE;
     for (i = 0; i < dp->df_count[idx1]; ++i)
     {
-	line = vim_strsave(ml_get_buf(curtab->tp_diffbuf[idx1],
+	line = vim_strsave(buf_line(curtab->tp_diffbuf[idx1],
 					       dp->df_lnum[idx1] + i, FALSE));
 	if (line == NULL)
 	    return FALSE;
-	cmp = diff_cmp(line, ml_get_buf(curtab->tp_diffbuf[idx2],
+	cmp = diff_cmp(line, buf_line(curtab->tp_diffbuf[idx2],
 					       dp->df_lnum[idx2] + i, FALSE));
 	vim_free(line);
 	if (cmp != 0)
@@ -3215,7 +3215,7 @@ diff_find_change_simple(
     else
     {
 	// Make a copy of the line, the next ml_get() will invalidate it.
-	line_org = vim_strsave(ml_get_buf(wp->w_buffer, lnum, FALSE));
+	line_org = vim_strsave(buf_line(wp->w_buffer, lnum, FALSE));
 	if (line_org == NULL)
 	    return FALSE;
     }
@@ -3232,7 +3232,7 @@ diff_find_change_simple(
 	    if (diff_flags & DIFF_INLINE_NONE)
 		break; // early terminate as we only care about the return value
 
-	    line_new = ml_get_buf(curtab->tp_diffbuf[i],
+	    line_new = buf_line(curtab->tp_diffbuf[i],
 						 dp->df_lnum[i] + off, FALSE);
 
 	    // Search for start of difference
@@ -3446,7 +3446,7 @@ diff_refine_inline_word_highlight(diff_T *dp_orig, garray_T *linemap, int idx1,
 	    }
 
 	    // Get the text between the two blocks
-	    char_u *line = ml_get_buf(curtab->tp_diffbuf[idx1],
+	    char_u *line = buf_line(curtab->tp_diffbuf[idx1],
 		    start_lnum + entry1->lineoff, FALSE);
 	    char_u *gap_text = line + gap_start;
 
@@ -3597,7 +3597,7 @@ diff_find_change_inline_diff(
 	// newline-delimited tokens as that's what xdiff requires.
 	for (int off = 0; off < dp->df_count[i]; off++)
 	{
-	    char_u *curline = ml_get_buf(curtab->tp_diffbuf[i],
+	    char_u *curline = buf_line(curtab->tp_diffbuf[i],
 		    dp->df_lnum[i] + off, FALSE);
 
 	    int in_keyword = FALSE;
@@ -4310,7 +4310,7 @@ ex_diffgetput(exarg_T *eap)
 		nr = dp->df_lnum[idx_from] + start_skip + i;
 		if (nr > curtab->tp_diffbuf[idx_from]->b_ml.ml_line_count)
 		    break;
-		p = vim_strsave(ml_get_buf(curtab->tp_diffbuf[idx_from],
+		p = vim_strsave(buf_line(curtab->tp_diffbuf[idx_from],
 								  nr, FALSE));
 		if (p != NULL)
 		{

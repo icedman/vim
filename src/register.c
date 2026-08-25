@@ -1008,7 +1008,7 @@ get_spec_reg(
 	    if (!errmsg)
 		return FALSE;
 
-	    *argp = ml_get_buf(curwin->w_buffer,
+	    *argp = buf_line(curwin->w_buffer,
 			curwin->w_cursor.lnum, FALSE);
 	    return TRUE;
 

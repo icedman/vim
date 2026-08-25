@@ -4208,7 +4208,7 @@ move_lines(buf_T *frombuf, buf_T *tobuf)
     curbuf = tobuf;
     for (lnum = 1; lnum <= frombuf->b_ml.ml_line_count; ++lnum)
     {
-	p = vim_strnsave(ml_get_buf(frombuf, lnum, FALSE), ml_get_buf_len(frombuf, lnum));
+	p = vim_strnsave(buf_line(frombuf, lnum, FALSE), buf_line_len(frombuf, lnum));
 	if (p == NULL || ml_append(lnum - 1, p, 0, FALSE) == FAIL)
 	{
 	    vim_free(p);

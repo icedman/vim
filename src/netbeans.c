@@ -1125,7 +1125,7 @@ nb_do_cmd(
 		    *p++ = '\"';
 		    for (; lno <= nlines ; lno++)
 		    {
-			line = nb_quote(ml_get_buf(buf->bufp, lno, FALSE));
+			line = nb_quote(buf_line(buf->bufp, lno, FALSE));
 			if (line != NULL)
 			{
 			    STRCPY(p, line);
@@ -3389,7 +3389,7 @@ get_buf_size(buf_T *bufp)
 	eol_size = 1;
     for (lnum = 1; lnum <= bufp->b_ml.ml_line_count; ++lnum)
     {
-	char_count += ml_get_buf_len(bufp, lnum) + eol_size;
+	char_count += buf_line_len(bufp, lnum) + eol_size;
 	// Check for a CTRL-C every 100000 characters
 	if (char_count > last_check)
 	{

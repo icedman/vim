@@ -2057,7 +2057,7 @@ add_scrollback_line_to_buffer(term_T *term, char_u *text, int len, int append)
 
     if (append)
     {
-	char_u *prev_text = ml_get_buf(buf, lnum, FALSE);
+	char_u *prev_text = buf_line(buf, lnum, FALSE);
 	size_t prev_len = STRLEN(prev_text);
 
 	char_u *both = alloc(len + prev_len + 2);
@@ -2154,7 +2154,7 @@ cleanup_scrollback(term_T *term)
 
     curbuf = term->tl_buffer;
     gap = &term->tl_scrollback;
-    bufline = ml_get_buf(curbuf, curbuf->b_ml.ml_line_count, FALSE);
+    bufline = buf_line(curbuf, curbuf->b_ml.ml_line_count, FALSE);
     bufline_length = STRLEN(bufline);
     while (term->tl_scrollback_snapshot && gap->ga_len > 0)
     {
@@ -2165,7 +2165,7 @@ cleanup_scrollback(term_T *term)
 	if (!bufline_length)
 	{
 	    ml_delete(curbuf->b_ml.ml_line_count);
-	    bufline = ml_get_buf(curbuf, curbuf->b_ml.ml_line_count, FALSE);
+	    bufline = buf_line(curbuf, curbuf->b_ml.ml_line_count, FALSE);
 	    bufline_length = STRLEN(bufline);
 	}
 	vim_free(line->sb_cells);
@@ -6518,7 +6518,7 @@ f_term_getline(typval_T *argvars, typval_T *rettv)
 	// vterm is finished, get the text from the buffer
 	if (lnum > 0 && lnum <= buf->b_ml.ml_line_count)
 	{
-	    char_u *p = ml_get_buf(buf, lnum, FALSE);
+	    char_u *p = buf_line(buf, lnum, FALSE);
 	    if (STRLEN(p) >= offset + line->sb_bytes)
 		rettv->vval.v_string = vim_strnsave(p + offset, line->sb_bytes);
 	}
@@ -6784,7 +6784,7 @@ f_term_scrape(typval_T *argvars, typval_T *rettv)
 	    return;
 
 	line = (sb_line_T *)term->tl_scrollback.ga_data + sb_row;
-	p = ml_get_buf(buf, lnum, FALSE);
+	p = buf_line(buf, lnum, FALSE);
 
 	if (STRLEN(p) < offset + line->sb_bytes)
 	    return;

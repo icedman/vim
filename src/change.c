@@ -310,8 +310,8 @@ add_change_text(
 	below = buf->b_ml.ml_line_count + 1;
     for (linenr_T lp = lnum < 1 ? 1 : lnum; lp < below; ++lp)
     {
-	char_u	*line = ml_get_buf(buf, lp, FALSE);
-	colnr_T	len = ml_get_buf_len(buf, lp);
+	char_u	*line = buf_line(buf, lp, FALSE);
+	colnr_T	len = buf_line_len(buf, lp);
 
 	// Rather than storing a part of the text, store none of it.
 	if (list_append_string(l, line, len) == FAIL)
@@ -1239,7 +1239,7 @@ file_ff_differs(buf_T *buf, int ignore_empty)
     if (ignore_empty
 	    && (buf->b_flags & BF_NEW)
 	    && buf->b_ml.ml_line_count == 1
-	    && *ml_get_buf(buf, (linenr_T)1, FALSE) == NUL)
+	    && *buf_line(buf, (linenr_T)1, FALSE) == NUL)
 	return FALSE;
     if (buf->b_start_ffc != *buf->b_p_ff)
 	return TRUE;

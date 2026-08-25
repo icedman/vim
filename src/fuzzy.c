@@ -841,7 +841,7 @@ search_for_fuzzy_match(
 	if (current_pos.lnum >= 1 && current_pos.lnum <= buf->b_ml.ml_line_count)
 	{
 	    // Get the current line buffer
-	    *ptr = ml_get_buf(buf, current_pos.lnum, FALSE);
+	    *ptr = buf_line(buf, current_pos.lnum, FALSE);
 	    if (!whole_line)
 		*ptr += current_pos.col;
 
@@ -872,7 +872,7 @@ search_for_fuzzy_match(
 			found_new_match = TRUE;
 			*pos = current_pos;
 			*ptr = p;
-			*len = (int)ml_get_buf_len(buf, current_pos.lnum) -
+			*len = (int)buf_line_len(buf, current_pos.lnum) -
 								(int)(p - line);
 			break;
 		    }

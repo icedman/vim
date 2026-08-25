@@ -407,7 +407,7 @@ plines_win_nofold(win_T *wp, linenr_T lnum)
     int		width;
     chartabsize_T cts;
 
-    s = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    s = buf_line(wp->w_buffer, lnum, FALSE);
     init_chartabsize_arg(&cts, wp, lnum, 0, s, s);
     if (*s == NUL
 #ifdef FEAT_PROP_POPUP
@@ -462,7 +462,7 @@ plines_win_col(win_T *wp, linenr_T lnum, long column)
     if (wp->w_width == 0)
 	return lines + 1;
 
-    line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    line = buf_line(wp->w_buffer, lnum, FALSE);
 
     init_chartabsize_arg(&cts, wp, lnum, 0, line, line);
     // "column" is a byte index, advance the pointer until it is reached.
@@ -593,7 +593,7 @@ char_before_cursor(void)
     void
 pchar_cursor(int c)
 {
-    *(ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE)
+    *(buf_line(curbuf, curwin->w_cursor.lnum, TRUE)
 						  + curwin->w_cursor.col) = c;
 }
 
@@ -2575,7 +2575,7 @@ get_cmd_output_as_rettv(
 
 	    for (lnum = 1; lnum <= buf->b_ml.ml_line_count; lnum++)
 	    {
-		for (p = ml_get_buf(buf, lnum, FALSE); *p != NUL; ++p)
+		for (p = buf_line(buf, lnum, FALSE); *p != NUL; ++p)
 		    if (putc(*p == '\n' ? NUL : *p, fd) == EOF)
 		    {
 			err = TRUE;

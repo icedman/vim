@@ -5025,17 +5025,17 @@ ins_compl_get_next_word_or_line(
     int		len;
 
     *match_len = 0;
-    ptr = ml_get_buf(ins_buf, cur_match_pos->lnum, FALSE) +
+    ptr = buf_line(ins_buf, cur_match_pos->lnum, FALSE) +
 	cur_match_pos->col;
-    len = (int)ml_get_buf_len(ins_buf, cur_match_pos->lnum) - cur_match_pos->col;
+    len = (int)buf_line_len(ins_buf, cur_match_pos->lnum) - cur_match_pos->col;
     if (ctrl_x_mode_line_or_eval())
     {
 	if (compl_status_adding())
 	{
 	    if (cur_match_pos->lnum >= ins_buf->b_ml.ml_line_count)
 		return NULL;
-	    ptr = ml_get_buf(ins_buf, cur_match_pos->lnum + 1, FALSE);
-	    len = ml_get_buf_len(ins_buf, cur_match_pos->lnum + 1);
+	    ptr = buf_line(ins_buf, cur_match_pos->lnum + 1, FALSE);
+	    len = buf_line_len(ins_buf, cur_match_pos->lnum + 1);
 	    if (!p_paste)
 	    {
 		char_u	*tmp_ptr = ptr;
@@ -5072,7 +5072,7 @@ ins_compl_get_next_word_or_line(
 		// compl_length, so the next STRNCPY always
 		// works -- Acevedo
 		STRNCPY(IObuff, ptr, len);
-		ptr = ml_get_buf(ins_buf, cur_match_pos->lnum + 1, FALSE);
+		ptr = buf_line(ins_buf, cur_match_pos->lnum + 1, FALSE);
 		tmp_ptr = ptr = skipwhite(ptr);
 		// Find start of next word.
 		tmp_ptr = find_word_start(tmp_ptr);

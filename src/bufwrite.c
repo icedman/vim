@@ -2045,7 +2045,7 @@ restore_backup:
 	{
 	    // The next while loop is done once for each character written.
 	    // Keep it fast!
-	    ptr = ml_get_buf(buf, lnum, FALSE) - 1;
+	    ptr = buf_line(buf, lnum, FALSE) - 1;
 #ifdef FEAT_PERSISTENT_UNDO
 	    if (write_undo_file)
 		sha256_update(&sha_ctx, ptr + 1,

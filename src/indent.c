@@ -437,10 +437,10 @@ get_indent_lnum(linenr_T lnum)
 get_indent_buf(buf_T *buf, linenr_T lnum)
 {
 # ifdef FEAT_VARTABS
-    return get_indent_str_vtab(ml_get_buf(buf, lnum, FALSE),
+    return get_indent_str_vtab(buf_line(buf, lnum, FALSE),
 			       (int)buf->b_p_ts, buf->b_p_vts_array, FALSE);
 # else
-    return get_indent_str(ml_get_buf(buf, lnum, FALSE), (int)buf->b_p_ts, FALSE);
+    return get_indent_str(buf_line(buf, lnum, FALSE), (int)buf->b_p_ts, FALSE);
 # endif
 }
 #endif

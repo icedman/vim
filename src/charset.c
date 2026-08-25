@@ -857,7 +857,7 @@ win_linetabsize(win_T *wp, linenr_T lnum, char_u *line, colnr_T len)
 linetabsize(win_T *wp, linenr_T lnum)
 {
     return win_linetabsize(wp, lnum,
-		       ml_get_buf(wp->w_buffer, lnum, FALSE), (colnr_T)MAXCOL);
+		       buf_line(wp->w_buffer, lnum, FALSE), (colnr_T)MAXCOL);
 }
 
 /*
@@ -881,7 +881,7 @@ linetabsize_no_outer(win_T *wp, linenr_T lnum)
     return linetabsize(wp, lnum);
 #else
     chartabsize_T cts;
-    char_u *line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    char_u *line = buf_line(wp->w_buffer, lnum, FALSE);
 
     init_chartabsize_arg(&cts, wp, lnum, 0, line, line);
 
@@ -1688,7 +1688,7 @@ getvcol(
 #endif
 
     vcol = 0;
-    line = ptr = ml_get_buf(wp->w_buffer, pos->lnum, FALSE);
+    line = ptr = buf_line(wp->w_buffer, pos->lnum, FALSE);
 
     init_chartabsize_arg(&cts, wp, pos->lnum, 0, line, line);
     cts.cts_max_head_vcol = -1;
@@ -1875,8 +1875,8 @@ getvvcol(
 	coladd = pos->coladd;
 	endadd = 0;
 	// Cannot put the cursor on part of a wide character.
-	ptr = ml_get_buf(wp->w_buffer, pos->lnum, FALSE);
-	if (pos->col < ml_get_buf_len(wp->w_buffer, pos->lnum))
+	ptr = buf_line(wp->w_buffer, pos->lnum, FALSE);
+	if (pos->col < buf_line_len(wp->w_buffer, pos->lnum))
 	{
 	    int c = (*mb_ptr2char)(ptr + pos->col);
 

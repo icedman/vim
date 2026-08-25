@@ -2901,7 +2901,7 @@ find_endpos(
 		if (pos.lnum > startpos->lnum)
 		    break;
 
-		line_len = ml_get_buf_len(syn_buf, startpos->lnum);
+		line_len = buf_line_len(syn_buf, startpos->lnum);
 
 		// take care of an empty match or negative offset
 		if (pos.col <= matchcol)
@@ -3138,7 +3138,7 @@ syn_getcurline(void)
     static colnr_T
 syn_getcurline_len(void)
 {
-    return ml_get_buf_len(syn_buf, current_lnum);
+    return buf_line_len(syn_buf, current_lnum);
 }
 
 /*

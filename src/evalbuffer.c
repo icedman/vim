@@ -803,8 +803,8 @@ get_buffer_lines(
     {
 	if (start >= 1 && start <= buf->b_ml.ml_line_count)
 	    rettv->vval.v_string =
-		vim_strnsave(ml_get_buf(buf, start, FALSE),
-		    ml_get_buf_len(buf, start));
+		vim_strnsave(buf_line(buf, start, FALSE),
+		    buf_line_len(buf, start));
 	else
 	    rettv->vval.v_string = vim_strnsave((char_u *)"", 0);
     }
@@ -820,8 +820,8 @@ get_buffer_lines(
 	while (start <= end)
 	{
 	    if (list_append_string(rettv->vval.v_list,
-		ml_get_buf(buf, start, FALSE),
-		(int)ml_get_buf_len(buf, start)) == FAIL)
+		buf_line(buf, start, FALSE),
+		(int)buf_line_len(buf, start)) == FAIL)
 		break;
 	    ++start;
 	}

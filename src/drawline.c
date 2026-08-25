@@ -534,7 +534,7 @@ handle_breakindent(win_T *wp, winlinevars_T *wlv)
 	    wlv->c_extra = ' ';
 	    wlv->c_final = NUL;
 	    wlv->n_extra = get_breakindent_win(wp,
-				   ml_get_buf(wp->w_buffer, wlv->lnum, FALSE));
+				   buf_line(wp->w_buffer, wlv->lnum, FALSE));
 	    if (wlv->row == wlv->startrow)
 	    {
 		wlv->n_extra -= win_col_off2(wp);
@@ -1595,10 +1595,10 @@ win_line(
 	nextline[SPWORDLEN] = NUL;
 	if (lnum < wp->w_buffer->b_ml.ml_line_count)
 	{
-	    line = ml_get_buf(wp->w_buffer, lnum + 1, FALSE);
+	    line = buf_line(wp->w_buffer, lnum + 1, FALSE);
 	    spell_cat_line(nextline + SPWORDLEN, line, SPWORDLEN);
 	}
-	line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+	line = buf_line(wp->w_buffer, lnum, FALSE);
 
 	// If current line is empty, check first word in next line for capital.
 	ptr = skipwhite(line);
@@ -1620,7 +1620,7 @@ win_line(
 	}
 	else
 	{
-	    v = ml_get_buf_len(wp->w_buffer, lnum);
+	    v = buf_line_len(wp->w_buffer, lnum);
 	    if (v < SPWORDLEN)
 	    {
 		// Short line, use it completely and append the start of the
@@ -1641,7 +1641,7 @@ win_line(
     }
 #endif
 
-    line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    line = buf_line(wp->w_buffer, lnum, FALSE);
     ptr = line;
 
     if (wp->w_p_list)
@@ -1657,7 +1657,7 @@ win_line(
 	// find start of trailing whitespace
 	if (wp->w_lcs_chars.trail)
 	{
-	    trailcol = ml_get_buf_len(wp->w_buffer, lnum);
+	    trailcol = buf_line_len(wp->w_buffer, lnum);
 	    while (trailcol > (colnr_T)0 && VIM_ISWHITE(ptr[trailcol - 1]))
 		--trailcol;
 	    trailcol += (colnr_T)(ptr - line);
@@ -1933,7 +1933,7 @@ win_line(
 	    len = spell_move_to(wp, FORWARD, SMT_ALL, TRUE, &spell_hlf);
 
 	    // spell_move_to() may call ml_get() and make "line" invalid
-	    line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+	    line = buf_line(wp->w_buffer, lnum, FALSE);
 	    ptr = line + linecol;
 
 	    if (len == 0 || (int)wp->w_cursor.col > linecol)
@@ -2643,7 +2643,7 @@ win_line(
 
 		    // Need to get the line again, a multi-line regexp may
 		    // have made it invalid.
-		    line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+		    line = buf_line(wp->w_buffer, lnum, FALSE);
 		    ptr = line + v;
 # ifdef FEAT_CONCEAL
 		    // no concealing past the end of the line, it interferes
@@ -4477,7 +4477,7 @@ win_line(
 	    if (!wp->w_p_wrap && text_prop_follows && !text_prop_above)
 	    {
 		// do not output more of the line, only the "below" prop
-		ptr = line + (size_t)ml_get_buf_len(wp->w_buffer, lnum);
+		ptr = line + (size_t)buf_line_len(wp->w_buffer, lnum);
 # ifdef FEAT_LINEBREAK
 		wlv.dont_use_showbreak = TRUE;
 # endif

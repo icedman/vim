@@ -1304,9 +1304,9 @@ reg_getline_common(
     }
 
     if (get_line)
-	*line = ml_get_buf(rex.reg_buf, firstlnum, FALSE);
+	*line = buf_line(rex.reg_buf, firstlnum, FALSE);
     if (get_length)
-	*length = ml_get_buf_len(rex.reg_buf, firstlnum);
+	*length = buf_line_len(rex.reg_buf, firstlnum);
 }
 
 /*

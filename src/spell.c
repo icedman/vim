@@ -1380,9 +1380,9 @@ spell_move_to(
     {
 	int empty_line;
 
-	line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+	line = buf_line(wp->w_buffer, lnum, FALSE);
 
-	len = ml_get_buf_len(wp->w_buffer, lnum);
+	len = buf_line_len(wp->w_buffer, lnum);
 	if (buflen < len + MAXWLEN + 2)
 	{
 	    vim_free(buf);
@@ -1408,17 +1408,17 @@ spell_move_to(
 
 	    // Need to get the line again, may have looked at the previous
 	    // one.
-	    line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+	    line = buf_line(wp->w_buffer, lnum, FALSE);
 	}
 
 	// Copy the line into "buf" and append the start of the next line if
-	// possible.  Note: this ml_get_buf() may make "line" invalid, check
+	// possible.  Note: this buf_line() may make "line" invalid, check
 	// for empty line first.
 	empty_line = *skipwhite(line) == NUL;
 	STRCPY(buf, line);
 	if (lnum < wp->w_buffer->b_ml.ml_line_count)
 	    spell_cat_line(buf + STRLEN(buf),
-			  ml_get_buf(wp->w_buffer, lnum + 1, FALSE), MAXWLEN);
+			  buf_line(wp->w_buffer, lnum + 1, FALSE), MAXWLEN);
 
 	p = buf + skip;
 	endp = buf + len;
@@ -2899,7 +2899,7 @@ check_need_cap(win_T *wp, linenr_T lnum, colnr_T col)
 	return FALSE;
 
     int		need_cap = FALSE;
-    char_u	*line = col ? ml_get_buf(wp->w_buffer, lnum, FALSE) : NULL;
+    char_u	*line = col ? buf_line(wp->w_buffer, lnum, FALSE) : NULL;
     char_u	*line_copy = NULL;
     colnr_T	endcol = 0;
 
@@ -2911,7 +2911,7 @@ check_need_cap(win_T *wp, linenr_T lnum, colnr_T col)
 	    need_cap = TRUE;
 	else
 	{
-	    line = ml_get_buf(wp->w_buffer, lnum - 1, FALSE);
+	    line = buf_line(wp->w_buffer, lnum - 1, FALSE);
 	    if (*skipwhite(line) == NUL)
 		need_cap = TRUE;
 	    else

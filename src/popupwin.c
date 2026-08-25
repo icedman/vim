@@ -4912,7 +4912,7 @@ refill_pum_bg_row_from_buffer(int r, int left, int right)
     if (lnum < 1 || lnum > wp->w_buffer->b_ml.ml_line_count)
 	return;
 
-    line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    line = buf_line(wp->w_buffer, lnum, FALSE);
     if (line == NULL)
 	return;
 

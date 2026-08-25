@@ -6082,8 +6082,8 @@ getregionpos(
 	return FAIL;
     }
     if (p1->col == MAXCOL)
-	p1->col = ml_get_buf_len(findbuf, p1->lnum) + 1;
-    else if (p1->col < 1 || p1->col > ml_get_buf_len(findbuf, p1->lnum) + 1)
+	p1->col = buf_line_len(findbuf, p1->lnum) + 1;
+    else if (p1->col < 1 || p1->col > buf_line_len(findbuf, p1->lnum) + 1)
     {
 	semsg(_(e_invalid_column_number_nr), p1->col);
 	return FAIL;
@@ -6095,8 +6095,8 @@ getregionpos(
 	return FAIL;
     }
     if (p2->col == MAXCOL)
-	p2->col = ml_get_buf_len(findbuf, p2->lnum) + 1;
-    else if (p2->col < 1 || p2->col > ml_get_buf_len(findbuf, p2->lnum) + 1)
+	p2->col = buf_line_len(findbuf, p2->lnum) + 1;
+    else if (p2->col < 1 || p2->col > buf_line_len(findbuf, p2->lnum) + 1)
     {
 	semsg(_(e_invalid_column_number_nr), p2->col);
 	return FAIL;
@@ -9515,7 +9515,7 @@ f_matchbufline(typval_T *argvars, typval_T *rettv)
 
     while (slnum <= elnum)
     {
-	char_u *str = ml_get_buf(buf, slnum, FALSE);
+	char_u *str = buf_line(buf, slnum, FALSE);
 	if (get_matches_in_str(str, &regmatch, retlist, slnum, submatches,
 								TRUE) == FAIL)
 	    goto cleanup;

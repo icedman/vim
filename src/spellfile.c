@@ -5974,8 +5974,8 @@ sug_write(spellinfo_T *spin, char_u *fname)
     for (lnum = 1; lnum <= (linenr_T)wcount; ++lnum)
     {
 	// <sugline>: <sugnr> ... NUL
-	line = ml_get_buf(spin->si_spellbuf, lnum, FALSE);
-	len = ml_get_buf_len(spin->si_spellbuf, lnum) + 1;
+	line = buf_line(spin->si_spellbuf, lnum, FALSE);
+	len = buf_line_len(spin->si_spellbuf, lnum) + 1;
 	if (fwrite(line, (size_t)len, (size_t)1, fd) == 0)
 	{
 	    emsg(_(e_error_while_writing));

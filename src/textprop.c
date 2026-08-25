@@ -85,8 +85,8 @@ um_goto_line(unpacked_memline_T *um, linenr_T lnum, int extra_props)
     if (lnum == 0)
 	return true;	// just unload
 
-    line = ml_get_buf(um->buf, lnum, FALSE);
-    textlen = ml_get_buf_len(um->buf, lnum) + 1;
+    line = buf_line(um->buf, lnum, FALSE);
+    textlen = buf_line_len(um->buf, lnum) + 1;
     propdata_len = um->buf->b_ml.ml_line_len - textlen;
 
     um->lnum = lnum;
@@ -300,7 +300,7 @@ um_open_at_no_props(buf_T *buf, linenr_T lnum, int prop_count)
 	return um;
     }
 
-    char_u *line = ml_get_buf(buf, lnum, FALSE);
+    char_u *line = buf_line(buf, lnum, FALSE);
     char_u *text_copy = vim_strsave(line);
 
     if (text_copy == NULL)
@@ -497,13 +497,13 @@ um_store_changes(unpacked_memline_T *um)
 	return;
     }
 
-    // Flush any other dirty line before setting ours.  ml_get_buf()
+    // Flush any other dirty line before setting ours.  buf_line()
     // with will_change=TRUE will flush the current dirty line and set
     // up for our line.
     if (um->buf->b_ml.ml_line_lnum != um->lnum)
-	ml_get_buf(um->buf, um->lnum, TRUE);
+	buf_line(um->buf, um->lnum, TRUE);
     else if (!(um->buf->b_ml.ml_flags & ML_LINE_DIRTY))
-	(void)ml_get_buf(um->buf, um->lnum, TRUE);
+	(void)buf_line(um->buf, um->lnum, TRUE);
 
     // Free the detached text and vtext before switching to packed.
     vim_free(um->text);
@@ -756,7 +756,7 @@ prop_add_one(
 
 	// Fetch the line to get the ml_line_len field updated.
 	proplen = get_text_props(buf, lnum, &props, TRUE);
-	textlen = ml_get_buf_len(buf, lnum) + 1;
+	textlen = buf_line_len(buf, lnum) + 1;
 
 	// prop_count is a uint16_t; stop before proplen + 1 wraps to zero.
 	if (proplen >= 0xffff)
@@ -1240,8 +1240,8 @@ get_text_props(buf_T *buf, linenr_T lnum, char_u **props, int will_change)
 	return 0;
 
     // Fetch the line to get the ml_line_len field updated.
-    text = ml_get_buf(buf, lnum, will_change);
-    textlen = ml_get_buf_len(buf, lnum) + 1;
+    text = buf_line(buf, lnum, will_change);
+    textlen = buf_line_len(buf, lnum) + 1;
     propdata_len = buf->b_ml.ml_line_len - textlen;
     if (propdata_len == 0)
 	return 0;

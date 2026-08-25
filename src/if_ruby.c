@@ -1366,7 +1366,7 @@ get_buffer_line(buf_T *buf, linenr_T n)
 {
     if (n <= 0 || n > buf->b_ml.ml_line_count)
 	rb_raise(rb_eIndexError, "line number %ld out of range", (long)n);
-    return vim_str2rb_enc_str((char *)ml_get_buf(buf, n, FALSE));
+    return vim_str2rb_enc_str((char *)buf_line(buf, n, FALSE));
 }
 
     static VALUE

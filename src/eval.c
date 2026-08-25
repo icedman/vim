@@ -6978,7 +6978,7 @@ buf_byteidx_to_charidx(buf_T *buf, int lnum, int byteidx)
     if (lnum > buf->b_ml.ml_line_count)
 	lnum = buf->b_ml.ml_line_count;
 
-    str = ml_get_buf(buf, lnum, FALSE);
+    str = buf_line(buf, lnum, FALSE);
     if (str == NULL)
 	return -1;
 
@@ -7016,7 +7016,7 @@ buf_charidx_to_byteidx(buf_T *buf, int lnum, int charidx)
     if (lnum > buf->b_ml.ml_line_count)
 	lnum = buf->b_ml.ml_line_count;
 
-    str = ml_get_buf(buf, lnum, FALSE);
+    str = buf_line(buf, lnum, FALSE);
     if (str == NULL)
 	return -1;
 

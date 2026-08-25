@@ -830,7 +830,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
      * Check if not in Insert mode and the line is empty (will show "0-1").
      */
     if ((State & MODE_INSERT) == 0
-		&& *ml_get_buf(wp->w_buffer, wp->w_cursor.lnum, FALSE) == NUL)
+		&& *buf_line(wp->w_buffer, wp->w_cursor.lnum, FALSE) == NUL)
 	empty_line = TRUE;
 
     /*
@@ -1479,7 +1479,7 @@ fold_line(
 			&& (lnume < bot->lnum
 			    || (lnume == bot->lnum
 				&& (bot->col - (*p_sel == 'e'))
-				    >= ml_get_buf_len(wp->w_buffer, lnume))))))
+				    >= buf_line_len(wp->w_buffer, lnume))))))
 	{
 	    if (VIsual_mode == Ctrl_V)
 	    {
@@ -2229,7 +2229,7 @@ win_update(win_T *wp)
 			{
 			    colnr_T t;
 
-			    pos.col = (int)ml_get_buf_len(wp->w_buffer, pos.lnum);
+			    pos.col = (int)buf_line_len(wp->w_buffer, pos.lnum);
 			    getvvcol(wp, &pos, NULL, NULL, &t, 0);
 			    if (toc < t)
 				toc = t;

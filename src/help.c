@@ -719,15 +719,15 @@ fix_help_buffer(void)
     {
 	for (lnum = 1; lnum <= curbuf->b_ml.ml_line_count; ++lnum)
 	{
-	    line = ml_get_buf(curbuf, lnum, FALSE);
-	    len = ml_get_buf_len(curbuf, lnum);
+	    line = buf_line(curbuf, lnum, FALSE);
+	    len = buf_line_len(curbuf, lnum);
 	    if (in_example && len > 0 && !VIM_ISWHITE(line[0]))
 	    {
 		// End of example: non-white or '<' in first column.
 		if (line[0] == '<')
 		{
 		    // blank-out a '<' in the first column
-		    line = ml_get_buf(curbuf, lnum, TRUE);
+		    line = buf_line(curbuf, lnum, TRUE);
 		    line[0] = ' ';
 		}
 		in_example = FALSE;
@@ -737,14 +737,14 @@ fix_help_buffer(void)
 		if (line[len - 1] == '>' && (len == 1 || line[len - 2] == ' '))
 		{
 		    // blank-out a '>' in the last column (start of example)
-		    line = ml_get_buf(curbuf, lnum, TRUE);
+		    line = buf_line(curbuf, lnum, TRUE);
 		    line[len - 1] = ' ';
 		    in_example = TRUE;
 		}
 		else if (line[len - 1] == '~')
 		{
 		    // blank-out a '~' at the end of line (header marker)
-		    line = ml_get_buf(curbuf, lnum, TRUE);
+		    line = buf_line(curbuf, lnum, TRUE);
 		    line[len - 1] = ' ';
 		}
 	    }
@@ -766,7 +766,7 @@ fix_help_buffer(void)
     {
 	for (lnum = 1; lnum < curbuf->b_ml.ml_line_count; ++lnum)
 	{
-	    line = ml_get_buf(curbuf, lnum, FALSE);
+	    line = buf_line(curbuf, lnum, FALSE);
 	    if (strstr((char *)line, "*local-additions*") == NULL)
 		continue;
 

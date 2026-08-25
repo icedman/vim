@@ -4325,7 +4325,7 @@ ins_bs(
 		if (has_format_option(FO_AUTO)
 					   && has_format_option(FO_WHITE_PAR))
 		{
-		    char_u  *ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum,
+		    char_u  *ptr = buf_line(curbuf, curwin->w_cursor.lnum,
 									FALSE);
 		    int	    len = ml_get_curline_len();
 

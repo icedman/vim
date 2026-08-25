@@ -137,6 +137,21 @@ Phase 1 remains open until its API checks and debug assertions are added.
 
 ### Phase 2: migrate all consumers
 
+#### Phase 2 progress
+
+- [x] Migrated explicit-buffer `ml_get_buf()` and `ml_get_buf_len()` reads
+  outside `memline.c` and the façade implementation to `buf_line()` and
+  `buf_line_len()` across 42 source files.
+- [x] Regenerated the internal-access inventory after the migration.
+- [x] Rebuilt Vim and reran `test_buffer.res` successfully.
+- [ ] Replace direct line-count and loaded-state field reads with accessors.
+- [ ] Migrate implicit-current-buffer reads and mutation operations.
+
+The inventory now reports 1,639 access findings, including 1,059 direct
+`b_ml` accesses, 461 implicit-current-buffer line accesses, and one writable
+line access. The remaining `ml_get_buf*()` calls are implementation or
+façade calls, except for any cases that require deliberate review.
+
 - Convert reads before mutations, grouping changes by subsystem to keep each
   patch buildable.
 - Replace line-count and loaded-state field reads with accessors.

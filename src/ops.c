@@ -1476,7 +1476,7 @@ op_tilde(oparg_T *oap)
 		netbeans_removed(curbuf, pos.lnum, bd.textcol,
 							    (long)bd.textlen);
 		// get the line now, it may have been flushed
-		ptr = ml_get_buf(curbuf, pos.lnum, FALSE);
+		ptr = buf_line(curbuf, pos.lnum, FALSE);
 		netbeans_inserted(curbuf, pos.lnum, bd.textcol,
 						&ptr[bd.textcol], bd.textlen);
 	    }
@@ -1523,11 +1523,11 @@ op_tilde(oparg_T *oap)
 		pos = oap->start;
 		while (pos.lnum < oap->end.lnum)
 		{
-		    ptr = ml_get_buf(curbuf, pos.lnum, FALSE);
-		    count = ml_get_buf_len(curbuf, pos.lnum) - pos.col;
+		    ptr = buf_line(curbuf, pos.lnum, FALSE);
+		    count = buf_line_len(curbuf, pos.lnum) - pos.col;
 		    netbeans_removed(curbuf, pos.lnum, pos.col, (long)count);
 		    // get the line again, it may have been flushed
-		    ptr = ml_get_buf(curbuf, pos.lnum, FALSE);
+		    ptr = buf_line(curbuf, pos.lnum, FALSE);
 		    netbeans_inserted(curbuf, pos.lnum, pos.col,
 							&ptr[pos.col], count);
 		    pos.col = 0;
@@ -1536,7 +1536,7 @@ op_tilde(oparg_T *oap)
 		count = oap->end.col - pos.col + 1;
 		netbeans_removed(curbuf, pos.lnum, pos.col, (long)count);
 		// get the line again, it may have been flushed
-		ptr = ml_get_buf(curbuf, pos.lnum, FALSE);
+		ptr = buf_line(curbuf, pos.lnum, FALSE);
 		netbeans_inserted(curbuf, pos.lnum, pos.col,
 							&ptr[pos.col], count);
 	    }
@@ -2778,7 +2778,7 @@ op_addsub(
 		char_u *ptr;
 
 		netbeans_removed(curbuf, pos.lnum, pos.col, (long)length);
-		ptr = ml_get_buf(curbuf, pos.lnum, FALSE);
+		ptr = buf_line(curbuf, pos.lnum, FALSE);
 		netbeans_inserted(curbuf, pos.lnum, pos.col,
 						&ptr[pos.col], length);
 	    }
@@ -4644,7 +4644,7 @@ do_pending_operator(cmdarg_T *cap, int old_col, int gui_yank)
     static void
 pbyte(pos_T lp, int c)
 {
-    char_u *p = ml_get_buf(curbuf, lp.lnum, TRUE);
+    char_u *p = buf_line(curbuf, lp.lnum, TRUE);
     int	len = curbuf->b_ml.ml_line_len;
 
     // safety check

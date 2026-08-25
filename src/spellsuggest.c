@@ -3264,7 +3264,7 @@ add_sound_suggest(
     }
 
     // go over the list of good words that produce this soundfold word
-    nrline = ml_get_buf(slang->sl_sugbuf, (linenr_T)(sfwordnr + 1), FALSE);
+    nrline = buf_line(slang->sl_sugbuf, (linenr_T)(sfwordnr + 1), FALSE);
     orgnr = 0;
     while (*nrline != NUL)
     {

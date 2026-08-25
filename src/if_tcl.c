@@ -644,7 +644,7 @@ bufselfcmd(
 
 		for (n = val1; n <= val2 && err == TCL_OK; n++)
 		{
-		    line = (char *)ml_get_buf(buf, (linenr_T)n, FALSE);
+		    line = (char *)buf_line(buf, (linenr_T)n, FALSE);
 		    if (line)
 			Tcl_AppendElement(interp, line);
 		    else
@@ -653,7 +653,7 @@ bufselfcmd(
 	    }
 	    else
 	    {  // objc == 3
-		line = (char *)ml_get_buf(buf, (linenr_T)val1, FALSE);
+		line = (char *)buf_line(buf, (linenr_T)val1, FALSE);
 		Tcl_SetResult(interp, line, TCL_VOLATILE);
 	    }
 	    break;
@@ -1997,7 +1997,7 @@ ex_tcldo(exarg_T *eap)
     {
 	if ((linenr_T)rs > curbuf->b_ml.ml_line_count)
 	    break;
-	line = (char *)ml_get_buf(curbuf, (linenr_T)rs, FALSE);
+	line = (char *)buf_line(curbuf, (linenr_T)rs, FALSE);
 	if (!line)
 	{
 	    Tcl_SetResult(tclinfo.interp, _("cannot get line"), TCL_STATIC);

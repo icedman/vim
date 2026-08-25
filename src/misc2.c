@@ -137,8 +137,8 @@ coladvance2(
 		    || restart_edit != NUL
 		    || (VIsual_active && *p_sel != 'o')
 		    || ((get_ve_flags() & VE_ONEMORE) && wcol < MAXCOL);
-    line = ml_get_buf(curbuf, pos->lnum, FALSE);
-    linelen = ml_get_buf_len(curbuf, pos->lnum);
+    line = buf_line(curbuf, pos->lnum, FALSE);
+    linelen = buf_line_len(curbuf, pos->lnum);
 
     if (wcol >= MAXCOL)
     {
@@ -518,7 +518,7 @@ check_pos(buf_T *buf, pos_T *pos)
 
     if (pos->col > 0)
     {
-	len = ml_get_buf_len(buf, pos->lnum);
+	len = buf_line_len(buf, pos->lnum);
 	if (pos->col > len)
 	    pos->col = len;
     }
@@ -564,7 +564,7 @@ check_cursor_col_win(win_T *win)
     colnr_T      oldcoladd = win->w_cursor.col + win->w_cursor.coladd;
     unsigned int cur_ve_flags = get_ve_flags();
 
-    len = ml_get_buf_len(win->w_buffer, win->w_cursor.lnum);
+    len = buf_line_len(win->w_buffer, win->w_cursor.lnum);
     if (len == 0)
 	win->w_cursor.col = 0;
     else if (win->w_cursor.col >= len)

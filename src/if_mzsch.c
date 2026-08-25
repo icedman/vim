@@ -2376,7 +2376,7 @@ get_buffer_line(void *data, int argc, Scheme_Object **argv)
 
     buf = get_buffer_arg(prim->name, 1, argc, argv);
     linenr = SCHEME_INT_VAL(GUARANTEE_INTEGER(prim->name, 0));
-    line = ml_get_buf(buf->buf, (linenr_T)linenr, FALSE);
+    line = buf_line(buf->buf, (linenr_T)linenr, FALSE);
 
     raise_if_error();
     return scheme_make_byte_string((char *)line);
@@ -2423,7 +2423,7 @@ get_buffer_line_list(void *data, int argc, Scheme_Object **argv)
     for (i = n; i >= 0; --i)
     {
 	Scheme_Object *str = scheme_make_byte_string(
-		       (char *)ml_get_buf(buf->buf, (linenr_T)(lo+i), FALSE));
+		       (char *)buf_line(buf->buf, (linenr_T)(lo+i), FALSE));
 	raise_if_error();
 
 	// Set the list item

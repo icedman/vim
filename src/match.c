@@ -453,7 +453,7 @@ next_search_hl(
 	    char_u	*ml;
 
 	    matchcol = shl->rm.startpos[0].col;
-	    ml = ml_get_buf(shl->buf, lnum, FALSE) + matchcol;
+	    ml = buf_line(shl->buf, lnum, FALSE) + matchcol;
 	    if (*ml == NUL)
 	    {
 		++matchcol;
@@ -658,7 +658,7 @@ prepare_search_hl_line(
 
 	// Need to get the line again, a multi-line regexp may have made it
 	// invalid.
-	*line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+	*line = buf_line(wp->w_buffer, lnum, FALSE);
 
 	if (shl->lnum != 0 && shl->lnum <= lnum)
 	{
@@ -789,7 +789,7 @@ update_search_hl(
 
 		// Need to get the line again, a multi-line regexp may have
 		// made it invalid.
-		*line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+		*line = buf_line(wp->w_buffer, lnum, FALSE);
 
 		if (shl->lnum == lnum)
 		{

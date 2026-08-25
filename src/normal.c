@@ -1319,7 +1319,7 @@ find_ident_at_pos(
 
     // if i == 0: try to find an identifier
     // if i == 1: try to find any non-white text
-    ptr = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    ptr = buf_line(wp->w_buffer, lnum, FALSE);
     for (i = (find_type & FIND_IDENT) ? 0 : 1;	i < 2; ++i)
     {
 	/*
@@ -4993,13 +4993,13 @@ nv_replace(cmdarg_T *cap)
 		  int c = ins_copychar(curwin->w_cursor.lnum
 					   + (cap->nchar == Ctrl_Y ? -1 : 1));
 
-		  ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE);
+		  ptr = buf_line(curbuf, curwin->w_cursor.lnum, TRUE);
 		  if (c != NUL)
 		    ptr[curwin->w_cursor.col] = c;
 		}
 		else
 		{
-		    ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE);
+		    ptr = buf_line(curbuf, curwin->w_cursor.lnum, TRUE);
 		    ptr[curwin->w_cursor.col] = cap->nchar;
 		}
 		if (p_sm && msg_silent == 0)

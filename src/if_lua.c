@@ -797,7 +797,7 @@ luaV_addlstring(luaL_Buffer *b, const char *s, size_t l, int toline)
     static void
 luaV_pushline(lua_State *L, buf_T *buf, linenr_T n)
 {
-    const char *s = (const char *) ml_get_buf(buf, n, FALSE);
+    const char *s = (const char *) buf_line(buf, n, FALSE);
     luaL_Buffer b;
     luaL_buffinit(L, &b);
     luaV_addlstring(&b, s, strlen(s), 0);

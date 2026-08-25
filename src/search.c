@@ -905,7 +905,7 @@ searchit(
 
 			    // Need to get the line pointer again, a
 			    // multi-line search may have made it invalid.
-			    ptr = ml_get_buf(buf, lnum + matchpos.lnum, FALSE);
+			    ptr = buf_line(buf, lnum + matchpos.lnum, FALSE);
 			}
 			if (!match_ok)
 			    continue;
@@ -1009,7 +1009,7 @@ searchit(
 
 			    // Need to get the line pointer again, a
 			    // multi-line search may have made it invalid.
-			    ptr = ml_get_buf(buf, lnum + matchpos.lnum, FALSE);
+			    ptr = buf_line(buf, lnum + matchpos.lnum, FALSE);
 			}
 
 			/*
@@ -1036,7 +1036,7 @@ searchit(
 			    if (pos->lnum > 1)  // just in case
 			    {
 				--pos->lnum;
-				pos->col = ml_get_buf_len(buf, pos->lnum);
+				pos->col = buf_line_len(buf, pos->lnum);
 			    }
 			}
 			else
@@ -1045,7 +1045,7 @@ searchit(
 			    if (has_mbyte
 				    && pos->lnum <= buf->b_ml.ml_line_count)
 			    {
-				ptr = ml_get_buf(buf, pos->lnum, FALSE);
+				ptr = buf_line(buf, pos->lnum, FALSE);
 				pos->col -= (*mb_head_off)(ptr, ptr + pos->col);
 			    }
 			}
@@ -1171,7 +1171,7 @@ searchit(
     if (pos->lnum > buf->b_ml.ml_line_count)
     {
 	pos->lnum = buf->b_ml.ml_line_count;
-	pos->col = ml_get_buf_len(buf, pos->lnum);
+	pos->col = buf_line_len(buf, pos->lnum);
 	if (pos->col > 0)
 	    --pos->col;
     }
@@ -1827,7 +1827,7 @@ search_for_exact_line(
 	    break;
 	if (start == 0)
 	    start = pos->lnum;
-	ptr = ml_get_buf(buf, pos->lnum, FALSE);
+	ptr = buf_line(buf, pos->lnum, FALSE);
 	p = skipwhite(ptr);
 	pos->col = (colnr_T) (p - ptr);
 

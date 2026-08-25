@@ -609,10 +609,7 @@ src/fuzzy.c:824: [buffer memline member] 	circly_end.lnum = buf->b_ml.ml_line_co
 src/fuzzy.c:841: [buffer memline member] 	if (current_pos.lnum >= 1 && current_pos.lnum <= buf->b_ml.ml_line_count)
 src/fuzzy.c:886: [buffer memline member] 	    if (++current_pos.lnum > buf->b_ml.ml_line_count)
 src/fuzzy.c:903: [buffer memline member] 		    current_pos.lnum = buf->b_ml.ml_line_count;
-Mutation follow-up candidates:
-src/fuzzy.c:874: ptr from line 844 is mutated: 			*ptr = p;
-
-Stats: 4 access finding(s); 1 mutation follow-up candidate(s); buffer memline member=4
+Stats: 4 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=4
 
 src/gui.c
 =========
@@ -632,18 +629,9 @@ Stats: 4 access finding(s); 0 mutation follow-up candidate(s); implicit current-
 src/help.c
 ==========
 src/help.c:720: [buffer memline member] 	for (lnum = 1; lnum <= curbuf->b_ml.ml_line_count; ++lnum)
-src/help.c:730: [writable line access] 		    line = ml_get_buf(curbuf, lnum, TRUE);
-src/help.c:740: [writable line access] 		    line = ml_get_buf(curbuf, lnum, TRUE);
-src/help.c:747: [writable line access] 		    line = ml_get_buf(curbuf, lnum, TRUE);
 src/help.c:767: [buffer memline member] 	for (lnum = 1; lnum < curbuf->b_ml.ml_line_count; ++lnum)
 src/help.c:910: [implicit current-buffer line access] 				    ml_append(lnum, cp, (colnr_T)0, FALSE);
-Mutation follow-up candidates:
-src/help.c:731: line from line 722 is mutated: 		    line[0] = ' ';
-src/help.c:731: line from line 730 is mutated: 		    line[0] = ' ';
-src/help.c:741: line from line 740 is mutated: 		    line[len - 1] = ' ';
-src/help.c:748: line from line 747 is mutated: 		    line[len - 1] = ' ';
-
-Stats: 6 access finding(s); 4 mutation follow-up candidate(s); buffer memline member=2; implicit current-buffer line access=1; writable line access=3
+Stats: 3 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=2; implicit current-buffer line access=1
 
 src/if_lua.c
 ============
@@ -1289,10 +1277,9 @@ src/misc1.c
 ===========
 src/misc1.c:537: [buffer memline member]     if (first == wp->w_buffer->b_ml.ml_line_count + 1)
 src/misc1.c:552: [implicit current-buffer line access]     ptrlen = ml_get_len(pos->lnum);
-src/misc1.c:596: [writable line access]     *(ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE)
 src/misc1.c:2338: [buffer memline member] 	if (buf->b_ml.ml_mfp != NULL && buf->b_ml.ml_mfp->mf_fname != NULL)
 src/misc1.c:2576: [buffer memline member] 	    for (lnum = 1; lnum <= buf->b_ml.ml_line_count; lnum++)
-Stats: 5 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=3; implicit current-buffer line access=1; writable line access=1
+Stats: 4 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=3; implicit current-buffer line access=1
 
 src/misc2.c
 ===========
@@ -1404,8 +1391,6 @@ src/normal.c:4678: [buffer memline member] 		curwin->w_cursor.lnum = (curbuf->b_
 src/normal.c:4681: [buffer memline member] 		curwin->w_cursor.lnum = (curbuf->b_ml.ml_line_count *
 src/normal.c:4685: [buffer memline member] 	    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
 src/normal.c:4686: [buffer memline member] 		curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
-src/normal.c:4996: [writable line access] 		  ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE);
-src/normal.c:5002: [writable line access] 		    ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE);
 src/normal.c:5191: [buffer memline member] 		    && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
 src/normal.c:5198: [implicit current-buffer line access] 			ptr = ml_get(pos.lnum);
 src/normal.c:5199: [implicit current-buffer line access] 			count = (int)ml_get_len(pos.lnum) - pos.col;
@@ -1427,11 +1412,7 @@ src/normal.c:7568: [implicit current-buffer line access] 	ml_delete_flags(curbuf
 src/normal.c:7569: [buffer memline member] 	deleted_lines(curbuf->b_ml.ml_line_count + 1, 1);
 src/normal.c:7573: [buffer memline member] 	if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
 src/normal.c:7575: [buffer memline member] 	    curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
-Mutation follow-up candidates:
-src/normal.c:4998: ptr from line 4996 is mutated: 		    ptr[curwin->w_cursor.col] = c;
-src/normal.c:5003: ptr from line 5002 is mutated: 		    ptr[curwin->w_cursor.col] = cap->nchar;
-
-Stats: 43 access finding(s); 2 mutation follow-up candidate(s); buffer memline member=32; implicit current-buffer line access=9; writable line access=2
+Stats: 41 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=32; implicit current-buffer line access=9
 
 src/ops.c
 =========
@@ -1500,9 +1481,8 @@ src/ops.c:4112: [implicit current-buffer line access] 		    oap->start.col = ml_
 src/ops.c:4226: [buffer memline member] 			    && oap->end.lnum < curbuf->b_ml.ml_line_count)
 src/ops.c:4322: [implicit current-buffer line access] 		oap->end.col = ml_get_len(oap->end.lnum);
 src/ops.c:4346: [buffer memline member] 						   curbuf->b_ml.ml_line_count)
-src/ops.c:4647: [writable line access]     char_u *p = ml_get_buf(curbuf, lp.lnum, TRUE);
 src/ops.c:4648: [buffer memline member]     int	len = curbuf->b_ml.ml_line_len;
-Stats: 67 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=18; implicit current-buffer line access=48; writable line access=1
+Stats: 66 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=18; implicit current-buffer line access=48
 
 src/option.c
 ============
@@ -1651,10 +1631,7 @@ src/register.c:2430: [implicit current-buffer line access] 			    lendiff = ml_g
 src/register.c:2447: [implicit current-buffer line access] 			    lendiff -= ml_get_len(lnum);
 src/register.c:2506: [buffer memline member] 		    if (lnum >= curbuf->b_ml.ml_line_count)
 src/register.c:2507: [buffer memline member] 			curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
-Mutation follow-up candidates:
-src/register.c:1016: argp from line 1011 is mutated: 	    *argp = (char_u *)"";
-
-Stats: 25 access finding(s); 1 mutation follow-up candidate(s); buffer memline member=6; implicit current-buffer line access=18; BUFEMPTY macro=1
+Stats: 25 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=6; implicit current-buffer line access=18; BUFEMPTY macro=1
 
 src/screen.c
 ============
@@ -1766,10 +1743,10 @@ src/terminal.c:2037: [buffer memline member]     int		empty = (buf->b_ml.ml_flag
 src/terminal.c:2038: [buffer memline member]     linenr_T	lnum = buf->b_ml.ml_line_count;
 src/terminal.c:2070: [implicit current-buffer line access] 	ml_replace(lnum, both, FALSE);
 src/terminal.c:2084: [implicit current-buffer line access] 	ml_delete(1);
-src/terminal.c:2157: [buffer memline member]     bufline = ml_get_buf(curbuf, curbuf->b_ml.ml_line_count, FALSE);
+src/terminal.c:2157: [buffer memline member]     bufline = buf_line(curbuf, curbuf->b_ml.ml_line_count, FALSE);
 src/terminal.c:2167: [buffer memline member] 	    ml_delete(curbuf->b_ml.ml_line_count);
 src/terminal.c:2167: [implicit current-buffer line access] 	    ml_delete(curbuf->b_ml.ml_line_count);
-src/terminal.c:2168: [buffer memline member] 	    bufline = ml_get_buf(curbuf, curbuf->b_ml.ml_line_count, FALSE);
+src/terminal.c:2168: [buffer memline member] 	    bufline = buf_line(curbuf, curbuf->b_ml.ml_line_count, FALSE);
 src/terminal.c:2178: [buffer memline member] 	ml_replace(curbuf->b_ml.ml_line_count, shortened, FALSE);
 src/terminal.c:2178: [implicit current-buffer line access] 	ml_replace(curbuf->b_ml.ml_line_count, shortened, FALSE);
 src/terminal.c:2365: [buffer memline member]     if (term->tl_dirty_snapshot || term->tl_buffer->b_ml.ml_line_count
@@ -1810,10 +1787,7 @@ src/terminal.c:6267: [implicit current-buffer line access]     ml_delete(line_co
 src/terminal.c:6268: [implicit current-buffer line access]     ml_append(bot_rows, p, 0, FALSE);
 src/terminal.c:6519: [buffer memline member] 	if (lnum > 0 && lnum <= buf->b_ml.ml_line_count)
 src/terminal.c:6783: [buffer memline member] 	if (sb_row >= term->tl_scrollback.ga_len || lnum <= 0 || lnum > buf->b_ml.ml_line_count)
-Mutation follow-up candidates:
-src/terminal.c:6545: p from line 6521 is mutated: 	p[vterm_screen_get_text(screen, (char *)p, len, rect)] = NUL;
-
-Stats: 49 access finding(s); 1 mutation follow-up candidate(s); buffer memline member=22; implicit current-buffer line access=27
+Stats: 49 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=22; implicit current-buffer line access=27
 
 src/textformat.c
 ================
@@ -1862,9 +1836,7 @@ src/textprop.c:90: [buffer memline member]     propdata_len = um->buf->b_ml.ml_l
 src/textprop.c:297: [buffer memline member]     if (lnum < 1 || lnum > buf->b_ml.ml_line_count)
 src/textprop.c:342: [buffer memline member]     if (lnum < 1 || lnum > buf->b_ml.ml_line_count)
 src/textprop.c:503: [buffer memline member]     if (um->buf->b_ml.ml_line_lnum != um->lnum)
-src/textprop.c:504: [writable line access] 	ml_get_buf(um->buf, um->lnum, TRUE);
 src/textprop.c:505: [buffer memline member]     else if (!(um->buf->b_ml.ml_flags & ML_LINE_DIRTY))
-src/textprop.c:506: [writable line access] 	(void)ml_get_buf(um->buf, um->lnum, TRUE);
 src/textprop.c:512: [buffer memline member]     if (um->buf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
 src/textprop.c:513: [buffer memline member] 	vim_free(um->buf->b_ml.ml_line_ptr);
 src/textprop.c:513: [memline cached/locked member] 	vim_free(um->buf->b_ml.ml_line_ptr);
@@ -1915,7 +1887,7 @@ src/textprop.c:2343: [buffer memline member]     if (start_lnum < 1 || start_lnu
 src/textprop.c:2405: [buffer memline member]     if (buf->b_ml.ml_mfp == NULL)
 src/textprop.c:2469: [buffer memline member] 	end = buf->b_ml.ml_line_count;
 src/textprop.c:2478: [buffer memline member] 	    if (lnum > buf->b_ml.ml_line_count)
-Stats: 57 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=44; memline cached/locked member=9; implicit current-buffer line access=2; writable line access=2
+Stats: 55 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=44; memline cached/locked member=9; implicit current-buffer line access=2
 
 src/typval.c
 ============
@@ -2010,10 +1982,10 @@ Totals
 ======
 Source files scanned: 449
 Files with findings: 81
-Total access findings: 1648
-Mutation follow-up candidates: 11
+Total access findings: 1639
+Mutation follow-up candidates: 2
 buffer memline member: 1059
 memline cached/locked member: 100
 implicit current-buffer line access: 461
 BUFEMPTY macro: 18
-writable line access: 10
+writable line access: 1

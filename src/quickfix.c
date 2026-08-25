@@ -6522,7 +6522,7 @@ vgr_match_buflines(
 			    fname,
 			    NULL,
 			    duplicate_name ? 0 : buf->b_fnum,
-			    ml_get_buf(buf,
+			    buf_line(buf,
 				regmatch->startpos[0].lnum + lnum, FALSE),
 			    regmatch->startpos[0].lnum + lnum,
 			    regmatch->endpos[0].lnum + lnum,
@@ -6547,14 +6547,14 @@ vgr_match_buflines(
 		    break;
 		col = regmatch->endpos[0].col
 		    + (col == regmatch->endpos[0].col);
-		if (col > ml_get_buf_len(buf, lnum))
+		if (col > buf_line_len(buf, lnum))
 		    break;
 	    }
 	}
 	else
 	{
-	    char_u  *str = ml_get_buf(buf, lnum, FALSE);
-	    colnr_T linelen = ml_get_buf_len(buf, lnum);
+	    char_u  *str = buf_line(buf, lnum, FALSE);
+	    colnr_T linelen = buf_line_len(buf, lnum);
 	    int	    score;
 	    int_u   matches[FUZZY_MATCH_MAX_LEN];
 	    int_u   sz = ARRAY_LENGTH(matches);

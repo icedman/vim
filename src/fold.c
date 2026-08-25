@@ -3257,7 +3257,7 @@ foldlevelIndent(fline_T *flp)
     linenr_T	lnum = flp->lnum + flp->off;
 
     buf = flp->wp->w_buffer;
-    s = skipwhite(ml_get_buf(buf, lnum, FALSE));
+    s = skipwhite(buf_line(buf, lnum, FALSE));
 
     // empty line or lines starting with a character in 'foldignore': level
     // depends on surrounding lines
@@ -3443,7 +3443,7 @@ foldlevelMarker(fline_T *flp)
     flp->start = 0;
     flp->lvl_next = flp->lvl;
 
-    s = ml_get_buf(flp->wp->w_buffer, flp->lnum + flp->off, FALSE);
+    s = buf_line(flp->wp->w_buffer, flp->lnum + flp->off, FALSE);
     while (*s)
     {
 	if (*s == cstart
