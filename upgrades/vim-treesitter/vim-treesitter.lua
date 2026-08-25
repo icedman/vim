@@ -12,8 +12,8 @@ local props = {}
 local parse_timers = {}
 local buffer_timers = {}
 
-
 local scope_hl_map = {
+	{ "comment", "Comment" },
 	{ "expression", "Operator" },
 	{ "identifier", "Identifier" },
 	{ "template", "Boolean" },
@@ -27,7 +27,6 @@ local scope_hl_map = {
 	{ "struct", "Structure" },
 	{ "return", "Keyword" },
 	{ "call", "Function" },
-	{ "comment", "Comment" },
 	{ "string", "String" },
 	{ "number", "Number" },
 	{ "tag", "StorageClass" },
