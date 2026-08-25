@@ -1428,7 +1428,7 @@ luaV_type_tostring(buffer, LUAVIM_BUFFER)
 luaV_buffer_len(lua_State *L)
 {
     buf_T *b = (buf_T *) luaV_checkvalid(L, luaV_Buffer, 1);
-    lua_pushinteger(L, b->b_ml.ml_line_count);
+    lua_pushinteger(L, buf_line_count(b));
     return 1;
 }
 
@@ -1446,7 +1446,7 @@ luaV_buffer_index(lua_State *L)
 {
     buf_T *b = (buf_T *) luaV_checkvalid(L, luaV_Buffer, 1);
     linenr_T n = (linenr_T) lua_tointeger(L, 2);
-    if (n > 0 && n <= b->b_ml.ml_line_count)
+    if (n > 0 && n <= buf_line_count(b))
 	luaV_pushline(L, b, n);
     else if (lua_isstring(L, 2))
     {
@@ -1484,7 +1484,7 @@ luaV_buffer_newindex(lua_State *L)
 # ifdef HAVE_SANDBOX
     luaV_checksandbox(L);
 # endif
-    if (n < 1 || n > b->b_ml.ml_line_count)
+    if (n < 1 || n > buf_line_count(b))
 	luaL_error(L, "invalid line number");
     if (lua_isnil(L, 3)) // delete line
     {
@@ -1551,7 +1551,7 @@ luaV_buffer_insert(lua_State *L)
 {
     luaV_Buffer *lb = luaV_checkudata(L, 1, LUAVIM_BUFFER);
     buf_T *b = (buf_T *) luaV_checkcache(L, (void *) *lb);
-    linenr_T last = b->b_ml.ml_line_count;
+    linenr_T last = buf_line_count(b);
     linenr_T n = (linenr_T) luaL_optinteger(L, 3, last);
     buf_T *buf;
     luaL_checktype(L, 2, LUA_TSTRING);
@@ -1676,7 +1676,7 @@ luaV_window_newindex(lua_State *L)
 # ifdef HAVE_SANDBOX
 	luaV_checksandbox(L);
 # endif
-	if (v < 1 || v > w->w_buffer->b_ml.ml_line_count)
+	if (v < 1 || v > buf_line_count(w->w_buffer))
 	    luaL_error(L, "line out of range");
 	w->w_cursor.lnum = v;
 	update_screen(UPD_VALID);

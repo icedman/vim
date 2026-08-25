@@ -5409,8 +5409,8 @@ mch_call_shell_fork(
 		    {
 			linenr_T    lnum = curbuf->b_op_start.lnum;
 			size_t	    written = 0;
-			char_u	    *lp = ml_get(lnum);
-			size_t	    lplen = (size_t)ml_get_len(lnum);
+			char_u	    *lp = buf_line(curbuf, lnum, FALSE);
+			size_t	    lplen = (size_t)buf_line_len(curbuf, lnum);
 
 			close(fromshell_fd);
 			for (;;)
@@ -5447,8 +5447,8 @@ mch_call_shell_fork(
 				    close(toshell_fd);
 				    break;
 				}
-				lp = ml_get(lnum);
-				lplen = ml_get_len(lnum);
+				lp = buf_line(curbuf, lnum, FALSE);
+				lplen = buf_line_len(curbuf, lnum);
 				written = 0;
 			    }
 			    else if (len > 0)

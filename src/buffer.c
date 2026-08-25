@@ -6513,6 +6513,60 @@ buf_line_len(buf_T *buf, linenr_T lnum)
     return ml_get_buf_len(buf, lnum);
 }
 
+// Return the cached line size, including NUL and text properties.
+    colnr_T
+buf_line_full_len(buf_T *buf)
+{
+    return buf->b_ml.ml_line_len;
+}
+
+/*
+ * Prepare line "lnum" as the dirty cached line for "buf".
+ */
+    void
+buf_prepare_cached_line(buf_T *buf, linenr_T lnum)
+{
+    if (buf->b_ml.ml_line_lnum != lnum
+					|| !(buf->b_ml.ml_flags & ML_LINE_DIRTY))
+	(void)buf_line(buf, lnum, TRUE);
+}
+
+/*
+ * Replace the cached line with the owned allocation "line".  Adjust the
+ * cached text size by "textlen_adjust", or invalidate it when requested.
+ */
+    void
+buf_replace_cached_line(
+    buf_T	*buf,
+    char_u	*line,
+    colnr_T	line_len,
+    int		textlen_adjust,
+    int		invalidate_textlen,
+    int		clear_empty)
+{
+    if (buf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
+	vim_free(buf->b_ml.ml_line_ptr);
+    buf->b_ml.ml_line_ptr = line;
+    buf->b_ml.ml_line_len = line_len;
+    if (invalidate_textlen)
+	buf->b_ml.ml_line_textlen = 0;
+    else
+	buf->b_ml.ml_line_textlen += textlen_adjust;
+    buf->b_ml.ml_flags |= ML_LINE_DIRTY;
+    if (clear_empty)
+	buf->b_ml.ml_flags &= ~ML_EMPTY;
+}
+
+/*
+ * Update cached lengths after changing the cached line in place.
+ */
+    void
+buf_adjust_cached_line_len(buf_T *buf, int amount, int textlen)
+{
+    buf->b_ml.ml_line_len += amount;
+    buf->b_ml.ml_line_textlen = textlen;
+}
+
 // Return the number of lines in "buf".
     linenr_T
 buf_line_count(buf_T *buf)
@@ -6533,6 +6587,58 @@ buf_is_empty(buf_T *buf)
 {
     return buf_line_count(buf) == 1
 	&& *buf_line(buf, (linenr_T)1, FALSE) == NUL;
+}
+
+// Return TRUE when memline marks "buf" as having its initial empty line.
+    int
+buf_has_empty_flag(buf_T *buf)
+{
+    return (buf->b_ml.ml_flags & ML_EMPTY) != 0;
+}
+
+// Set or clear the initial-empty-line state for "buf".
+    void
+buf_set_empty_flag(buf_T *buf, int empty)
+{
+    if (empty)
+	buf->b_ml.ml_flags |= ML_EMPTY;
+    else
+	buf->b_ml.ml_flags &= ~ML_EMPTY;
+}
+
+// Return the swap-file name for "buf", or NULL when there is no swap file.
+    char_u *
+buf_swapfile_name(buf_T *buf)
+{
+    if (!buf_is_loaded(buf))
+	return NULL;
+    return buf->b_ml.ml_mfp->mf_fname;
+}
+
+// Return the swap-file descriptor for "buf", or -1 when there is none.
+    int
+buf_swapfile_fd(buf_T *buf)
+{
+    if (buf_swapfile_name(buf) == NULL)
+	return -1;
+    return buf->b_ml.ml_mfp->mf_fd;
+}
+
+// Allow the swap file for "buf" to be synced after reading has completed.
+    void
+buf_enable_swapfile_sync(buf_T *buf)
+{
+    if (buf_is_loaded(buf)
+			&& buf->b_ml.ml_mfp->mf_dirty == MF_DIRTY_YES_NOSYNC)
+	buf->b_ml.ml_mfp->mf_dirty = MF_DIRTY_YES;
+}
+
+// Make the swap-file name for "buf" absolute.
+    void
+buf_make_swapfile_name_full(buf_T *buf)
+{
+    if (buf_is_loaded(buf))
+	mf_fullname(buf->b_ml.ml_mfp);
 }
 
 // Append a line to "buf".  "flags" currently has the ml_append new-file bit.

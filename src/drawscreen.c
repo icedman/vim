@@ -897,7 +897,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
 	// l10n: leave as-is unless a space after the comma is preferred
 	// l10n: do not add any row/column label, due to the limited space
 	bufferlen = vim_snprintf((char *)buffer, RULER_BUF_LEN, _("%ld,"),
-		(wp->w_buffer->b_ml.ml_flags & ML_EMPTY)
+		buf_is_empty(wp->w_buffer)
 		    ? 0L
 		    : (long)(wp->w_cursor.lnum));
 	bufferlen += col_print(buffer + bufferlen, RULER_BUF_LEN - bufferlen,

@@ -1601,7 +1601,7 @@ prepend_startcol_text(string_T *dest, string_T *src, int startcol)
 	return FAIL;
     }
 
-    char_u	*line = ml_get(curwin->w_cursor.lnum);
+    char_u	*line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 
     mch_memmove(dest->string, line + startcol, prepend_len);
     mch_memmove(dest->string + prepend_len, src->string, src->length);
@@ -4481,8 +4481,8 @@ process_next_cpt_value(
 	    // Move the cursor to after the last character in the
 	    // buffer, so that word at start of buffer is found
 	    // correctly.
-	    st->first_match_pos.lnum = st->ins_buf->b_ml.ml_line_count;
-	    st->first_match_pos.col = ml_get_len(st->first_match_pos.lnum);
+	    st->first_match_pos.lnum = buf_line_count(st->ins_buf);
+	    st->first_match_pos.col = buf_line_len(curbuf, st->first_match_pos.lnum);
 	}
 	st->last_match_pos = st->first_match_pos;
 	compl_type = 0;
@@ -4501,7 +4501,7 @@ process_next_cpt_value(
 	{
 	    compl_started = TRUE;
 	    st->first_match_pos.col = st->last_match_pos.col = 0;
-	    st->first_match_pos.lnum = st->ins_buf->b_ml.ml_line_count + 1;
+	    st->first_match_pos.lnum = buf_line_count(st->ins_buf) + 1;
 	    st->last_match_pos.lnum = 0;
 	    compl_type = 0;
 	}
@@ -5032,7 +5032,7 @@ ins_compl_get_next_word_or_line(
     {
 	if (compl_status_adding())
 	{
-	    if (cur_match_pos->lnum >= ins_buf->b_ml.ml_line_count)
+	    if (cur_match_pos->lnum >= buf_line_count(ins_buf))
 		return NULL;
 	    ptr = buf_line(ins_buf, cur_match_pos->lnum + 1, FALSE);
 	    len = buf_line_len(ins_buf, cur_match_pos->lnum + 1);
@@ -5064,7 +5064,7 @@ ins_compl_get_next_word_or_line(
 
 	if (compl_status_adding() && len == compl_length)
 	{
-	    if (cur_match_pos->lnum < ins_buf->b_ml.ml_line_count)
+	    if (cur_match_pos->lnum < buf_line_count(ins_buf))
 	    {
 		// Try next line, if any. the new word will be
 		// "join" as if the normal command "J" was used.
@@ -6905,7 +6905,7 @@ set_compl_globals(
 	    startcol = curs_col;
 
 	// Re-obtain line in case it has changed
-	char_u	*line = ml_get(curwin->w_cursor.lnum);
+	char_u	*line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 	int	len = curs_col - startcol;
 
 	compl_pattern.string = vim_strnsave(line + startcol, (size_t)len);
@@ -7050,7 +7050,7 @@ get_spell_compl_info(int startcol UNUSED, colnr_T curs_col UNUSED)
 	compl_length = (int)curs_col - compl_col;
     }
     // Need to obtain "line" again, it may have become invalid.
-    line = ml_get(curwin->w_cursor.lnum);
+    line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     compl_pattern.string = vim_strnsave(line + compl_col, (size_t)compl_length);
     if (compl_pattern.string == NULL)
     {
@@ -7205,7 +7205,7 @@ ins_compl_start(void)
 	return FAIL;
     }
 
-    line = ml_get(curwin->w_cursor.lnum);
+    line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     curs_col = curwin->w_cursor.col;
     compl_pending = 0;
     compl_lnum = curwin->w_cursor.lnum;
@@ -7241,7 +7241,7 @@ ins_compl_start(void)
     }
     // If "line" was changed while getting completion info get it again.
     if (line_invalid)
-	line = ml_get(curwin->w_cursor.lnum);
+	line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 
     if (compl_status_adding())
     {

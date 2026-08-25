@@ -1800,7 +1800,7 @@ channel_set_job(channel_T *channel, job_T *job, jobopt_T *options)
 	    in_part->ch_bufref.br_buf->b_write_to_channel = true;
 	    in_part->ch_buf_append = TRUE;
 	    in_part->ch_buf_top =
-		in_part->ch_bufref.br_buf->b_ml.ml_line_count + 1;
+		buf_line_count(in_part->ch_bufref.br_buf) + 1;
 	}
 	else
 	    in_part->ch_buf_top = options->jo_in_top;
@@ -1810,7 +1810,7 @@ channel_set_job(channel_T *channel, job_T *job, jobopt_T *options)
     if (options->jo_set & JO_IN_BOT)
 	in_part->ch_buf_bot = options->jo_in_bot;
     else
-	in_part->ch_buf_bot = in_part->ch_bufref.br_buf->b_ml.ml_line_count;
+	in_part->ch_buf_bot = buf_line_count(in_part->ch_bufref.br_buf);
 }
 
 /*
@@ -3114,11 +3114,11 @@ append_to_buffer(
     ch_part_T	part)
 {
     aco_save_T	aco;
-    linenr_T    lnum = buffer->b_ml.ml_line_count;
+    linenr_T    lnum = buf_line_count(buffer);
     bool	save_write_to = buffer->b_write_to_channel;
     chanpart_T  *ch_part = &channel->ch_part[part];
     int		save_p_ma = buffer->b_p_ma;
-    int		empty = (buffer->b_ml.ml_flags & ML_EMPTY) ? 1 : 0;
+    int		empty = buf_is_empty(buffer);
 
     if (!buffer->b_p_ma && !ch_part->ch_nomodifiable)
     {
@@ -3190,7 +3190,7 @@ append_to_buffer(
 
 		// If the cursor is at or above the new line, move it one line
 		// down.  If the topline is outdated update it now.
-		if (move_cursor || wp->w_topline > buffer->b_ml.ml_line_count)
+		if (move_cursor || wp->w_topline > buf_line_count(buffer))
 		{
 		    win_T *save_curwin = curwin;
 
@@ -3220,7 +3220,7 @@ append_to_buffer(
 	    chanpart_T  *in_part = &ch->ch_part[PART_IN];
 
 	    if (in_part->ch_bufref.br_buf == buffer)
-		in_part->ch_buf_bot = buffer->b_ml.ml_line_count;
+		in_part->ch_buf_bot = buf_line_count(buffer);
 	}
     }
 }

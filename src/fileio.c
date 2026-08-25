@@ -642,10 +642,10 @@ readfile(
 	}
 #ifdef UNIX
 	// Set swap file protection bits after creating it.
-	if (swap_mode > 0 && buf_is_loaded(curbuf)
-			  && curbuf->b_ml.ml_mfp->mf_fname != NULL)
+	char_u *swap_fname = buf_swapfile_name(curbuf);
+
+	if (swap_mode > 0 && swap_fname != NULL)
 	{
-	    char_u *swap_fname = curbuf->b_ml.ml_mfp->mf_fname;
 
 	    /*
 	     * If the group-read bit is set but not the world-read bit, then
@@ -661,7 +661,7 @@ readfile(
 		if (mch_stat((char *)swap_fname, &swap_st) >= 0
 			&& st.st_gid != swap_st.st_gid
 # ifdef HAVE_FCHOWN
-			&& fchown(curbuf->b_ml.ml_mfp->mf_fd, -1, st.st_gid)
+			&& fchown(buf_swapfile_fd(curbuf), -1, st.st_gid)
 									  == -1
 # endif
 		   )
@@ -766,7 +766,7 @@ readfile(
     }
 
     // Autocommands may add lines to the file, need to check if it is empty
-    wasempty = (curbuf->b_ml.ml_flags & ML_EMPTY);
+    wasempty = buf_is_empty(curbuf);
 
     if (!recoverymode && !filtering && !(flags & READ_DUMMY))
     {
@@ -1265,8 +1265,8 @@ retry:
 			tlen = 0;
 			for (;;)
 			{
-			    p = ml_get(read_buf_lnum) + read_buf_col;
-			    n = ml_get_len(read_buf_lnum) - read_buf_col;
+			    p = buf_line(curbuf, read_buf_lnum, FALSE) + read_buf_col;
+			    n = buf_line_len(curbuf, read_buf_lnum) - read_buf_col;
 			    if ((int)tlen + n + 1 > size)
 			    {
 				// Filled up to "size", append partial line.
@@ -2485,7 +2485,7 @@ failed:
     if (!recoverymode)
     {
 	// need to delete the last line, which comes from the empty buffer
-	if (newfile && wasempty && !(curbuf->b_ml.ml_flags & ML_EMPTY))
+	if (newfile && wasempty && !buf_is_empty(curbuf))
 	{
 #ifdef FEAT_NETBEANS_INTG
 	    netbeansFireChanges = 0;
@@ -2798,10 +2798,8 @@ failed:
 	retval = OK;
 
 theend:
-    if (buf_is_loaded(curbuf)
-		       && curbuf->b_ml.ml_mfp->mf_dirty == MF_DIRTY_YES_NOSYNC)
-	// OK to sync the swap file now
-	curbuf->b_ml.ml_mfp->mf_dirty = MF_DIRTY_YES;
+    // OK to sync the swap file now.
+    buf_enable_swapfile_sync(curbuf);
 
     return retval;
 }
@@ -3595,7 +3593,7 @@ shorten_fnames(int force)
 
 	// Always make the swap file name a full path, a "nofile" buffer may
 	// also have a swap file.
-	mf_fullname(buf->b_ml.ml_mfp);
+	buf_make_swapfile_name_full(buf);
     }
     status_redraw_all();
     redraw_tabline = TRUE;
@@ -4206,7 +4204,7 @@ move_lines(buf_T *frombuf, buf_T *tobuf)
 
     // Copy the lines in "frombuf" to "tobuf".
     curbuf = tobuf;
-    for (lnum = 1; lnum <= frombuf->b_ml.ml_line_count; ++lnum)
+    for (lnum = 1; lnum <= buf_line_count(frombuf); ++lnum)
     {
 	p = vim_strnsave(buf_line(frombuf, lnum, FALSE), buf_line_len(frombuf, lnum));
 	if (p == NULL || buf_append_line(curbuf, lnum - 1, p, 0, FALSE) == FAIL)

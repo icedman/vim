@@ -4822,8 +4822,8 @@ ex_cbottom(exarg_T *eap)
 	return;
 
     win = qf_find_win(qi);
-    if (win != NULL && win->w_cursor.lnum != win->w_buffer->b_ml.ml_line_count)
-	qf_win_goto(win, win->w_buffer->b_ml.ml_line_count);
+    if (win != NULL && win->w_cursor.lnum != buf_line_count(win->w_buffer))
+	qf_win_goto(win, buf_line_count(win->w_buffer));
 }
 
 /*
@@ -4860,7 +4860,7 @@ qf_win_pos_update(
     // it's viewable.
     win = qf_find_win(qi);
     if (win != NULL
-	    && qf_index <= win->w_buffer->b_ml.ml_line_count
+	&& qf_index <= buf_line_count(win->w_buffer)
 	    && old_qf_index != qf_index)
     {
 	if (qf_index > old_qf_index)
@@ -5219,7 +5219,7 @@ qf_fill_buffer(qf_list_T *qfl, buf_T *buf, qfline_T *old_last, int qf_winid)
 	//
 	// So we need to clean up undo information
 	// otherwise autocommands may invalidate the undo stack
-	while ((curbuf->b_ml.ml_flags & ML_EMPTY) == 0)
+	while (!buf_is_empty(curbuf))
 	    (void)buf_delete_line(curbuf, (linenr_T)1, 0);
 
 	FOR_ALL_TAB_WINDOWS(tp, wp)
@@ -6711,9 +6711,10 @@ vgr_process_args(
     static int
 existing_swapfile(buf_T *buf)
 {
-    if (buf_is_loaded(buf) && buf->b_ml.ml_mfp->mf_fname != NULL)
+    char_u *fname = buf_swapfile_name(buf);
+
+    if (fname != NULL)
     {
-	char_u *fname = buf->b_ml.ml_mfp->mf_fname;
 	size_t len = STRLEN(fname);
 
 	return fname[len - 1] != 'p' || fname[len - 2] != 'w';

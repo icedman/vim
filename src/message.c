@@ -2428,11 +2428,11 @@ put_msg_win(win_T *wp, int where, char_u *t_s, char_u *end, linenr_T lnum)
 	curbuf = wp->w_buffer;
 	if (where == PUT_APPEND)
 	{
-	    newp = concat_str(ml_get(lnum), t_s);
+	    newp = concat_str(buf_line(curbuf, lnum, FALSE), t_s);
 	    if (newp == NULL)
 		return;
 	    if (*end != NUL)
-		newp[STRLEN(ml_get(lnum)) + (end - t_s)] = NUL;
+		    newp[STRLEN(buf_line(curbuf, lnum, FALSE)) + (end - t_s)] = NUL;
 	}
 	else
 	{
@@ -2493,14 +2493,14 @@ msg_puts_display(
 		{
 		    // currently hidden, make it empty
 		    curbuf = msg_win->w_buffer;
-		    while ((curbuf->b_ml.ml_flags & ML_EMPTY) == 0)
+		    while (!buf_is_empty(curbuf))
 			buf_delete_line(curbuf, 1, 0);
 		    curbuf = curwin->w_buffer;
 		}
 	    }
 	    else
 	    {
-		lnum = msg_win->w_buffer->b_ml.ml_line_count;
+		lnum = buf_line_count(msg_win->w_buffer);
 		if (msg_col == 0)
 		    where = PUT_TRUNC;
 	    }
@@ -2682,7 +2682,7 @@ msg_puts_display(
 	    {
 		// Ignore a NL when the buffer is empty, it is used to scroll
 		// up the text.
-		if ((msg_win->w_buffer->b_ml.ml_flags & ML_EMPTY) == 0)
+		if (!buf_is_empty(msg_win->w_buffer))
 		{
 		    put_msg_win(msg_win, PUT_BELOW, t_s, t_s, lnum);
 		    ++lnum;

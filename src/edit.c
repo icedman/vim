@@ -4293,7 +4293,7 @@ ins_bs(
 			       (linenr_T)(curwin->w_cursor.lnum + 1)) == FAIL)
 		return FALSE;
 	    --Insstart.lnum;
-	    Insstart.col = ml_get_len(Insstart.lnum);
+	    Insstart.col = buf_line_len(curbuf, Insstart.lnum);
 	}
 	/*
 	 * In replace mode:
@@ -4331,23 +4331,19 @@ ins_bs(
 
 		    if (len > 0 && ptr[len - 1] == ' ')
 		    {
-			char_u *newp = alloc(curbuf->b_ml.ml_line_len - 1);
+			colnr_T full_len = buf_line_full_len(curbuf);
+			char_u *newp = alloc(full_len - 1);
 
 			if (newp != NULL)
 			{
 			    mch_memmove(newp, ptr, len - 1);
 			    newp[len - 1] = NUL;
-			    if (curbuf->b_ml.ml_line_len > len + 1)
+			    if (full_len > len + 1)
 				mch_memmove(newp + len, ptr + len + 1,
-					   curbuf->b_ml.ml_line_len - len - 1);
+						full_len - len - 1);
 
-			    if (curbuf->b_ml.ml_flags
-					      & (ML_LINE_DIRTY | ML_ALLOCATED))
-				vim_free(curbuf->b_ml.ml_line_ptr);
-			    curbuf->b_ml.ml_line_ptr = newp;
-			    curbuf->b_ml.ml_line_len--;
-			    curbuf->b_ml.ml_line_textlen--;
-			    curbuf->b_ml.ml_flags |= ML_LINE_DIRTY;
+			    buf_replace_cached_line(curbuf, newp,
+				 full_len - 1, -1, FALSE, FALSE);
 			}
 		    }
 		}
@@ -5318,23 +5314,21 @@ ins_tab(void)
 		    char_u  *newp;
 		    int	    col;
 
-		    newp = alloc(curbuf->b_ml.ml_line_len - i);
+		    colnr_T full_len = buf_line_full_len(curbuf);
+		    char_u *line = buf_line(curbuf, fpos.lnum, FALSE);
+
+		    newp = alloc(full_len - i);
 		    if (newp == NULL)
 			return FALSE;
 
-		    col = ptr - curbuf->b_ml.ml_line_ptr;
+		    col = ptr - line;
 		    if (col > 0)
 			mch_memmove(newp, ptr - col, col);
 		    mch_memmove(newp + col, ptr + i,
-					   curbuf->b_ml.ml_line_len - col - i);
+						full_len - col - i);
 
-		    if (curbuf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
-			vim_free(curbuf->b_ml.ml_line_ptr);
-		    curbuf->b_ml.ml_line_ptr = newp;
-		    curbuf->b_ml.ml_line_len -= i;
-		    curbuf->b_ml.ml_line_textlen = 0;
-		    curbuf->b_ml.ml_flags =
-			   (curbuf->b_ml.ml_flags | ML_LINE_DIRTY) & ~ML_EMPTY;
+		    buf_replace_cached_line(curbuf, newp, full_len - i,
+						  0, TRUE, TRUE);
 		}
 		else
 #endif
@@ -5539,7 +5533,7 @@ ins_copychar(linenr_T lnum)
 
     // try to advance to the cursor column
     validate_virtcol();
-    line = ml_get(lnum);
+    line = buf_line(curbuf, lnum, FALSE);
     prev_ptr = line;
     init_chartabsize_arg(&cts, curwin, lnum, 0, line, line);
     while (cts.cts_vcol < curwin->w_virtcol && *cts.cts_ptr != NUL)

@@ -148,7 +148,8 @@ Phase 1 remains open until its API checks and debug assertions are added.
   `buf_line_count()` and `buf_is_empty()` in consumer code.
 - [x] Replace loaded-state null checks with `buf_is_loaded()` in consumer
   code, preserving inverse checks and compound conditions.
-- [ ] Migrate implicit-current-buffer reads.
+- [x] Migrate implicit-current-buffer reads outside the classified
+  implementation and compatibility exceptions.
 - [x] Added buffer-owned mutation APIs: `buf_append_line()`,
   `buf_replace_line()`, and `buf_delete_line()`.
 - [x] Migrated mutation consumers, including language integrations and
@@ -156,14 +157,23 @@ Phase 1 remains open until its API checks and debug assertions are added.
 - [x] Added `tools/check_internal_mutations.py` and generated
   `internal_mutations.txt` as the mutation inventory.
 
-The access inventory reports 1,075 findings, including 514 direct `b_ml`
-accesses, 460 implicit-current-buffer line accesses, and one writable line
-access. The mutation inventory reports 186 findings after the consumer
-migration: 44 implicit mutation references, 17 explicit/internal mutation
-references, one writable line access, 124 direct memline state mutations, and
-two line-pointer follow-up candidates. Remaining mutation findings are
-primarily implementation-side operations in `memline.c` and direct cache/state
-management that still require deliberate review.
+The regenerated raw access inventory now reports 534 findings: 382 direct
+`b_ml` accesses, 64 implicit-current-buffer references, 87 cached/locked-member
+accesses, and one writable line access. It has no line-pointer follow-up
+candidates. The raw mutation inventory reports 171 findings: 44 implicit
+mutation references, 17 explicit/internal mutation references, one writable
+line access, and 109 direct memline state mutations. It also has no line-pointer
+follow-up candidates. These raw findings are implementation internals,
+generated compatibility declarations, or comment references; the classified
+full-source enforcement audit reports zero external violations.
+
+Phase 3 enforcement currently checks only newly added lines, so it does not
+hide these pre-existing findings. Run `make check-buffer-interface` for the
+presubmit check or `python3 tools/check_buffer_interface.py --all` for the full
+`src/memline.c`, `src/memfile.c`, and generated `src/proto/memline.pro` are
+implementation exceptions. `src/buffer.c` is a temporary exception whose
+legacy buffer lifecycle/facade access is explicitly a follow-up before the
+boundary can be considered complete.
 
 - Convert reads before mutations, grouping changes by subsystem to keep each
   patch buildable.
@@ -189,9 +199,16 @@ buffer convenience wrapper only where the caller truly means `curbuf`.
   at least remove external direct access to `b_ml` and document the remaining
   implementation-only exceptions.
 - Rename or relocate compatibility wrappers once all callers have migrated.
-- Add a presubmit/review grep or static check that rejects new external
-  `->b_ml`, `ml_line_ptr`, and implicit current-buffer text access.
-- Re-run the inventory and require zero unclassified consumer accesses.
+- [x] Add `tools/check_buffer_interface.py`, a presubmit check that rejects
+  new external `->b_ml`, `ml_line_ptr`, `BUFEMPTY()`, and implicit
+  current-buffer text access.  It checks added source lines by default and
+  provides `--all` for auditing the remaining legacy accesses.  Temporary
+  implementation exceptions are `src/memline.c`, `src/memfile.c`, and generated
+  `src/proto/memline.pro`. `src/buffer.c` remains a temporary follow-up
+  exception.
+- [x] Re-run the inventory and require zero unclassified consumer accesses.
+  `python3 tools/check_buffer_interface.py --all` passes for the full source
+  tree.
 
 ### Phase 4: harden and optimize
 

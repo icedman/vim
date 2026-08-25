@@ -566,9 +566,9 @@ do_exmode(
 	lines_left = Rows - 1;
 
 	if ((prev_line != curwin->w_cursor.lnum
-		   || changedtick != CHANGEDTICK(curbuf)) && !ex_no_reprint)
+		       || changedtick != CHANGEDTICK(curbuf)) && !ex_no_reprint)
 	{
-	    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+	    if (buf_is_empty(curbuf))
 		emsg(_(e_empty_buffer));
 	    else
 	    {
@@ -587,7 +587,7 @@ do_exmode(
 	}
 	else if (ex_pressedreturn && !ex_no_reprint)	// must be at EOF
 	{
-	    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+	    if (buf_is_empty(curbuf))
 		emsg(_(e_empty_buffer));
 	    else
 		emsg(_(e_at_end_of_file));
@@ -6858,7 +6858,7 @@ ex_exit(exarg_T *eap)
     static void
 ex_print(exarg_T *eap)
 {
-    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+    if (buf_is_empty(curbuf))
 	emsg(_(e_empty_buffer));
     else
     {
@@ -7919,10 +7919,12 @@ ex_popup(exarg_T *eap)
     static void
 ex_swapname(exarg_T *eap UNUSED)
 {
-    if (!buf_is_loaded(curbuf) || curbuf->b_ml.ml_mfp->mf_fname == NULL)
+    char_u *swapname = buf_swapfile_name(curbuf);
+
+    if (swapname == NULL)
 	msg(_("No swap file"));
     else
-	msg((char *)curbuf->b_ml.ml_mfp->mf_fname);
+	msg((char *)swapname);
 }
 
 /*
@@ -8007,7 +8009,7 @@ ex_syncbind(exarg_T *eap UNUSED)
 ex_read(exarg_T *eap)
 {
     int		i;
-    int		empty = (curbuf->b_ml.ml_flags & ML_EMPTY);
+    int		empty = buf_is_empty(curbuf);
     linenr_T	lnum;
 
     if (eap->usefilter)			// :r!cmd
@@ -8069,7 +8071,8 @@ ex_read(exarg_T *eap)
 		lnum = buf_line_count(curbuf);
 	    else
 		lnum = 1;
-	    if (*ml_get(lnum) == NUL && u_savedel(lnum, 1L) == OK)
+	    if (*buf_line(curbuf, lnum, FALSE) == NUL
+					    && u_savedel(lnum, 1L) == OK)
 	    {
 		buf_delete_line(curbuf, lnum, 0);
 		if (curwin->w_cursor.lnum > 1

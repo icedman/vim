@@ -504,7 +504,7 @@ fmt_check_par(
     char_u	*flags = NULL;	    // init for GCC
     char_u	*ptr;
 
-    ptr = ml_get(lnum);
+    ptr = buf_line(curbuf, lnum, FALSE);
     if (do_comments)
 	*leader_len = get_leader_len(ptr, leader_flags, FALSE, TRUE);
     else
@@ -529,12 +529,12 @@ fmt_check_par(
     static int
 ends_in_white(linenr_T lnum)
 {
-    char_u	*s = ml_get(lnum);
+    char_u	*s = buf_line(curbuf, lnum, FALSE);
     size_t	l;
 
     if (*s == NUL)
 	return FALSE;
-    l = ml_get_len(lnum) - 1;
+    l = buf_line_len(curbuf, lnum) - 1;
     return VIM_ISWHITE(s[l]);
 }
 
@@ -574,7 +574,7 @@ same_leader(
 		return FALSE;
 	    if (*p == COM_START)
 	    {
-		int line_len = ml_get_len(lnum);
+		int line_len = buf_line_len(curbuf, lnum);
 		if (line_len <= leader1_len)
 		    return FALSE;
 		if (leader2_flags == NULL || leader2_len == 0)
@@ -589,14 +589,14 @@ same_leader(
 
     // Get current line and next line, compare the leaders.
     // The first line has to be saved, only one line can be locked at a time.
-    line1 = vim_strnsave(ml_get(lnum), ml_get_len(lnum));
+    line1 = vim_strnsave(buf_line(curbuf, lnum, FALSE), buf_line_len(curbuf, lnum));
     if (line1 != NULL)
     {
 	char_u  *line2;
 
 	for (idx1 = 0; VIM_ISWHITE(line1[idx1]); ++idx1)
 	    ;
-	line2 = ml_get(lnum + 1);
+	line2 = buf_line(curbuf, lnum + 1, FALSE);
 	for (idx2 = 0; idx2 < leader2_len; ++idx2)
 	{
 	    if (!VIM_ISWHITE(line2[idx2]))
@@ -630,7 +630,7 @@ paragraph_start(linenr_T lnum)
     if (lnum <= 1)
 	return TRUE;		// start of the file
 
-    p = ml_get(lnum - 1);
+    p = buf_line(curbuf, lnum - 1, FALSE);
     if (*p == NUL)
 	return TRUE;		// after empty line
 

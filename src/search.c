@@ -2034,7 +2034,7 @@ find_rawstring_end(char_u *linep, pos_T *startpos, pos_T *endpos)
 	return FALSE;
     for (lnum = startpos->lnum; lnum <= endpos->lnum; ++lnum)
     {
-	char_u *line = ml_get(lnum);
+	char_u *line = buf_line(curbuf, lnum, FALSE);
 
 	for (p = line + (lnum == startpos->lnum
 					    ? startpos->col + 1 : 0); *p; ++p)
@@ -2207,7 +2207,7 @@ findmatchlimit(
 
     pos = curwin->w_cursor;
     pos.coladd = 0;
-    linep = ml_get(pos.lnum);
+    linep = buf_line(curbuf, pos.lnum, FALSE);
 
     cpo_match = (vim_strchr(p_cpo, CPO_MATCH) != NULL);
     cpo_bsl = (vim_strchr(p_cpo, CPO_MATCHBSL) != NULL);
@@ -2376,7 +2376,7 @@ findmatchlimit(
 		else if (pos.lnum == 1)
 		    break;
 		pos.lnum += hash_dir;
-		linep = ml_get(pos.lnum);
+		linep = buf_line(curbuf, pos.lnum, FALSE);
 		line_breakcheck();	// check for CTRL-C typed
 		ptr = skipwhite(linep);
 		if (*ptr != '#')
@@ -2461,8 +2461,8 @@ findmatchlimit(
 		if (maxtravel > 0 && ++traveled > maxtravel)
 		    break;
 
-		linep = ml_get(pos.lnum);
-		pos.col = ml_get_len(pos.lnum); // pos.col on trailing NUL
+		linep = buf_line(curbuf, pos.lnum, FALSE);
+		pos.col = buf_line_len(curbuf, pos.lnum); // pos.col on trailing NUL
 		do_quotes = -1;
 		line_breakcheck();
 
@@ -2502,7 +2502,7 @@ findmatchlimit(
 		if (maxtravel && traveled++ > maxtravel)
 		    break;
 
-		linep = ml_get(pos.lnum);
+		linep = buf_line(curbuf, pos.lnum, FALSE);
 		pos.col = 0;
 		do_quotes = -1;
 		line_breakcheck();
@@ -2598,7 +2598,7 @@ findmatchlimit(
 			    match_pos = pos;
 			    match_pos.col--;
 			}
-			linep = ml_get(pos.lnum); // may have been released
+			linep = buf_line(curbuf, pos.lnum, FALSE); // may have been released
 		    }
 		}
 		else if (  linep[pos.col - 1] == '/'
@@ -2674,8 +2674,8 @@ findmatchlimit(
 		}
 		if (pos.lnum > 1)
 		{
-		    ptr = ml_get(pos.lnum - 1);
-		    if (*ptr && *(ptr + ml_get_len(pos.lnum - 1) - 1) == '\\')
+		    ptr = buf_line(curbuf, pos.lnum - 1, FALSE);
+		    if (*ptr && *(ptr + buf_line_len(curbuf, pos.lnum - 1) - 1) == '\\')
 		    {
 			do_quotes = 1;
 			if (start_in_quotes == MAYBE)
@@ -2689,7 +2689,7 @@ findmatchlimit(
 		    }
 
 		    // ml_get() only keeps one line, need to get linep again
-		    linep = ml_get(pos.lnum);
+		    linep = buf_line(curbuf, pos.lnum, FALSE);
 		}
 	    }
 	}
@@ -3123,7 +3123,7 @@ current_search(
 		// try again from end of buffer
 		// searching backwards, so set pos to last line and col
 		pos.lnum = buf_line_count(curwin->w_buffer);
-		pos.col  = ml_get_len(buf_line_count(curwin->w_buffer));
+		pos.col  = buf_line_len(curbuf, buf_line_count(curwin->w_buffer));
 	    }
 	}
     }
@@ -3184,7 +3184,7 @@ linewhite(linenr_T lnum)
 {
     char_u  *p;
 
-    p = skipwhite(ml_get(lnum));
+    p = skipwhite(buf_line(curbuf, lnum, FALSE));
     return (*p == NUL);
 }
 
@@ -3409,7 +3409,7 @@ update_search_stat(
     static char_u *
 get_line_and_copy(linenr_T lnum, char_u *buf)
 {
-    char_u *line = ml_get(lnum);
+    char_u *line = buf_line(curbuf, lnum, FALSE);
 
     vim_strncpy(buf, line, LSIZE - 1);
     return buf;
@@ -4165,8 +4165,8 @@ show_pat_in_path(
 	{
 	    if (++*lnum > buf_line_count(curbuf))
 		break;
-	    line = ml_get(*lnum);
-	    linelen = ml_get_len(*lnum);
+	    line = buf_line(curbuf, *lnum, FALSE);
+	    linelen = buf_line_len(curbuf, *lnum);
 	}
 	msg_putchar('\n');
     }

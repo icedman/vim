@@ -5629,7 +5629,7 @@ spell_make_sugfile(spellinfo_T *spin, char_u *wfname)
 	goto theend;
 
     smsg(_("Number of words after soundfolding: %ld"),
-				 (long)spin->si_spellbuf->b_ml.ml_line_count);
+				 buf_line_count(spin->si_spellbuf));
 
     /*
      * Compress the soundfold trie.
@@ -5968,7 +5968,7 @@ sug_write(spellinfo_T *spin, char_u *fname)
     /*
      * <SUGTABLE>: <sugwcount> <sugline> ...
      */
-    wcount = spin->si_spellbuf->b_ml.ml_line_count;
+    wcount = buf_line_count(spin->si_spellbuf);
     put_bytes(fd, (long_u)wcount, 4);	// <sugwcount>
 
     for (lnum = 1; lnum <= (linenr_T)wcount; ++lnum)

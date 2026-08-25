@@ -7060,9 +7060,9 @@ var2fpos(
 	if (error || pos.lnum <= 0 || pos.lnum > buf_line_count(curbuf))
 	    return NULL;	// invalid line number
 	if (charcol)
-	    len = (long)mb_charlen(ml_get(pos.lnum));
+	    len = (long)mb_charlen(buf_line(curbuf, pos.lnum, FALSE));
 	else
-	    len = (long)ml_get_len(pos.lnum);
+	    len = (long)buf_line_len(curbuf, pos.lnum);
 
 	// Get the column number
 	// We accept "$" for the column number: last column.

@@ -1575,7 +1575,7 @@ invoke_prompt_callback(void)
     if (curbuf->b_prompt_callback.cb_name == NULL
 	    || *curbuf->b_prompt_callback.cb_name == NUL)
 	return;
-    text = ml_get(lnum);
+    text = buf_line(curbuf, lnum, FALSE);
     prompt = prompt_text();
     if (STRLEN(text) >= STRLEN(prompt))
 	text += STRLEN(prompt);

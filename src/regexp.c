@@ -2873,7 +2873,7 @@ init_regexec_multi(
     rex.reg_buf = buf;
     rex.reg_win = win;
     rex.reg_firstlnum = lnum;
-    rex.reg_maxline = rex.reg_buf->b_ml.ml_line_count - lnum;
+    rex.reg_maxline = buf_line_count(rex.reg_buf) - lnum;
     rex.reg_line_lbr = FALSE;
     rex.reg_ic = rmp->rmm_ic;
     rex.reg_icombine = FALSE;

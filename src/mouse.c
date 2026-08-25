@@ -96,7 +96,7 @@ find_start_of_word(pos_T *pos)
     int		cclass;
     int		col;
 
-    line = ml_get(pos->lnum);
+    line = buf_line(curbuf, pos->lnum, FALSE);
     cclass = get_mouse_class(line + pos->col);
 
     while (pos->col > 0)
@@ -120,7 +120,7 @@ find_end_of_word(pos_T *pos)
     int		cclass;
     int		col;
 
-    line = ml_get(pos->lnum);
+    line = buf_line(curbuf, pos->lnum, FALSE);
     if (*p_sel == 'e' && pos->col > 0)
     {
 	--pos->col;
@@ -3415,7 +3415,7 @@ mouse_comp_pos(
 #ifdef FEAT_FOLDING
 	(void)hasFoldingWin(win, lnum, NULL, &lnum, TRUE, NULL);
 #endif
-	if (lnum == win->w_buffer->b_ml.ml_line_count)
+	if (lnum == buf_line_count(win->w_buffer))
 	{
 	    retval = TRUE;
 	    break;		// past end of file

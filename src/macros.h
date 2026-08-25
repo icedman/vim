@@ -43,7 +43,7 @@
 /*
  * LINEEMPTY() - return TRUE if the line is empty
  */
-#define LINEEMPTY(p) (*ml_get(p) == NUL)
+#define LINEEMPTY(p) (*buf_line(curbuf, (p), FALSE) == NUL)
 
 
 

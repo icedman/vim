@@ -3206,7 +3206,7 @@ nv_colon(cmdarg_T *cap)
 	clearop(cap->oap);
     else if (cap->oap->op_type != OP_NOP
 	    && (cap->oap->start.lnum > buf_line_count(curbuf)
-		|| cap->oap->start.col > ml_get_len(cap->oap->start.lnum)
+		|| cap->oap->start.col > buf_line_len(curbuf, cap->oap->start.lnum)
 		|| did_emsg
 	       ))
 	// The start of the operator has become invalid by the Ex command.
@@ -5195,12 +5195,12 @@ n_swapchar(cmdarg_T *cap)
 		{
 		    if (did_change)
 		    {
-			ptr = ml_get(pos.lnum);
-			count = (int)ml_get_len(pos.lnum) - pos.col;
+			ptr = buf_line(curbuf, pos.lnum, FALSE);
+			count = (int)buf_line_len(curbuf, pos.lnum) - pos.col;
 			netbeans_removed(curbuf, pos.lnum, pos.col,
 								 (long)count);
 			// line may have been flushed, get it again
-			ptr = ml_get(pos.lnum);
+			ptr = buf_line(curbuf, pos.lnum, FALSE);
 			netbeans_inserted(curbuf, pos.lnum, pos.col,
 							&ptr[pos.col], count);
 		    }
@@ -5224,7 +5224,7 @@ n_swapchar(cmdarg_T *cap)
 #ifdef FEAT_NETBEANS_INTG
     if (did_change && netbeans_active())
     {
-	ptr = ml_get(pos.lnum);
+	ptr = buf_line(curbuf, pos.lnum, FALSE);
 	count = curwin->w_cursor.col - pos.col;
 	netbeans_removed(curbuf, pos.lnum, pos.col, (long)count);
 	netbeans_inserted(curbuf, pos.lnum, pos.col, &ptr[pos.col], count);
@@ -6822,7 +6822,7 @@ unadjust_for_sel_inner(pos_T *pp)
     else if (pp->lnum > 1)
     {
 	--pp->lnum;
-	pp->col = ml_get_len(pp->lnum);
+	pp->col = buf_line_len(curbuf, pp->lnum);
 	return TRUE;
     }
 
@@ -7506,7 +7506,7 @@ nv_put_opt(cmdarg_T *cap, int fix_indent)
 	++msg_silent;
 	nv_operator(cap);
 	do_pending_operator(cap, 0, FALSE);
-	empty = (curbuf->b_ml.ml_flags & ML_EMPTY);
+	empty = buf_has_empty_flag(curbuf);
 	--msg_silent;
 
 	// delete PUT_LINE_BACKWARD;
@@ -7563,7 +7563,7 @@ nv_put_opt(cmdarg_T *cap, int fix_indent)
 
     // When all lines were selected and deleted do_put() leaves an empty
     // line that needs to be deleted now.
-    if (empty && *ml_get(buf_line_count(curbuf)) == NUL)
+    if (empty && *buf_line(curbuf, buf_line_count(curbuf), FALSE) == NUL)
     {
 	buf_delete_line(curbuf, buf_line_count(curbuf), ML_DEL_MESSAGE);
 	deleted_lines(buf_line_count(curbuf) + 1, 1);

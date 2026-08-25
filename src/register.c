@@ -1420,9 +1420,9 @@ op_yank(oparg_T *oap, int deleting, int mess)
 		break;
 
 	    case MLINE:
-		y_current->y_array[y_idx].length = ml_get_len(lnum);
+		y_current->y_array[y_idx].length = buf_line_len(curbuf, lnum);
 		if ((y_current->y_array[y_idx].string =
-					vim_strnsave(ml_get(lnum),
+					vim_strnsave(buf_line(curbuf, lnum, FALSE),
 					y_current->y_array[y_idx].length)) == NULL)
 		{
 		    VIM_CLEAR_STRING(y_current->y_array[y_idx]);
@@ -2296,8 +2296,8 @@ do_put(
 		totlen = count * yanklen;
 		do
 		{
-		    oldp = ml_get(lnum);
-		    oldlen = ml_get_len(lnum);
+		    oldp = buf_line(curbuf, lnum, FALSE);
+		    oldlen = buf_line_len(curbuf, lnum);
 		    if (lnum > start_lnum)
 		    {
 			pos_T   pos;
@@ -2383,9 +2383,9 @@ do_put(
 		    // First insert y_array[size - 1] in front of second line.
 		    // Then append y_array[0] to first line.
 		    lnum = new_cursor.lnum;
-		    ptr = ml_get(lnum) + col;
+		    ptr = buf_line(curbuf, lnum, FALSE) + col;
 		    totlen = (int)y_array[y_size - 1].length;
-		    newp = alloc(ml_get_len(lnum) - col + totlen + 1);
+		    newp = alloc(buf_line_len(curbuf, lnum) - col + totlen + 1);
 		    if (newp == NULL)
 			goto error;
 		    STRCPY(newp, y_array[y_size - 1].string);
@@ -2395,7 +2395,7 @@ do_put(
 		    ++new_lnum;
 		    vim_free(newp);
 
-		    oldp = ml_get(lnum);
+		    oldp = buf_line(curbuf, lnum, FALSE);
 		    newp = alloc(col + yanklen + 1);
 		    if (newp == NULL)
 			goto error;
@@ -2425,9 +2425,9 @@ do_put(
 			pos_T	old_pos = curwin->w_cursor;
 
 			curwin->w_cursor.lnum = lnum;
-			ptr = ml_get(lnum);
+			ptr = buf_line(curbuf, lnum, FALSE);
 			if (cnt == count && i == y_size - 1)
-			    lendiff = ml_get_len(lnum);
+			    lendiff = buf_line_len(curbuf, lnum);
 			if (*ptr == '#' && preprocs_left())
 			    indent = 0;     // Leave # lines at start
 			else if (*ptr == NUL)
@@ -2444,7 +2444,7 @@ do_put(
 			curwin->w_cursor = old_pos;
 			// remember how many chars were removed
 			if (cnt == count && i == y_size - 1)
-			    lendiff -= ml_get_len(lnum);
+			    lendiff -= buf_line_len(curbuf, lnum);
 		    }
 		}
 		if (cnt == 1)

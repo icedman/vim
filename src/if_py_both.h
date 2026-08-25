@@ -4750,7 +4750,7 @@ WindowSetattr(PyObject *self_obj, char *name, PyObject *valObject)
 	if (!PyArg_Parse(valObject, "(ll)", &lnum, &col))
 	    return -1;
 
-	if (lnum <= 0 || lnum > self->win->w_buffer->b_ml.ml_line_count)
+	if (lnum <= 0 || lnum > buf_line_count(self->win->w_buffer))
 	{
 	    PyErr_SET_VIM(N_("cursor position outside buffer"));
 	    return -1;

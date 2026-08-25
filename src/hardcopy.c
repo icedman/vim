@@ -646,7 +646,7 @@ ex_hardcopy(exarg_T *eap)
      * Estimate the total lines to be printed
      */
     for (lnum = eap->line1; lnum <= eap->line2; lnum++)
-	bytes_to_print += (long_u)STRLEN(skipwhite(ml_get(lnum)));
+	bytes_to_print += (long_u)STRLEN(skipwhite(buf_line(curbuf, lnum, FALSE)));
     if (bytes_to_print == 0)
     {
 	msg(_("No text to be printed"));
@@ -760,7 +760,7 @@ ex_hardcopy(exarg_T *eap)
 			{
 			    // finished a file line
 			    prtpos.bytes_printed +=
-				  STRLEN(skipwhite(ml_get(prtpos.file_line)));
+				  STRLEN(skipwhite(buf_line(curbuf, prtpos.file_line, FALSE)));
 			    if (++prtpos.file_line > eap->line2)
 				break; // reached the end
 			}
@@ -855,7 +855,7 @@ hardcopy_line(
     }
 
     mch_print_start_line(0, page_line);
-    line = ml_get(ppos->file_line);
+    line = buf_line(curbuf, ppos->file_line, FALSE);
 
     /*
      * Loop over the columns until the end of the file line or right margin.
@@ -877,7 +877,7 @@ hardcopy_line(
 	    else
 		id = 0;
 	    // Get the line again, a multi-line regexp may invalidate it.
-	    line = ml_get(ppos->file_line);
+	    line = buf_line(curbuf, ppos->file_line, FALSE);
 
 	    if (id != current_syn_id)
 	    {

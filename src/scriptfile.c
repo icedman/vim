@@ -1595,7 +1595,7 @@ do_source_buffer_init(source_cookie_T *sp, exarg_T *eap)
     // Copy the lines from the buffer into a grow array
     for (curr_lnum = eap->line1; curr_lnum <= eap->line2; curr_lnum++)
     {
-	line = vim_strsave(ml_get(curr_lnum));
+	line = vim_strsave(buf_line(curbuf, curr_lnum, FALSE));
 	if (line == NULL)
 	    goto errret;
 	if (ga_add_string(&sp->buflines, line) == FAIL)

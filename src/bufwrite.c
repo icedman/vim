@@ -1661,7 +1661,7 @@ buf_write(
 
     if (end > buf_line_count(buf))
 	end = buf_line_count(buf);
-    if (buf->b_ml.ml_flags & ML_EMPTY)
+    if (buf_is_empty(buf))
 	start = end + 1;
 
     // If the original file is being overwritten, there is a small chance that

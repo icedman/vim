@@ -189,7 +189,7 @@ findpar(
 	did_skip = FALSE;
 	for (first = TRUE; ; first = FALSE)
 	{
-	    if (*ml_get(curr) != NUL)
+	    if (*buf_line(curbuf, curr, FALSE) != NUL)
 		did_skip = TRUE;
 
 #ifdef FEAT_FOLDING
@@ -206,7 +206,7 @@ findpar(
 	    // doesn't match historical Vi: It also stops at a "{" in the
 	    // first column and at an empty line.
 	    if (!first && did_skip && (startPS(curr, what, both)
-			   || (posix && what == NUL && *ml_get(curr) == '{')))
+			   || (posix && what == NUL && *buf_line(curbuf, curr, FALSE) == '{')))
 		break;
 
 #ifdef FEAT_FOLDING
@@ -223,16 +223,16 @@ findpar(
 	}
     }
     setpcmark();
-    if (both && *ml_get(curr) == '}')	// include line with '}'
+    if (both && *buf_line(curbuf, curr, FALSE) == '}')	// include line with '}'
 	++curr;
     curwin->w_cursor.lnum = curr;
     if (curr == buf_line_count(curbuf) && what != '}' && dir == FORWARD)
     {
-	char_u *line = ml_get(curr);
+	char_u *line = buf_line(curbuf, curr, FALSE);
 
 	// Put the cursor on the last character in the last line and make the
 	// motion inclusive.
-	if ((curwin->w_cursor.col = ml_get_len(curr)) != 0)
+	if ((curwin->w_cursor.col = buf_line_len(curbuf, curr)) != 0)
 	{
 	    --curwin->w_cursor.col;
 	    curwin->w_cursor.col -=
@@ -282,7 +282,7 @@ startPS(linenr_T lnum, int para, int both)
 {
     char_u	*s;
 
-    s = ml_get(lnum);
+    s = buf_line(curbuf, lnum, FALSE);
     if (*s == para || *s == '\f' || (both && *s == '}'))
 	return TRUE;
     if (*s == '.' && (inmacro(p_sections, s + 1) ||

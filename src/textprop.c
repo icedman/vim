@@ -87,7 +87,7 @@ um_goto_line(unpacked_memline_T *um, linenr_T lnum, int extra_props)
 
     line = buf_line(um->buf, lnum, FALSE);
     textlen = buf_line_len(um->buf, lnum) + 1;
-    propdata_len = um->buf->b_ml.ml_line_len - textlen;
+    propdata_len = buf_line_full_len(um->buf) - textlen;
 
     um->lnum = lnum;
     um->text_size = (colnr_T)textlen;
@@ -497,23 +497,14 @@ um_store_changes(unpacked_memline_T *um)
 	return;
     }
 
-    // Flush any other dirty line before setting ours.  buf_line()
-    // with will_change=TRUE will flush the current dirty line and set
-    // up for our line.
-    if (um->buf->b_ml.ml_line_lnum != um->lnum)
-	buf_line(um->buf, um->lnum, TRUE);
-    else if (!(um->buf->b_ml.ml_flags & ML_LINE_DIRTY))
-	(void)buf_line(um->buf, um->lnum, TRUE);
+    // Flush any other dirty line and set up ours as the dirty cached line.
+    buf_prepare_cached_line(um->buf, um->lnum);
 
     // Free the detached text and vtext before switching to packed.
     vim_free(um->text);
     um_free_vtext(um->props, um->prop_count);
 
-    if (um->buf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
-	vim_free(um->buf->b_ml.ml_line_ptr);
-    um->buf->b_ml.ml_line_ptr = packed;
-    um->buf->b_ml.ml_line_len = packed_len;
-    um->buf->b_ml.ml_flags |= ML_LINE_DIRTY;
+    buf_replace_cached_line(um->buf, packed, packed_len, 0, FALSE, FALSE);
 
     um->detached = false;
     um->text = packed;
@@ -856,7 +847,7 @@ prop_add_one(
 	    goto theend;
 
 	// Copy line text.
-	mch_memmove(newtext, buf->b_ml.ml_line_ptr, textlen);
+	mch_memmove(newtext, text, textlen);
 
 	// Write prop_count.
 	count_dest = newtext + textlen;
@@ -913,11 +904,7 @@ prop_add_one(
 	mch_memmove(newprops + i * sizeof(textprop_T), &tmp_prop,
 							sizeof(textprop_T));
 
-	if (buf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
-	    vim_free(buf->b_ml.ml_line_ptr);
-	buf->b_ml.ml_line_ptr = newtext;
-	buf->b_ml.ml_line_len = new_line_len;
-	buf->b_ml.ml_flags |= ML_LINE_DIRTY;
+	buf_replace_cached_line(buf, newtext, new_line_len, 0, FALSE, FALSE);
     }
 
     changed_line_display_buf(buf);
@@ -1242,7 +1229,7 @@ get_text_props(buf_T *buf, linenr_T lnum, char_u **props, int will_change)
     // Fetch the line to get the ml_line_len field updated.
     text = buf_line(buf, lnum, will_change);
     textlen = buf_line_len(buf, lnum) + 1;
-    propdata_len = buf->b_ml.ml_line_len - textlen;
+    propdata_len = buf_line_full_len(buf) - textlen;
     if (propdata_len == 0)
 	return 0;
 
@@ -1499,8 +1486,8 @@ set_text_props(linenr_T lnum, textprop_T *tps, int count)
     char_u  *newtext;
     int	    textlen;
 
-    text = ml_get(lnum);
-    textlen = ml_get_len(lnum) + 1;
+    text = buf_line(curbuf, lnum, FALSE);
+    textlen = buf_line_len(curbuf, lnum) + 1;
 
     if (count == 0)
     {
@@ -1509,11 +1496,7 @@ set_text_props(linenr_T lnum, textprop_T *tps, int count)
 	if (newtext == NULL)
 	    return;
 	mch_memmove(newtext, text, textlen);
-	if (curbuf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
-	    vim_free(curbuf->b_ml.ml_line_ptr);
-	curbuf->b_ml.ml_line_ptr = newtext;
-	curbuf->b_ml.ml_line_len = textlen;
-	curbuf->b_ml.ml_flags |= ML_LINE_DIRTY;
+	buf_replace_cached_line(curbuf, newtext, textlen, 0, FALSE, FALSE);
     }
     else
     {
@@ -1563,11 +1546,7 @@ set_text_props(linenr_T lnum, textprop_T *tps, int count)
 	    prop_dest += sizeof(textprop_T);
 	}
 
-	if (curbuf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
-	    vim_free(curbuf->b_ml.ml_line_ptr);
-	curbuf->b_ml.ml_line_ptr = newtext;
-	curbuf->b_ml.ml_line_len = total_len;
-	curbuf->b_ml.ml_flags |= ML_LINE_DIRTY;
+	buf_replace_cached_line(curbuf, newtext, total_len, 0, FALSE, FALSE);
     }
 }
 

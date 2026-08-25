@@ -3970,7 +3970,7 @@ get_col(typval_T *argvars, typval_T *rettv, int charcol)
 	{
 	    // '> can be MAXCOL, get the length of the line then
 	    if (fp->lnum <= buf_line_count(curbuf))
-		col = ml_get_len(fp->lnum) + 1;
+		col = buf_line_len(curbuf, fp->lnum) + 1;
 	    else
 		col = MAXCOL;
 	}
@@ -6076,7 +6076,7 @@ getregionpos(
 	return FAIL;
     }
 
-    if (p1->lnum < 1 || p1->lnum > findbuf->b_ml.ml_line_count)
+    if (p1->lnum < 1 || p1->lnum > buf_line_count(findbuf))
     {
 	semsg(_(e_invalid_line_number_nr), p1->lnum);
 	return FAIL;
@@ -6089,7 +6089,7 @@ getregionpos(
 	return FAIL;
     }
 
-    if (p2->lnum < 1 || p2->lnum > findbuf->b_ml.ml_line_count)
+    if (p2->lnum < 1 || p2->lnum > buf_line_count(findbuf))
     {
 	semsg(_(e_invalid_line_number_nr), p2->lnum);
 	return FAIL;
@@ -6206,8 +6206,8 @@ f_getregion(typval_T *argvars, typval_T *rettv)
 	{
 	    string_T	s;
 
-	    s.string = ml_get(lnum);
-	    s.length = ml_get_len(lnum);
+	    s.string = buf_line(curbuf, lnum, FALSE);
+	    s.length = buf_line_len(curbuf, lnum);
 	    akt.string = vim_strnsave(s.string, s.length);
 	    if (akt.string == NULL)
 		akt.length = 0;
@@ -6321,8 +6321,8 @@ f_getregionpos(typval_T *argvars, typval_T *rettv)
     for (lnum = p1.lnum; lnum <= p2.lnum; lnum++)
     {
 	pos_T		ret_p1, ret_p2;
-	char_u		*line = ml_get(lnum);
-	colnr_T		line_len = ml_get_len(lnum);
+	char_u		*line = buf_line(curbuf, lnum, FALSE);
+	colnr_T		line_len = buf_line_len(curbuf, lnum);
 
 	if (region_type == MLINE)
 	{
@@ -9820,7 +9820,7 @@ f_nextnonblank(typval_T *argvars, typval_T *rettv)
 	    lnum = 0;
 	    break;
 	}
-	if (*skipwhite(ml_get(lnum)) != NUL)
+	if (*skipwhite(buf_line(curbuf, lnum, FALSE)) != NUL)
 	    break;
     }
     rettv->vval.v_number = lnum;
@@ -9955,7 +9955,7 @@ f_prevnonblank(typval_T *argvars, typval_T *rettv)
     if (lnum < 1 || lnum > buf_line_count(curbuf))
 	lnum = 0;
     else
-	while (lnum >= 1 && *skipwhite(ml_get(lnum)) == NUL)
+	while (lnum >= 1 && *skipwhite(buf_line(curbuf, lnum, FALSE)) == NUL)
 	    --lnum;
     rettv->vval.v_number = lnum;
 }
@@ -12340,6 +12340,7 @@ f_swapinfo(typval_T *argvars, typval_T *rettv)
 f_swapname(typval_T *argvars, typval_T *rettv)
 {
     buf_T	*buf;
+    char_u	*swapname;
 
     rettv->v_type = VAR_STRING;
 
@@ -12347,11 +12348,8 @@ f_swapname(typval_T *argvars, typval_T *rettv)
 	return;
 
     buf = tv_get_buf(&argvars[0], FALSE);
-    if (buf == NULL || !buf_is_loaded(buf)
-					|| buf->b_ml.ml_mfp->mf_fname == NULL)
-	rettv->vval.v_string = NULL;
-    else
-	rettv->vval.v_string = vim_strsave(buf->b_ml.ml_mfp->mf_fname);
+    swapname = buf == NULL ? NULL : buf_swapfile_name(buf);
+    rettv->vval.v_string = swapname == NULL ? NULL : vim_strsave(swapname);
 }
 
 /*
@@ -12378,7 +12376,7 @@ f_synID(typval_T *argvars UNUSED, typval_T *rettv)
     trans = (int)tv_get_bool_chk(&argvars[2], &transerr);
 
     if (!transerr && lnum >= 1 && lnum <= buf_line_count(curbuf)
-	    && col >= 0 && col < (long)ml_get_len(lnum))
+	    && col >= 0 && col < (long)buf_line_len(curbuf, lnum))
 	id = syn_get_id(curwin, lnum, col, trans, NULL, FALSE);
 #endif
 
@@ -12555,7 +12553,7 @@ f_synconcealed(typval_T *argvars UNUSED, typval_T *rettv)
     if (rettv_list_alloc(rettv) == OK)
     {
 	if (lnum >= 1 && lnum <= buf_line_count(curbuf)
-	    && col >= 0 && col <= (long)ml_get_len(lnum)
+	    && col >= 0 && col <= (long)buf_line_len(curbuf, lnum)
 	    && curwin->w_p_cole > 0)
 	{
 	    (void)syn_get_id(curwin, lnum, col, FALSE, NULL, FALSE);
@@ -12612,7 +12610,7 @@ f_synstack(typval_T *argvars UNUSED, typval_T *rettv)
     col = (colnr_T)tv_get_number(&argvars[1]) - 1;	// -1 on type error
 
     if (lnum >= 1 && lnum <= buf_line_count(curbuf)
-	    && col >= 0 && col <= (long)ml_get_len(lnum)
+	    && col >= 0 && col <= (long)buf_line_len(curbuf, lnum)
 	    && rettv_list_alloc(rettv) == OK)
     {
 	(void)syn_get_id(curwin, lnum, col, FALSE, NULL, TRUE);
@@ -12816,7 +12814,7 @@ f_virtcol(typval_T *argvars, typval_T *rettv)
 	    fp->col = 0;
 	else
 	{
-	    len = (int)ml_get_len(fp->lnum);
+	    len = (int)buf_line_len(curbuf, fp->lnum);
 	    if (fp->col > len)
 		fp->col = len;
 	}

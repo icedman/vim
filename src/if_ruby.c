@@ -892,7 +892,7 @@ ex_rubydo(exarg_T *eap)
 
 	if (i > buf_line_count(curbuf))
 	    break;
-	line = vim_str2rb_enc_str((char *)ml_get(i));
+	line = vim_str2rb_enc_str((char *)buf_line(curbuf, i, FALSE));
 	rb_lastline_set(line);
 	eval_enc_string_protect((char *) eap->arg, &state);
 	if (state)

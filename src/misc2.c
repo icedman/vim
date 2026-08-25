@@ -407,8 +407,8 @@ dec(pos_T *lp)
     if (lp->col == MAXCOL)
     {
 	// past end of line
-	p = ml_get(lp->lnum);
-	lp->col = ml_get_len(lp->lnum);
+	p = buf_line(curbuf, lp->lnum, FALSE);
+	lp->col = buf_line_len(curbuf, lp->lnum);
 	if (has_mbyte)
 	    lp->col -= (*mb_head_off)(p, p + lp->col);
 	return 0;
@@ -420,7 +420,7 @@ dec(pos_T *lp)
 	lp->col--;
 	if (has_mbyte)
 	{
-	    p = ml_get(lp->lnum);
+	    p = buf_line(curbuf, lp->lnum, FALSE);
 	    lp->col -= (*mb_head_off)(p, p + lp->col);
 	}
 	return 0;
@@ -430,8 +430,8 @@ dec(pos_T *lp)
     {
 	// there is a prior line
 	lp->lnum--;
-	p = ml_get(lp->lnum);
-	lp->col = ml_get_len(lp->lnum);
+	p = buf_line(curbuf, lp->lnum, FALSE);
+	lp->col = buf_line_len(curbuf, lp->lnum);
 	if (has_mbyte)
 	    lp->col -= (*mb_head_off)(p, p + lp->col);
 	return 1;
@@ -643,7 +643,7 @@ check_visual_pos(void)
     }
     else
     {
-	int len = ml_get_len(VIsual.lnum);
+	int len = buf_line_len(curbuf, VIsual.lnum);
 
 	if (VIsual.col > len)
 	{

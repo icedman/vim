@@ -15,42 +15,29 @@ src/buffer.c:853: [direct memline state mutation]     buf->b_ml.ml_line_count = 
 src/buffer.c:862: [direct memline state mutation]     buf->b_ml.ml_mfp = NULL;
 src/buffer.c:863: [direct memline state mutation]     buf->b_ml.ml_flags = ML_EMPTY;		// empty buffer
 src/buffer.c:977: [direct memline state mutation]     buf->b_ml.ml_line_count = 0;    // no lines in buffer
-src/buffer.c:6547: [explicit line mutation]     return ml_append_buf(buf, lnum, line, len, flags != 0);
-Stats: 5 mutation finding(s); 0 line pointer follow-up candidate(s); explicit line mutation=1; direct memline state mutation=4
+src/buffer.c:6549: [direct memline state mutation]     buf->b_ml.ml_line_ptr = line;
+src/buffer.c:6550: [direct memline state mutation]     buf->b_ml.ml_line_len = line_len;
+src/buffer.c:6552: [direct memline state mutation] 	buf->b_ml.ml_line_textlen = 0;
+src/buffer.c:6554: [direct memline state mutation] 	buf->b_ml.ml_line_textlen += textlen_adjust;
+src/buffer.c:6555: [direct memline state mutation]     buf->b_ml.ml_flags |= ML_LINE_DIRTY;
+src/buffer.c:6557: [direct memline state mutation] 	buf->b_ml.ml_flags &= ~ML_EMPTY;
+src/buffer.c:6566: [direct memline state mutation]     buf->b_ml.ml_line_len += amount;
+src/buffer.c:6567: [direct memline state mutation]     buf->b_ml.ml_line_textlen = textlen;
+src/buffer.c:6604: [direct memline state mutation] 	buf->b_ml.ml_flags |= ML_EMPTY;
+src/buffer.c:6606: [direct memline state mutation] 	buf->b_ml.ml_flags &= ~ML_EMPTY;
+src/buffer.c:6653: [explicit line mutation]     return ml_append_buf(buf, lnum, line, len, flags != 0);
+Stats: 15 mutation finding(s); 0 line pointer follow-up candidate(s); explicit line mutation=1; direct memline state mutation=14
 
 src/change.c
 ============
 src/change.c:1612: [implicit line mutation]     // netbeans_removed(), which deallocates the line.	Let ml_replace() take
-src/change.c:1640: [direct memline state mutation] 	curbuf->b_ml.ml_line_len -= count;
-src/change.c:1641: [direct memline state mutation] 	curbuf->b_ml.ml_line_textlen = 0;
-Stats: 3 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=1; direct memline state mutation=2
-
-src/diff.c
-==========
-src/diff.c:924: [direct memline state mutation] 	buf->b_ml.ml_flags |= ML_EMPTY;
-src/diff.c:932: [direct memline state mutation]     buf->b_ml.ml_flags =
-Stats: 2 mutation finding(s); 0 line pointer follow-up candidate(s); direct memline state mutation=2
-
-src/edit.c
-==========
-src/edit.c:4347: [direct memline state mutation] 			    curbuf->b_ml.ml_line_ptr = newp;
-src/edit.c:4348: [direct memline state mutation] 			    curbuf->b_ml.ml_line_len--;
-src/edit.c:4349: [direct memline state mutation] 			    curbuf->b_ml.ml_line_textlen--;
-src/edit.c:4350: [direct memline state mutation] 			    curbuf->b_ml.ml_flags |= ML_LINE_DIRTY;
-src/edit.c:5333: [direct memline state mutation] 		    curbuf->b_ml.ml_line_ptr = newp;
-src/edit.c:5334: [direct memline state mutation] 		    curbuf->b_ml.ml_line_len -= i;
-src/edit.c:5335: [direct memline state mutation] 		    curbuf->b_ml.ml_line_textlen = 0;
-src/edit.c:5336: [direct memline state mutation] 		    curbuf->b_ml.ml_flags =
-Stats: 8 mutation finding(s); 0 line pointer follow-up candidate(s); direct memline state mutation=8
+Stats: 1 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=1
 
 src/ex_cmds.c
 =============
 src/ex_cmds.c:604: [implicit line mutation] 	    // ml_append(). And it's needed for "unique".
 src/ex_cmds.c:1053: [implicit line mutation] 	// ml_append()
-Line pointer follow-up candidates:
-src/ex_cmds.c:779: s from line 758 is written: 	    s[end_col] = NUL;
-
-Stats: 2 mutation finding(s); 1 line pointer follow-up candidate(s); implicit line mutation=2
+Stats: 2 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=2
 
 src/fileio.c
 ============
@@ -61,13 +48,6 @@ src/if_py_both.h
 ================
 src/if_py_both.h:5174: [implicit line mutation] 	// We do not need to free "save" if ml_replace() consumes it.
 Stats: 1 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=1
-
-src/indent.c
-============
-Line pointer follow-up candidates:
-src/indent.c:1861: ptr from line 1781 is written: 			    ptr[col] = (col < num_tabs) ? '\t' : ' ';
-
-Stats: 0 mutation finding(s); 1 line pointer follow-up candidate(s)
 
 src/memline.c
 =============
@@ -236,34 +216,13 @@ src/structs.h:890: [implicit line mutation] // Values for the flags argument of 
 src/structs.h:895: [explicit line mutation] // Values for the flags argument of ml_append_int().
 Stats: 2 mutation finding(s); 0 line pointer follow-up candidate(s); implicit line mutation=1; explicit line mutation=1
 
-src/textprop.c
-==============
-src/textprop.c:514: [direct memline state mutation]     um->buf->b_ml.ml_line_ptr = packed;
-src/textprop.c:515: [direct memline state mutation]     um->buf->b_ml.ml_line_len = packed_len;
-src/textprop.c:516: [direct memline state mutation]     um->buf->b_ml.ml_flags |= ML_LINE_DIRTY;
-src/textprop.c:918: [direct memline state mutation] 	buf->b_ml.ml_line_ptr = newtext;
-src/textprop.c:919: [direct memline state mutation] 	buf->b_ml.ml_line_len = new_line_len;
-src/textprop.c:920: [direct memline state mutation] 	buf->b_ml.ml_flags |= ML_LINE_DIRTY;
-src/textprop.c:1514: [direct memline state mutation] 	curbuf->b_ml.ml_line_ptr = newtext;
-src/textprop.c:1515: [direct memline state mutation] 	curbuf->b_ml.ml_line_len = textlen;
-src/textprop.c:1516: [direct memline state mutation] 	curbuf->b_ml.ml_flags |= ML_LINE_DIRTY;
-src/textprop.c:1568: [direct memline state mutation] 	curbuf->b_ml.ml_line_ptr = newtext;
-src/textprop.c:1569: [direct memline state mutation] 	curbuf->b_ml.ml_line_len = total_len;
-src/textprop.c:1570: [direct memline state mutation] 	curbuf->b_ml.ml_flags |= ML_LINE_DIRTY;
-Stats: 12 mutation finding(s); 0 line pointer follow-up candidate(s); direct memline state mutation=12
-
-src/undo.c
-==========
-src/undo.c:2924: [direct memline state mutation] 	curbuf->b_ml.ml_flags |= ML_EMPTY;
-Stats: 1 mutation finding(s); 0 line pointer follow-up candidate(s); direct memline state mutation=1
-
 Totals
 ======
 Source files scanned: 449
-Files with findings: 14
-Total mutation findings: 186
-Line pointer follow-up candidates: 2
+Files with findings: 9
+Total mutation findings: 171
+Line pointer follow-up candidates: 0
 implicit line mutation: 44
 explicit line mutation: 17
 writable line access: 1
-direct memline state mutation: 124
+direct memline state mutation: 109

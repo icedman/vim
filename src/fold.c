@@ -226,8 +226,8 @@ hasFoldingWin(
 	return FALSE;
     }
 
-    if (last > win->w_buffer->b_ml.ml_line_count)
-	last = win->w_buffer->b_ml.ml_line_count;
+    if (last > buf_line_count(win->w_buffer))
+	last = buf_line_count(win->w_buffer);
     if (lastp != NULL)
 	*lastp = last;
     if (firstp != NULL)
@@ -1081,7 +1081,7 @@ foldAdjustVisual(void)
     if (!hasFolding(end->lnum, NULL, &end->lnum))
 	return;
 
-    end->col = ml_get_len(end->lnum);
+    end->col = buf_line_len(curbuf, end->lnum);
     if (end->col > 0 && *p_sel == 'o')
 	--end->col;
     // prevent cursor from moving on the trail byte
@@ -1801,8 +1801,8 @@ foldAddMarker(linenr_T lnum, char_u *marker, int markerlen)
     int		line_is_comment = FALSE;
 
     // Allocate a new line: old-line + 'cms'-start + marker + 'cms'-end
-    line = ml_get(lnum);
-    line_len = ml_get_len(lnum);
+    line = buf_line(curbuf, lnum, FALSE);
+    line_len = buf_line_len(curbuf, lnum);
 
     if (u_save(lnum - 1, lnum + 1) != OK)
 	return;
@@ -1867,7 +1867,7 @@ foldDelMarker(linenr_T lnum, char_u *marker, int markerlen)
     // end marker may be missing and fold extends below the last line
     if (lnum > buf_line_count(curbuf))
 	return;
-    line = ml_get(lnum);
+    line = buf_line(curbuf, lnum, FALSE);
     for (p = line; *p != NUL; ++p)
 	if (STRNCMP(p, marker, markerlen) == 0)
 	{
@@ -1890,7 +1890,7 @@ foldDelMarker(linenr_T lnum, char_u *marker, int markerlen)
 	    if (u_save(lnum - 1, lnum + 1) == OK)
 	    {
 		// Make new line: text-before-marker + text-after-marker
-		newline = alloc(ml_get_len(lnum) - len + 1);
+		newline = alloc(buf_line_len(curbuf, lnum) - len + 1);
 		if (newline != NULL)
 		{
 		    STRNCPY(newline, line, p - line);
@@ -3768,7 +3768,7 @@ f_foldtext(typval_T *argvars UNUSED, typval_T *rettv)
 		break;
 
 	// Find interesting text in this line.
-	s = skipwhite(ml_get(lnum));
+	s = skipwhite(buf_line(curbuf, lnum, FALSE));
 	// skip C comment-start
 	if (s[0] == '/' && (s[1] == '*' || s[1] == '/'))
 	{
@@ -3776,7 +3776,7 @@ f_foldtext(typval_T *argvars UNUSED, typval_T *rettv)
 	    if (*skipwhite(s) == NUL
 			    && lnum + 1 < (linenr_T)get_vim_var_nr(VV_FOLDEND))
 	    {
-		s = skipwhite(ml_get(lnum + 1));
+		s = skipwhite(buf_line(curbuf, lnum + 1, FALSE));
 		if (*s == '*')
 		    s = skipwhite(s + 1);
 	    }

@@ -359,10 +359,10 @@ get_undolevel(void)
     static int
 u_save_line(undoline_T *ul, linenr_T lnum)
 {
-    char_u *line = ml_get(lnum);
+    char_u *line = buf_line(curbuf, lnum, FALSE);
 
-    ul->ul_textlen = ml_get_len(lnum);
-    if (curbuf->b_ml.ml_line_len == 0)
+    ul->ul_textlen = buf_line_len(curbuf, lnum);
+    if (buf_line_full_len(curbuf) == 0)
     {
 	ul->ul_len = 1;
 	ul->ul_line = vim_strsave((char_u *)"");
@@ -371,7 +371,7 @@ u_save_line(undoline_T *ul, linenr_T lnum)
     {
 	// This uses the length in the memline, thus text properties are
 	// included.
-	ul->ul_len = curbuf->b_ml.ml_line_len;
+	ul->ul_len = buf_line_full_len(curbuf);
 	ul->ul_line = vim_memsave(line, ul->ul_len);
     }
     return ul->ul_line == NULL ? FAIL : OK;
@@ -597,7 +597,7 @@ u_savecommon(
 
 	// save changed and buffer empty flag for undo
 	uhp->uh_flags = (curbuf->b_changed ? UH_CHANGED : 0) +
-		       ((curbuf->b_ml.ml_flags & ML_EMPTY) ? UH_EMPTYBUF : 0);
+		       (buf_is_empty(curbuf) ? UH_EMPTYBUF : 0);
 
 	// save named marks and Visual marks for undo
 	mch_memmove(uhp->uh_namedm, curbuf->b_namedm, sizeof(pos_T) * NMARKS);
@@ -788,7 +788,7 @@ u_compute_hash(char_u *hash)
 
     sha256_start(&ctx);
     for (lnum = 1; lnum <= buf_line_count(curbuf); ++lnum)
-	sha256_update(&ctx, ml_get(lnum), (UINT32_T)(ml_get_len(lnum) + 1));
+	sha256_update(&ctx, buf_line(curbuf, lnum, FALSE), (UINT32_T)(buf_line_len(curbuf, lnum) + 1));
     sha256_finish(&ctx, hash);
 }
 
@@ -2270,7 +2270,7 @@ u_doit(int startcount)
 
     u_newcount = 0;
     u_oldcount = 0;
-    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+    if (buf_is_empty(curbuf))
 	u_oldcount = -1;
     while (count--)
     {
@@ -2373,7 +2373,7 @@ undo_time(
 
     u_newcount = 0;
     u_oldcount = 0;
-    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+    if (buf_is_empty(curbuf))
 	u_oldcount = -1;
 
     // "target" is the node below which we want to be.
@@ -2730,7 +2730,7 @@ u_undoredo(int undo)
 #endif
     old_flags = curhead->uh_flags;
     new_flags = (curbuf->b_changed ? UH_CHANGED : 0) +
-	       ((curbuf->b_ml.ml_flags & ML_EMPTY) ? UH_EMPTYBUF : 0);
+		       (buf_is_empty(curbuf) ? UH_EMPTYBUF : 0);
     setpcmark();
 
     /*
@@ -2783,11 +2783,11 @@ u_undoredo(int undo)
 		// line.
 		for (i = 0; i < newsize && i < oldsize; ++i)
 		{
-		    char_u *p = ml_get(top + 1 + i);
+		    char_u *p = buf_line(curbuf, top + 1 + i, FALSE);
 
-		    if (curbuf->b_ml.ml_line_len != uep->ue_array[i].ul_len
+		    if (buf_line_full_len(curbuf) != uep->ue_array[i].ul_len
 			    || memcmp(uep->ue_array[i].ul_line, p,
-						curbuf->b_ml.ml_line_len) != 0)
+						buf_line_full_len(curbuf)) != 0)
 			break;
 		}
 		if (i == newsize && newlnum == MAXLNUM && uep->ue_next == NULL)
@@ -2921,7 +2921,7 @@ u_undoredo(int undo)
     curhead->uh_entry = newlist;
     curhead->uh_flags = new_flags;
     if ((old_flags & UH_EMPTYBUF) && buf_is_empty(curbuf))
-	curbuf->b_ml.ml_flags |= ML_EMPTY;
+	buf_set_empty_flag(curbuf, TRUE);
     if (old_flags & UH_CHANGED)
 	changed();
     else
@@ -3038,7 +3038,7 @@ u_undo_end(
 	    || shortmess(SHM_UNDO))
 	return;
 
-    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+    if (buf_is_empty(curbuf))
 	--u_newcount;
 
     u_oldcount -= u_newcount;
@@ -3292,7 +3292,7 @@ u_find_first_changed(void)
     {
 	char_u *p = buf_line(curbuf, lnum, FALSE);
 
-	if (uep->ue_array[lnum - 1].ul_len != curbuf->b_ml.ml_line_len
+	if (uep->ue_array[lnum - 1].ul_len != buf_line_full_len(curbuf)
 		|| memcmp(p, uep->ue_array[lnum - 1].ul_line, uep->ue_array[lnum - 1].ul_len) != 0)
 	{
 	    CLEAR_POS(&(uhp->uh_cursor));

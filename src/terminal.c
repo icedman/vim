@@ -2034,7 +2034,7 @@ term_try_stop_job(buf_T *buf)
 add_scrollback_line_to_buffer(term_T *term, char_u *text, int len, int append)
 {
     buf_T	*buf = term->tl_buffer;
-    int		empty = (buf->b_ml.ml_flags & ML_EMPTY);
+    int		empty = buf_is_empty(buf);
     linenr_T	lnum = buf_line_count(buf);
 
 #ifdef MSWIN
@@ -2362,8 +2362,8 @@ may_move_terminal_to_buffer(term_T *term, int redraw)
 
     // Update the snapshot only if something changes or the buffer does not
     // have all the lines.
-    if (term->tl_dirty_snapshot || term->tl_buffer->b_ml.ml_line_count
-					       <= term->tl_buffer_scrolled)
+    if (term->tl_dirty_snapshot || buf_line_count(term->tl_buffer)
+				       <= term->tl_buffer_scrolled)
 	update_snapshot(term);
 
     if (redraw)
@@ -2375,7 +2375,7 @@ may_move_terminal_to_buffer(term_T *term, int redraw)
 	{
 	    if (wp->w_buffer == term->tl_buffer)
 	    {
-		wp->w_cursor.lnum = term->tl_buffer->b_ml.ml_line_count;
+		wp->w_cursor.lnum = buf_line_count(term->tl_buffer);
 		wp->w_cursor.col = 0;
 		wp->w_valid = 0;
 		if (wp->w_cursor.lnum >= wp->w_height)
@@ -6010,7 +6010,7 @@ term_load_dump(typval_T *argvars, typval_T *rettv, int do_diff)
 	else
 	{
 	    buf = curbuf;
-	    while (!(curbuf->b_ml.ml_flags & ML_EMPTY))
+	    while (!buf_is_empty(curbuf))
 		buf_delete_line(curbuf, (linenr_T)1, 0);
 	    free_scrollback(curbuf->b_term);
 	    redraw_later(UPD_NOT_VALID);
@@ -6102,12 +6102,12 @@ term_load_dump(typval_T *argvars, typval_T *rettv, int do_diff)
 								    ->sb_cells;
 
 		// Make a copy, getting the second line will invalidate it.
-		line1 = vim_strsave(ml_get(lnum));
+		line1 = vim_strsave(buf_line(curbuf, lnum, FALSE));
 		if (line1 == NULL)
 		    break;
 		p1 = line1;
 
-		line2 = ml_get(lnum + bot_lnum);
+		line2 = buf_line(curbuf, lnum + bot_lnum, FALSE);
 		p2 = line2;
 		for (col = 0; col < width && *p1 != NUL && *p2 != NUL; ++col)
 		{
@@ -6233,7 +6233,7 @@ term_swap_diff(void)
     // move lines from top to above the bottom part
     for (lnum = 1; lnum <= top_rows; ++lnum)
     {
-	p = vim_strsave(ml_get(1));
+	p = vim_strsave(buf_line(curbuf, 1, FALSE));
 	if (p == NULL)
 	    return OK;
 	buf_append_line(curbuf, bot_start, p, 0, FALSE);
@@ -6244,7 +6244,7 @@ term_swap_diff(void)
     // move lines from bottom to the top
     for (lnum = 1; lnum <= bot_rows; ++lnum)
     {
-	p = vim_strsave(ml_get(bot_start + lnum));
+	p = vim_strsave(buf_line(curbuf, bot_start + lnum, FALSE));
 	if (p == NULL)
 	    return OK;
 	buf_delete_line(curbuf, bot_start + lnum, 0);
@@ -6253,7 +6253,7 @@ term_swap_diff(void)
     }
 
     // move top title to bottom
-    p = vim_strsave(ml_get(bot_rows + 1));
+    p = vim_strsave(buf_line(curbuf, bot_rows + 1, FALSE));
     if (p == NULL)
 	return OK;
     buf_append_line(curbuf, line_count - top_rows - 1, p, 0, FALSE);
@@ -6261,7 +6261,7 @@ term_swap_diff(void)
     vim_free(p);
 
     // move bottom title to top
-    p = vim_strsave(ml_get(line_count - top_rows));
+    p = vim_strsave(buf_line(curbuf, line_count - top_rows, FALSE));
     if (p == NULL)
 	return OK;
     buf_delete_line(curbuf, line_count - top_rows, 0);

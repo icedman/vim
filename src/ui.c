@@ -1180,7 +1180,7 @@ check_row(int row)
     long
 scroll_line_len(linenr_T lnum)
 {
-    char_u	*p = ml_get(lnum);
+    char_u	*p = buf_line(curbuf, lnum, FALSE);
     colnr_T	col = 0;
 
     if (*p != NUL)

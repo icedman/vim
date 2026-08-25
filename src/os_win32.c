@@ -5151,7 +5151,7 @@ sub_process_writer(LPVOID param)
     linenr_T	    lnum = curbuf->b_op_start.lnum;
     DWORD	    len = 0;
     DWORD	    l;
-    char_u	    *lp = ml_get(lnum);
+    char_u	    *lp = buf_line(curbuf, lnum, FALSE);
     char_u	    *s;
     int		    written = 0;
 
@@ -5191,7 +5191,7 @@ sub_process_writer(LPVOID param)
 	    if (lnum > curbuf->b_op_end.lnum)
 		break;
 
-	    lp = ml_get(lnum);
+	    lp = buf_line(curbuf, lnum, FALSE);
 	    written = 0;
 	}
 	else if (len > 0)

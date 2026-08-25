@@ -707,7 +707,7 @@ diff_check_sanity(tabpage_T *tp, diff_T *dp)
     for (i = 0; i < DB_COUNT; ++i)
 	if (tp->tp_diffbuf[i] != NULL)
 	    if (dp->df_lnum[i] + dp->df_count[i] - 1
-				      > tp->tp_diffbuf[i]->b_ml.ml_line_count)
+				> buf_line_count(tp->tp_diffbuf[i]))
 		return FAIL;
     return OK;
 }
@@ -804,7 +804,7 @@ diff_write_buffer(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
     if (end < 0)
 	end = buf_line_count(buf);
 
-    if (buf->b_ml.ml_flags & ML_EMPTY || end < start)
+    if (buf_is_empty(buf) || end < start)
     {
 	din->din_mmfile.ptr = NULL;
 	din->din_mmfile.size = 0;
@@ -892,7 +892,7 @@ diff_write_buffer(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
 diff_write(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
 {
     int		r;
-    int		save_ml_flags;
+    int		save_empty;
     char_u	*save_ff;
     int		save_cmod_flags;
 
@@ -910,7 +910,7 @@ diff_write(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
 	end = buf_line_count(buf);
 
     // Always use 'fileformat' set to "unix".
-    save_ml_flags = buf->b_ml.ml_flags;
+    save_empty = buf_has_empty_flag(buf);
     save_ff = buf->b_p_ff;
     buf->b_p_ff = vim_strsave((char_u *)FF_UNIX);
     save_cmod_flags = cmdmod.cmod_flags;
@@ -921,7 +921,7 @@ diff_write(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
     {
 	// The line range specifies a completely empty file.
 	end = start;
-	buf->b_ml.ml_flags |= ML_EMPTY;
+	buf_set_empty_flag(buf, TRUE);
     }
     r = buf_write(buf, din->din_fname, NULL,
 			start, end,
@@ -929,8 +929,7 @@ diff_write(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
     cmdmod.cmod_flags = save_cmod_flags;
     free_string_option(buf->b_p_ff);
     buf->b_p_ff = save_ff;
-    buf->b_ml.ml_flags =
-		(buf->b_ml.ml_flags & ~ML_EMPTY) | (save_ml_flags & ML_EMPTY);
+    buf_set_empty_flag(buf, save_empty);
     return r;
 }
 
@@ -2725,8 +2724,8 @@ diff_set_topline(win_T *fromwin, win_T *towin)
     {
 	// After last change, compute topline relative to end of file; no
 	// filler lines.
-	towin->w_topline = towin->w_buffer->b_ml.ml_line_count
-				       - (frombuf->b_ml.ml_line_count - lnum);
+	towin->w_topline = buf_line_count(towin->w_buffer)
+				- (buf_line_count(frombuf) - lnum);
     }
     else
     {
@@ -2748,9 +2747,9 @@ diff_set_topline(win_T *fromwin, win_T *towin)
 
     // safety check (if diff info gets outdated strange things may happen)
     towin->w_botfill = false;
-    if (towin->w_topline > towin->w_buffer->b_ml.ml_line_count)
+    if (towin->w_topline > buf_line_count(towin->w_buffer))
     {
-	towin->w_topline = towin->w_buffer->b_ml.ml_line_count;
+	towin->w_topline = buf_line_count(towin->w_buffer);
 	towin->w_botfill = true;
     }
     if (towin->w_topline < 1)
@@ -4308,7 +4307,7 @@ ex_diffgetput(exarg_T *eap)
 		linenr_T nr;
 
 		nr = dp->df_lnum[idx_from] + start_skip + i;
-		if (nr > curtab->tp_diffbuf[idx_from]->b_ml.ml_line_count)
+		if (nr > buf_line_count(curtab->tp_diffbuf[idx_from]))
 		    break;
 		p = vim_strsave(buf_line(curtab->tp_diffbuf[idx_from],
 								  nr, FALSE));

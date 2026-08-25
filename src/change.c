@@ -1329,8 +1329,8 @@ ins_char_bytes(char_u *buf, int charlen)
 	coladvance_force(getviscol());
 
     col = curwin->w_cursor.col;
-    oldp = ml_get(lnum);
-    linelen = (int)ml_get_len(lnum) + 1;
+    oldp = buf_line(curbuf, lnum, FALSE);
+    linelen = (int)buf_line_len(curbuf, lnum) + 1;
 
     // The lengths default to the values for when not replacing.
     oldlen = 0;
@@ -1465,8 +1465,8 @@ ins_str(char_u *s, size_t slen)
 	coladvance_force(getviscol());
 
     col = curwin->w_cursor.col;
-    oldp = ml_get(lnum);
-    oldlen = (int)ml_get_len(lnum);
+    oldp = buf_line(curbuf, lnum, FALSE);
+    oldlen = (int)buf_line_len(curbuf, lnum);
 
     newp = alloc(oldlen + slen + 1);
     if (newp == NULL)
@@ -1544,8 +1544,8 @@ del_bytes(
     long	movelen;
     int		fixpos = fixpos_arg;
 
-    oldp = ml_get(lnum);
-    oldlen = (int)ml_get_len(lnum);
+    oldp = buf_line(curbuf, lnum, FALSE);
+    oldlen = (int)buf_line_len(curbuf, lnum);
 
     // Can't do anything when the cursor is on the NUL after the line.
     if (col >= oldlen)
@@ -1633,12 +1633,11 @@ del_bytes(
     {
 #ifdef FEAT_PROP_POPUP
 	// Also move any following text properties.
-	if (oldlen + 1 < curbuf->b_ml.ml_line_len)
+	if (oldlen + 1 < buf_line_full_len(curbuf))
 	    mch_memmove(newp + newlen + 1, oldp + oldlen + 1,
-			       (size_t)curbuf->b_ml.ml_line_len - oldlen - 1);
+			       (size_t)buf_line_full_len(curbuf) - oldlen - 1);
 #endif
-	curbuf->b_ml.ml_line_len -= count;
-	curbuf->b_ml.ml_line_textlen = 0;
+	buf_adjust_cached_line_len(curbuf, -count, 0);
     }
 
     // mark the buffer as changed and prepare for displaying
@@ -1729,7 +1728,7 @@ open_line(
 	// the line, replacing what was there before and pushing the right
 	// stuff onto the replace stack.  -- webb.
 	if (curwin->w_cursor.lnum < orig_line_count)
-	    next_line = vim_strnsave(ml_get(curwin->w_cursor.lnum + 1), ml_get_len(curwin->w_cursor.lnum + 1));
+	    next_line = vim_strnsave(buf_line(curbuf, curwin->w_cursor.lnum + 1, FALSE), buf_line_len(curbuf, curwin->w_cursor.lnum + 1));
 	else
 	    next_line = vim_strsave((char_u *)"");
 	if (next_line == NULL)	    // out of memory!
@@ -1816,7 +1815,7 @@ open_line(
 		if ( lead_len == 0 && ptr[0] == '#')
 		{
 		    while (ptr[0] == '#' && curwin->w_cursor.lnum > 1)
-			ptr = ml_get(--curwin->w_cursor.lnum);
+			ptr = buf_line(curbuf, --curwin->w_cursor.lnum, FALSE);
 		    newindent = get_indent();
 		}
 		if (flags & OPENLINE_DO_COM)
@@ -1851,7 +1850,7 @@ open_line(
 				    break;
 				}
 				// this may make "ptr" invalid, get it again
-				ptr = ml_get(curwin->w_cursor.lnum);
+				ptr = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 				p = ptr + curwin->w_cursor.col;
 			    }
 			}
@@ -1919,7 +1918,7 @@ open_line(
 			    was_backslashed = TRUE;
 			else
 			    was_backslashed = FALSE;
-			ptr = ml_get(++curwin->w_cursor.lnum);
+			ptr = buf_line(curbuf, ++curwin->w_cursor.lnum, FALSE);
 		    }
 		    if (was_backslashed)
 			newindent = 0;	    // Got to end of file
@@ -2626,12 +2625,12 @@ truncate_line(int fixpos)
     char_u	*old_line;
     int		deleted;
 
-    old_line = ml_get(lnum);
+    old_line = buf_line(curbuf, lnum, FALSE);
     if (col == 0)
 	newp = vim_strsave((char_u *)"");
     else
 	newp = vim_strnsave(old_line, col);
-    deleted = (int)ml_get_len(lnum) - col;
+    deleted = (int)buf_line_len(curbuf, lnum) - col;
 
     if (newp == NULL)
 	return FAIL;
@@ -2667,7 +2666,7 @@ del_lines(long nlines, int undo)
 
     for (n = 0; n < nlines; )
     {
-	if (curbuf->b_ml.ml_flags & ML_EMPTY)	    // nothing to delete
+	if (buf_has_empty_flag(curbuf))	    // nothing to delete
 	    break;
 
 	buf_delete_line(curbuf, first, ML_DEL_MESSAGE);

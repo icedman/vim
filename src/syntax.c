@@ -399,7 +399,7 @@ syntax_start(win_T *wp, linenr_T lnum)
      */
     if (VALID_STATE(&current_state)
 	    && current_lnum < lnum
-	    && current_lnum < syn_buf->b_ml.ml_line_count)
+	    && current_lnum < buf_line_count(syn_buf))
     {
 	(void)syn_finish_line(FALSE);
 	if (!current_state_stored)
@@ -466,7 +466,7 @@ syntax_start(win_T *wp, linenr_T lnum)
     if (syn_block->b_sst_len <= Rows)
 	dist = 999999;
     else
-	dist = syn_buf->b_ml.ml_line_count / (syn_block->b_sst_len - Rows) + 1;
+	dist = buf_line_count(syn_buf) / (syn_block->b_sst_len - Rows) + 1;
     while (current_lnum < lnum)
     {
 	syn_start_line();
@@ -650,9 +650,10 @@ syn_sync(
 	 */
 	for ( ; start_lnum > 1; --start_lnum)
 	{
-	    char_u	*l = ml_get(start_lnum - 1);
+	char_u	*l = buf_line(curbuf, start_lnum - 1, FALSE);
 
-	    if (*l == NUL || *(l + ml_get_len(start_lnum - 1) - 1) != '\\')
+	    if (*l == NUL
+		    || *(l + buf_line_len(curbuf, start_lnum - 1) - 1) != '\\')
 		break;
 	}
 	current_lnum = start_lnum;
@@ -1076,7 +1077,7 @@ syn_stack_alloc(void)
     synstate_T	*to, *from;
     synstate_T	*sstp;
 
-    len = syn_buf->b_ml.ml_line_count / SST_DIST + Rows * 2;
+    len = buf_line_count(syn_buf) / SST_DIST + Rows * 2;
     if (len < SST_MIN_ENTRIES)
 	len = SST_MIN_ENTRIES;
     else if (len > SST_MAX_ENTRIES)
@@ -1084,7 +1085,7 @@ syn_stack_alloc(void)
     if (syn_block->b_sst_len > len * 2 || syn_block->b_sst_len < len)
     {
 	// Allocate 50% too much, to avoid reallocating too often.
-	len = syn_buf->b_ml.ml_line_count;
+	len = buf_line_count(syn_buf);
 	len = (len + len / 2) / SST_DIST + Rows * 2;
 	if (len < SST_MIN_ENTRIES)
 	    len = SST_MIN_ENTRIES;
@@ -1227,7 +1228,7 @@ syn_stack_cleanup(void)
     if (syn_block->b_sst_len <= Rows)
 	dist = 999999;
     else
-	dist = syn_buf->b_ml.ml_line_count / (syn_block->b_sst_len - Rows) + 1;
+	dist = buf_line_count(syn_buf) / (syn_block->b_sst_len - Rows) + 1;
 
     /*
      * Go through the list to find the "tick" for the oldest entry that can

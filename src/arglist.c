@@ -851,7 +851,7 @@ ex_argedit(exarg_T *eap)
     maketitle();
 
     if (curwin->w_arg_idx == 0
-	    && (curbuf->b_ml.ml_flags & ML_EMPTY)
+	&& buf_is_empty(curbuf)
 	    && (curbuf->b_ffname == NULL || curbuf_is_reusable))
 	i = 0;
     // Edit the argument.

@@ -421,10 +421,10 @@ get_indent(void)
 get_indent_lnum(linenr_T lnum)
 {
 #ifdef FEAT_VARTABS
-    return get_indent_str_vtab(ml_get(lnum), (int)curbuf->b_p_ts,
+    return get_indent_str_vtab(buf_line(curbuf, lnum, FALSE), (int)curbuf->b_p_ts,
 						 curbuf->b_p_vts_array, FALSE);
 #else
-    return get_indent_str(ml_get(lnum), (int)curbuf->b_p_ts, FALSE);
+    return get_indent_str(buf_line(curbuf, lnum, FALSE), (int)curbuf->b_p_ts, FALSE);
 #endif
 }
 
@@ -846,7 +846,7 @@ get_number_indent(linenr_T lnum)
 
     // In format_lines() (i.e. not insert mode), fo+=q is needed too...
     if ((State & MODE_INSERT) || has_format_option(FO_Q_COMS))
-	lead_len = get_leader_len(ml_get(lnum), NULL, FALSE, TRUE);
+	lead_len = get_leader_len(buf_line(curbuf, lnum, FALSE), NULL, FALSE, TRUE);
 
     regmatch.regprog = vim_regcomp(curbuf->b_p_flp, RE_MAGIC);
     if (regmatch.regprog != NULL)
@@ -855,10 +855,10 @@ get_number_indent(linenr_T lnum)
 
 	// vim_regexec() expects a pointer to a line.  This lets us
 	// start matching for the flp beyond any comment leader...
-	if (vim_regexec(&regmatch, ml_get(lnum) + lead_len, (colnr_T)0))
+	if (vim_regexec(&regmatch, buf_line(curbuf, lnum, FALSE) + lead_len, (colnr_T)0))
 	{
 	    pos.lnum = lnum;
-	    pos.col = (colnr_T)(*regmatch.endp - ml_get(lnum));
+	    pos.col = (colnr_T)(*regmatch.endp - buf_line(curbuf, lnum, FALSE));
 	    pos.coladd = 0;
 	}
 	vim_regfree(regmatch.regprog);
@@ -1247,7 +1247,7 @@ ins_try_si(int c)
 	    // containing the matching '(' if there is one.  This handles the
 	    // case where an "if (..\n..) {" statement continues over multiple
 	    // lines -- webb
-	    ptr = ml_get(pos->lnum);
+	    ptr = buf_line(curbuf, pos->lnum, FALSE);
 	    i = pos->col;
 	    if (i > 0)		// skip blanks before '{'
 		while (--i > 0 && VIM_ISWHITE(ptr[i]))
@@ -1274,7 +1274,7 @@ ins_try_si(int c)
 		i = get_indent();
 		while (curwin->w_cursor.lnum > 1)
 		{
-		    ptr = skipwhite(ml_get(--(curwin->w_cursor.lnum)));
+		    ptr = skipwhite(buf_line(curbuf, --(curwin->w_cursor.lnum), FALSE));
 
 		    // ignore empty lines and lines starting with '#'.
 		    if (*ptr != '#' && *ptr != NUL)
@@ -1778,8 +1778,8 @@ ex_retab(exarg_T *eap)
 #endif
     for (lnum = eap->line1; !got_int && lnum <= eap->line2; ++lnum)
     {
-	ptr = ml_get(lnum);
-	old_len = ml_get_len(lnum);
+	ptr = buf_line(curbuf, lnum, FALSE);
+	old_len = buf_line_len(curbuf, lnum);
 	col = 0;
 	vcol = 0;
 	did_undo = FALSE;
@@ -1861,7 +1861,7 @@ ex_retab(exarg_T *eap)
 			    ptr[col] = (col < num_tabs) ? '\t' : ' ';
 			if (buf_replace_line(curbuf, lnum,  new_line, -1, FALSE,  FALSE) == OK)
 			    // "new_line" may have been copied
-			    new_line = curbuf->b_ml.ml_line_ptr;
+			    new_line = buf_line(curbuf, lnum, FALSE);
 			if (first_line == 0)
 			    first_line = lnum;
 			last_line = lnum;
