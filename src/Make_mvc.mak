@@ -692,6 +692,7 @@ OBJ = \
 	$(OUTDIR)\blob.obj \
 	$(OUTDIR)\blowfish.obj \
 	$(OUTDIR)\buffer.obj \
+	$(OUTDIR)\buffer_snapshot.obj \
 	$(OUTDIR)\bufwrite.obj \
 	$(OUTDIR)\change.obj \
 	$(OUTDIR)\charset.obj \
@@ -1537,6 +1538,8 @@ $(OUTDIR)/blowfish.obj: $(OUTDIR) blowfish.c $(INCL)
 
 $(OUTDIR)/buffer.obj: $(OUTDIR) buffer.c $(INCL) version.h
 
+$(OUTDIR)/buffer_snapshot.obj: $(OUTDIR) buffer_snapshot.c $(INCL)
+
 $(OUTDIR)/bufwrite.obj: $(OUTDIR) bufwrite.c $(INCL)
 
 $(OUTDIR)/change.obj: $(OUTDIR) change.c $(INCL)
@@ -1954,6 +1957,7 @@ proto.h: \
 	proto/blob.pro \
 	proto/blowfish.pro \
 	proto/buffer.pro \
+	proto/buffer_snapshot.pro \
 	proto/bufwrite.pro \
 	proto/change.pro \
 	proto/charset.pro \

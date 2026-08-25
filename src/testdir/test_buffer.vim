@@ -957,4 +957,17 @@ func Test_buffer_switch_to_name_with_percent()
   exe 'bwipe! ' .. bufnr
 endfunc
 
+func Test_buffer_snapshot_query()
+  new
+  call assert_equal([''], test_getvalue('buf_snapshot'))
+
+  let longline = repeat('x', 5000)
+  call setline(1, ['first', '', longline, 'last'])
+
+  call assert_equal(['first', '', longline, 'last'],
+        \ test_getvalue('buf_snapshot'))
+
+  bwipe!
+endfunc
+
 " vim: shiftwidth=2 sts=2 expandtab

@@ -498,6 +498,7 @@ SRC = \
  blob.c \
  blowfish.c \
  buffer.c \
+ buffer_snapshot.c \
  bufwrite.c \
  change.c \
  channel.c \
@@ -639,6 +640,7 @@ OBJ = \
  [.$(DEST)]blob.obj \
  [.$(DEST)]blowfish.obj \
  [.$(DEST)]buffer.obj \
+ [.$(DEST)]buffer_snapshot.obj \
  [.$(DEST)]bufwrite.obj \
  [.$(DEST)]change.obj \
  [.$(DEST)]channel.obj \
@@ -1028,6 +1030,9 @@ lua_env :
  ascii.h keymap.h termdefs.h macros.h structs.h regexp.h \
  gui.h beval.h option.h ex_cmds.h proto.h \
  errors.h globals.h version.h
+[.$(DEST)]buffer_snapshot.obj : buffer_snapshot.c vim.h [.$(DEST)]config.h \
+ feature.h os_unix.h ascii.h keymap.h termdefs.h macros.h structs.h regexp.h \
+ gui.h beval.h option.h ex_cmds.h proto.h errors.h globals.h
 [.$(DEST)]bufwrite.obj : bufwrite.c vim.h [.$(DEST)]config.h feature.h os_unix.h \
  ascii.h keymap.h termdefs.h macros.h structs.h regexp.h \
  gui.h beval.h option.h ex_cmds.h proto.h \

@@ -62,6 +62,7 @@ extern int _stricoll(char *a, char *b);
 # include "arglist.pro"
 # include "autocmd.pro"
 # include "buffer.pro"
+# include "buffer_snapshot.pro"
 # include "bufwrite.pro"
 # include "change.pro"
 # include "charset.pro"

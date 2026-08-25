@@ -996,6 +996,34 @@ f_test_getvalue(typval_T *argvars, typval_T *rettv)
 
     if (STRCMP(name, (char_u *)"need_fileinfo") == 0)
 	rettv->vval.v_number = need_fileinfo;
+    else if (STRCMP(name, (char_u *)"buf_snapshot") == 0)
+    {
+	buf_snapshot_T *snapshot = buf_snapshot_acquire(curbuf);
+	list_T *list = list_alloc();
+	linenr_T lnum;
+
+	if (snapshot == NULL || list == NULL)
+	{
+	    buf_snapshot_unref(snapshot);
+	    if (list != NULL)
+		list_unref(list);
+	    return;
+	}
+	for (lnum = 1; lnum <= buf_snapshot_line_count(snapshot); ++lnum)
+	{
+	    const char_u *line = buf_snapshot_line(snapshot, lnum);
+
+	if (line == NULL || list_append_string(list, (char_u *)line,
+				buf_snapshot_line_len(snapshot, lnum)) == FAIL)
+	    {
+		list_unref(list);
+		buf_snapshot_unref(snapshot);
+		return;
+	    }
+	}
+	rettv_list_set(rettv, list);
+	buf_snapshot_unref(snapshot);
+    }
     else
 	semsg(_(e_invalid_argument_str), name);
 }

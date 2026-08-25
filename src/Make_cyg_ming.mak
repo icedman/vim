@@ -797,6 +797,7 @@ OBJ = \
 	$(OUTDIR)/blob.o \
 	$(OUTDIR)/blowfish.o \
 	$(OUTDIR)/buffer.o \
+	$(OUTDIR)/buffer_snapshot.o \
 	$(OUTDIR)/bufwrite.o \
 	$(OUTDIR)/change.o \
 	$(OUTDIR)/charset.o \
@@ -1314,6 +1315,8 @@ $(OUTDIR):
 	$(MKDIR) $(OUTDIR)
 
 $(OUTDIR)/buffer.o: buffer.c $(INCL) version.h
+
+$(OUTDIR)/buffer_snapshot.o: buffer_snapshot.c $(INCL)
 
 $(OUTDIR)/evalfunc.o: evalfunc.c $(INCL) version.h
 

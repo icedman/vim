@@ -1509,6 +1509,7 @@ BASIC_SRC = \
 	blob.c \
 	blowfish.c \
 	buffer.c \
+	buffer_snapshot.c \
 	change.c \
 	charset.c \
 	cindent.c \
@@ -1696,6 +1697,7 @@ OBJ_COMMON = \
 	objects/autocmd.o \
 	objects/beval.o \
 	objects/buffer.o \
+	objects/buffer_snapshot.o \
 	objects/change.o \
 	objects/blob.o \
 	objects/blowfish.o \
@@ -1887,6 +1889,7 @@ PROTO_FILES = \
 	proto/blob.pro \
 	proto/blowfish.pro \
 	proto/buffer.pro \
+	proto/buffer_snapshot.pro \
 	proto/bufwrite.pro \
 	proto/change.pro \
 	proto/channel.pro \
@@ -3280,6 +3283,9 @@ objects/blowfish.o: blowfish.c
 
 objects/buffer.o: buffer.c
 	$(CCC) -o $@ buffer.c
+
+objects/buffer_snapshot.o: buffer_snapshot.c
+	$(CCC) -o $@ buffer_snapshot.c
 
 objects/bufwrite.o: bufwrite.c
 	$(CCC) -o $@ bufwrite.c
@@ -4812,6 +4818,7 @@ proto/beval.pro: beval.c
 proto/blob.pro: blob.c
 proto/blowfish.pro: blowfish.c
 proto/buffer.pro: buffer.c
+proto/buffer_snapshot.pro: buffer_snapshot.c
 proto/bufwrite.pro: bufwrite.c
 proto/change.pro: change.c
 proto/channel.pro: channel.c

@@ -82,6 +82,7 @@ typedef struct wininfo_S	wininfo_T;
 typedef struct frame_S		frame_T;
 typedef int			scid_T;		// script ID
 typedef struct file_buffer	buf_T;		// forward declaration
+typedef struct buf_snapshot	buf_snapshot_T;
 typedef struct terminal_S	term_T;
 
 #ifdef FEAT_MENU
@@ -3232,6 +3233,7 @@ struct file_buffer
 {
     memline_T	b_ml;		// associated memline (also contains line
 				// count)
+    varnumber_T	b_snapshot_revision; // immutable text revision
 
     buf_T	*b_next;	// links in list of buffers
     buf_T	*b_prev;

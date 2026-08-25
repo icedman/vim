@@ -92,6 +92,7 @@ SRC += \
 	blob.c \
 	blowfish.c \
 	buffer.c \
+	buffer_snapshot.c \
 	bufwrite.c \
 	change.c \
 	charset.c \
