@@ -665,12 +665,34 @@ latency and sanitizer measurements remain required before Phase 5 worker use.
 
 ### Phase 5: enable worker consumers
 
-- Enable only after sanitizer and stress validation.
-- Pass referenced snapshot handles through worker queues.
-- Document cancellation and ownership at each consumer.
-- Keep all result application and buffer mutation on the main thread, checking
-  that the originating buffer/revision is still relevant before applying a
-  result.
+- [x] Complete the sanitizer and existing reference/query stress gate.
+- [ ] Pass referenced snapshot handles through worker queues.
+- [ ] Document cancellation and ownership at each consumer.
+- [ ] Keep all result application and buffer mutation on the main thread,
+  checking that the originating buffer/revision is still relevant before
+  applying a result.
+
+#### Phase 5A status: sanitizer and reference stress gate
+
+The focused buffer suite was built and run with Clang 22 AddressSanitizer plus
+UndefinedBehaviorSanitizer, using Vim's `-DABORT_ON_INTERNAL_ERROR -DEXITFREE`
+CI configuration.  `test_buffer.res` passed with no ASan or UBSan report.  Leak
+detection was disabled for the focused invocation; this matches the need to
+separate known process-lifetime allocations from snapshot ownership checks.
+
+A separate Clang 22 ThreadSanitizer build passed `test_buffer.res` once and five
+additional forced reruns with no TSan report.  `Test_buffer_snapshot_threads()`
+uses four readers, each performing 10,000 line/count queries and paired
+reference operations.  The caller drops its reference before joining, so the
+worker reference drops race reclamation and one worker performs the final free.
+The normal GCC build was restored afterward and the focused suite passed again.
+
+This validates concurrent immutable queries, non-final reference operations,
+and racing final reference drops for the existing hook.  It does not itself
+add a production worker consumer.  A deterministic hook that coordinates live
+main-thread publication with blocked worker readers is still required together
+with the first consumer, because the synchronous test function cannot run Vim
+editing commands while its workers are active.
 
 ## Tests and validation
 
@@ -695,9 +717,11 @@ latency and sanitizer measurements remain required before Phase 5 worker use.
 - Readers retain and release different generations while the buffer is
   unloaded and deleted.
 - Race final `unref` operations from multiple workers.
-- Run supported configurations under ThreadSanitizer and AddressSanitizer.
-- Add deterministic stress hooks around publication and final reference drops,
-  rather than relying only on timing-sensitive tests.
+- [x] Run the focused snapshot configuration under ThreadSanitizer,
+  AddressSanitizer, and UndefinedBehaviorSanitizer.
+- [ ] Add a deterministic stress hook around publication while workers are
+  blocked at controlled points.  Final reference drops are already raced by
+  the existing worker test.
 
 ### Memory and performance tests
 
