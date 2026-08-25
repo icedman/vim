@@ -543,12 +543,31 @@ commit boundary and remove or annotate any newly discovered mutation bypasses.
 
 ### Phase 3: close mutation bypasses
 
-- Eliminate or encapsulate writable `buf_line(..., TRUE)` access.
-- Require all text mutations to update the canonical revision through the
+- [x] Encapsulate writable `buf_line(..., TRUE)` access behind the explicit
+  `buf_line_mutable()` interface.
+- [ ] Require all text mutations to update the canonical revision through the
   buffer API.
-- Extend interface enforcement and run a full-source audit.
-- Define behavior for load, reload, unload, wipeout, recovery, and buffer
+- [ ] Extend interface enforcement and run a full-source audit.
+- [x] Define behavior for load, reload, unload, wipeout, recovery, and buffer
   replacement.
+
+#### Phase 3A status: writable access and lifecycle ownership
+
+All audited in-place line writers now use `buf_line_mutable()`.  The accessor's
+contract requires callers to report finalized logical changes through the
+normal `changed_*()` interface, where `buf_snapshot_sync()` updates the
+canonical revision.  Temporary writers may restore bytes before that boundary
+without creating a revision.  Writable line access is now distinguishable from
+read access in a full-source search, making newly introduced bypasses visible.
+
+Loading and buffer replacement build no eager snapshot; the first acquisition
+lazily mirrors the final loaded contents.  Reload, unload, wipeout, recovery
+failure, and any other path that closes memline call `ml_close()`, which drops
+the buffer-owned revision.  Externally retained snapshot handles continue to
+own their immutable revision and remain valid.  A subsequent load or successful
+recovery therefore starts with no live revision and lazily publishes one from
+the replacement contents.  Lifecycle tests cover unload, reload, forced reload,
+and wipeout while retaining the pre-unload generation.
 
 ### Phase 4: consolidate storage
 

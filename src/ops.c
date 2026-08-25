@@ -4644,7 +4644,7 @@ do_pending_operator(cmdarg_T *cap, int old_col, int gui_yank)
     static void
 pbyte(pos_T lp, int c)
 {
-    char_u *p = buf_line(curbuf, lp.lnum, TRUE);
+    char_u *p = buf_line_mutable(curbuf, lp.lnum);
     int	len = buf_line_full_len(curbuf);
 
     // safety check

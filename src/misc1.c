@@ -593,7 +593,7 @@ char_before_cursor(void)
     void
 pchar_cursor(int c)
 {
-    *(buf_line(curbuf, curwin->w_cursor.lnum, TRUE)
+    *(buf_line_mutable(curbuf, curwin->w_cursor.lnum)
 						  + curwin->w_cursor.col) = c;
 }
 

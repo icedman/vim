@@ -1027,6 +1027,33 @@ func Test_buffer_snapshot_cow_tree()
   bwipe!
 endfunc
 
+func Test_buffer_snapshot_lifecycle()
+  call writefile(['loaded'], 'Xsnapshot', 'D')
+  edit Xsnapshot
+  let bnr = bufnr()
+  call assert_equal(['loaded'], test_getvalue('buf_snapshot'))
+  call assert_equal(1, test_getvalue('buf_snapshot_save'))
+
+  enew
+  execute 'bunload ' .. bnr
+  call assert_equal(0, bufloaded(bnr))
+  call assert_equal(['loaded'], test_getvalue('buf_snapshot_saved'))
+
+  call writefile(['reloaded'], 'Xsnapshot')
+  execute 'buffer ' .. bnr
+  call assert_equal(['reloaded'], test_getvalue('buf_snapshot'))
+  call assert_equal(['loaded'], test_getvalue('buf_snapshot_saved'))
+
+  call writefile(['replaced'], 'Xsnapshot')
+  edit!
+  call assert_equal(['replaced'], test_getvalue('buf_snapshot'))
+  call assert_equal(['loaded'], test_getvalue('buf_snapshot_saved'))
+
+  execute 'bwipe! ' .. bnr
+  call assert_equal(['loaded'], test_getvalue('buf_snapshot_saved'))
+  call test_getvalue('buf_snapshot_clear')
+endfunc
+
 func Test_buffer_snapshot_threads()
   new
   call setline(1, ['threaded', 'second', 'third'])

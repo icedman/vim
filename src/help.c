@@ -727,7 +727,7 @@ fix_help_buffer(void)
 		if (line[0] == '<')
 		{
 		    // blank-out a '<' in the first column
-		    line = buf_line(curbuf, lnum, TRUE);
+		    line = buf_line_mutable(curbuf, lnum);
 		    line[0] = ' ';
 		}
 		in_example = FALSE;
@@ -737,14 +737,14 @@ fix_help_buffer(void)
 		if (line[len - 1] == '>' && (len == 1 || line[len - 2] == ' '))
 		{
 		    // blank-out a '>' in the last column (start of example)
-		    line = buf_line(curbuf, lnum, TRUE);
+		    line = buf_line_mutable(curbuf, lnum);
 		    line[len - 1] = ' ';
 		    in_example = TRUE;
 		}
 		else if (line[len - 1] == '~')
 		{
 		    // blank-out a '~' at the end of line (header marker)
-		    line = buf_line(curbuf, lnum, TRUE);
+		    line = buf_line_mutable(curbuf, lnum);
 		    line[len - 1] = ' ';
 		}
 	    }

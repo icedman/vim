@@ -6499,8 +6499,8 @@ buf_get_fname(buf_T *buf)
 /*
  * Return a line from "buf".
  *
- * The returned pointer is only valid until the next line access.  When
- * "will_change" is TRUE the line is prepared for modification.
+ * The returned pointer is only valid until the next line access.  Callers must
+ * not change the returned text unless "will_change" is TRUE.
  */
     char_u *
 buf_line(
@@ -6509,6 +6509,16 @@ buf_line(
     int		will_change)
 {
     return ml_get_buf(buf, lnum, will_change);
+}
+
+/*
+ * Return a line prepared for in-place modification.  The caller must report
+ * the finalized logical change through the normal changed_*() interface.
+ */
+    char_u *
+buf_line_mutable(buf_T *buf, linenr_T lnum)
+{
+    return ml_get_buf(buf, lnum, TRUE);
 }
 
 // Return the length of a line in "buf", excluding the NUL byte.
@@ -6533,7 +6543,7 @@ buf_prepare_cached_line(buf_T *buf, linenr_T lnum)
 {
     if (buf->b_ml.ml_line_lnum != lnum
 					|| !(buf->b_ml.ml_flags & ML_LINE_DIRTY))
-	(void)buf_line(buf, lnum, TRUE);
+	(void)buf_line_mutable(buf, lnum);
 }
 
 /*

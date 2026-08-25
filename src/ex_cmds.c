@@ -755,7 +755,7 @@ ex_uniq(exarg_T *eap)
 	{
 		linenr_T get_lnum = eap->line1 + i;
 
-		s = buf_line(curbuf, get_lnum, TRUE);
+		s = buf_line_mutable(curbuf, get_lnum);
 		len = buf_line_len(curbuf, get_lnum);
 
 	start_col = 0;

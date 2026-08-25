@@ -72,6 +72,7 @@ int buf_hide(buf_T *buf);
 char_u *buf_spname(buf_T *buf);
 char_u *buf_get_fname(buf_T *buf);
 char_u *buf_line(buf_T *buf, linenr_T lnum, int will_change);
+char_u *buf_line_mutable(buf_T *buf, linenr_T lnum);
 colnr_T buf_line_len(buf_T *buf, linenr_T lnum);
 colnr_T buf_line_full_len(buf_T *buf);
 void buf_prepare_cached_line(buf_T *buf, linenr_T lnum);

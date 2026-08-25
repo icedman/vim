@@ -4993,13 +4993,15 @@ nv_replace(cmdarg_T *cap)
 		  int c = ins_copychar(curwin->w_cursor.lnum
 					   + (cap->nchar == Ctrl_Y ? -1 : 1));
 
-		  ptr = buf_line(curbuf, curwin->w_cursor.lnum, TRUE);
+		  ptr = buf_line_mutable(curbuf,
+					curwin->w_cursor.lnum);
 		  if (c != NUL)
 		    ptr[curwin->w_cursor.col] = c;
 		}
 		else
 		{
-		    ptr = buf_line(curbuf, curwin->w_cursor.lnum, TRUE);
+		    ptr = buf_line_mutable(curbuf,
+						curwin->w_cursor.lnum);
 		    ptr[curwin->w_cursor.col] = cap->nchar;
 		}
 		if (p_sm && msg_silent == 0)
