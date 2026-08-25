@@ -1684,7 +1684,7 @@ compute_buffer_local_count(int addr_type, int lnum, int offset)
 	buf = nextbuf;
 	if (addr_type == ADDR_LOADED_BUFFERS)
 	    // skip over unloaded buffers
-	    while (buf->b_ml.ml_mfp == NULL)
+	    while (!buf_is_loaded(buf))
 	    {
 		nextbuf = (offset < 0) ? buf->b_prev : buf->b_next;
 		if (nextbuf == NULL)
@@ -1694,7 +1694,7 @@ compute_buffer_local_count(int addr_type, int lnum, int offset)
     }
     // we might have gone too far, last buffer is not loadedd
     if (addr_type == ADDR_LOADED_BUFFERS)
-	while (buf->b_ml.ml_mfp == NULL)
+	while (!buf_is_loaded(buf))
 	{
 	    nextbuf = (offset >= 0) ? buf->b_prev : buf->b_next;
 	    if (nextbuf == NULL)
@@ -3476,12 +3476,12 @@ parse_cmd_address(exarg_T *eap, char **errormsg, int silent)
 			    buf_T	*buf = firstbuf;
 
 			    while (buf->b_next != NULL
-						  && buf->b_ml.ml_mfp == NULL)
+						  && !buf_is_loaded(buf))
 				buf = buf->b_next;
 			    eap->line1 = buf->b_fnum;
 			    buf = lastbuf;
 			    while (buf->b_prev != NULL
-						  && buf->b_ml.ml_mfp == NULL)
+						  && !buf_is_loaded(buf))
 				buf = buf->b_prev;
 			    eap->line2 = buf->b_fnum;
 			    break;
@@ -4524,7 +4524,7 @@ get_address(
 			break;
 		    case ADDR_LOADED_BUFFERS:
 			buf = lastbuf;
-			while (buf->b_ml.ml_mfp == NULL)
+			while (!buf_is_loaded(buf))
 			{
 			    if (buf->b_prev == NULL)
 				break;
@@ -4831,11 +4831,11 @@ address_default_all(exarg_T *eap)
 	    {
 		buf_T *buf = firstbuf;
 
-		while (buf->b_next != NULL && buf->b_ml.ml_mfp == NULL)
+		while (buf->b_next != NULL && !buf_is_loaded(buf))
 		    buf = buf->b_next;
 		eap->line1 = buf->b_fnum;
 		buf = lastbuf;
-		while (buf->b_prev != NULL && buf->b_ml.ml_mfp == NULL)
+		while (buf->b_prev != NULL && !buf_is_loaded(buf))
 		    buf = buf->b_prev;
 		eap->line2 = buf->b_fnum;
 	    }
@@ -4959,7 +4959,7 @@ invalid_range(exarg_T *eap)
 		break;
 	    case ADDR_LOADED_BUFFERS:
 		buf = firstbuf;
-		while (buf->b_ml.ml_mfp == NULL)
+		while (!buf_is_loaded(buf))
 		{
 		    if (buf->b_next == NULL)
 			return _(e_invalid_range);
@@ -4968,7 +4968,7 @@ invalid_range(exarg_T *eap)
 		if (eap->line1 < buf->b_fnum)
 		    return _(e_invalid_range);
 		buf = lastbuf;
-		while (buf->b_ml.ml_mfp == NULL)
+		while (!buf_is_loaded(buf))
 		{
 		    if (buf->b_prev == NULL)
 			return _(e_invalid_range);
@@ -7919,7 +7919,7 @@ ex_popup(exarg_T *eap)
     static void
 ex_swapname(exarg_T *eap UNUSED)
 {
-    if (curbuf->b_ml.ml_mfp == NULL || curbuf->b_ml.ml_mfp->mf_fname == NULL)
+    if (!buf_is_loaded(curbuf) || curbuf->b_ml.ml_mfp->mf_fname == NULL)
 	msg(_("No swap file"));
     else
 	msg((char *)curbuf->b_ml.ml_mfp->mf_fname);

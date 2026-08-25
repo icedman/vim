@@ -5612,7 +5612,7 @@ get_nolist_virtcol(void)
 {
     // check validity of cursor in current buffer
     if (curwin->w_buffer == NULL
-	|| curwin->w_buffer->b_ml.ml_mfp == NULL
+	|| !buf_is_loaded(curwin->w_buffer)
 	|| curwin->w_cursor.lnum > buf_line_count(curwin->w_buffer))
 	return 0;
     if (curwin->w_p_list && vim_strchr(p_cpo, CPO_LISTWM) == NULL)

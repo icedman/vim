@@ -1053,7 +1053,7 @@ diff_try_update(
 	for (idx_new = idx_orig + 1; idx_new < DB_COUNT; ++idx_new)
 	{
 	    buf = curtab->tp_diffbuf[idx_new];
-	    if (buf == NULL || buf->b_ml.ml_mfp == NULL)
+	    if (buf == NULL || !buf_is_loaded(buf))
 		continue; // skip buffer that isn't loaded
 
 	    lnum_start = anchor_i == 0 ? 1 : anchors[idx_new][anchor_i - 1];
@@ -3574,7 +3574,7 @@ diff_find_change_inline_diff(
 	dio.dio_diff.dout_ga.ga_len = 0;
 
 	buf_T *buf = curtab->tp_diffbuf[i];
-	if (buf == NULL || buf->b_ml.ml_mfp == NULL)
+	if (buf == NULL || !buf_is_loaded(buf))
 	    continue; // skip buffer that isn't loaded
 
 	if (dp->df_count[i] == 0)

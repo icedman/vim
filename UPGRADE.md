@@ -146,10 +146,11 @@ Phase 1 remains open until its API checks and debug assertions are added.
 - [x] Rebuilt Vim and reran `test_buffer.res` successfully.
 - [x] Replace direct line-count field reads and `BUFEMPTY()` uses with
   `buf_line_count()` and `buf_is_empty()` in consumer code.
-- [ ] Replace loaded-state field reads with `buf_is_loaded()`.
+- [x] Replace loaded-state null checks with `buf_is_loaded()` in consumer
+  code, preserving inverse checks and compound conditions.
 - [ ] Migrate implicit-current-buffer reads and mutation operations.
 
-The inventory now reports 1,131 access findings, including 570 direct
+The inventory now reports 1,075 access findings, including 514 direct
 `b_ml` accesses, 460 implicit-current-buffer line accesses, and one writable
 line access. The remaining `ml_get_buf*()` calls are implementation or
 façade calls, except for any cases that require deliberate review.

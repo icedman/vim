@@ -4902,7 +4902,7 @@ refill_pum_bg_row_from_buffer(int r, int left, int right)
     wp = mouse_find_win(&line_cp, &col_cp, IGNORE_POPUP);
     if (wp == NULL || line_cp < 0 || line_cp >= wp->w_height)
 	return;
-    if (wp->w_buffer == NULL || wp->w_buffer->b_ml.ml_mfp == NULL)
+    if (wp->w_buffer == NULL || !buf_is_loaded(wp->w_buffer))
 	return;
 
     // Compute the buffer line for this screen row.

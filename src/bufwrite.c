@@ -702,7 +702,7 @@ buf_write(
 
     if (fname == NULL || *fname == NUL)	// safety check
 	return FAIL;
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
     {
 	// This can happen during startup when there is a stray "w" in the
 	// vimrc file.
@@ -793,7 +793,7 @@ buf_write(
 	int		buf_fname_s = FALSE;
 	int		did_cmd = FALSE;
 	int		nofile_err = FALSE;
-	int		empty_memline = (buf->b_ml.ml_mfp == NULL);
+	int		empty_memline = (!buf_is_loaded(buf));
 	bufref_T	bufref;
 
 	// Apply PRE autocommands.
@@ -884,7 +884,7 @@ buf_write(
 	// 3. If one of the "Cmd" autocommands was executed.
 	if (!bufref_valid(&bufref))
 	    buf = NULL;
-	if (buf == NULL || (buf->b_ml.ml_mfp == NULL && !empty_memline)
+	if (buf == NULL || (!buf_is_loaded(buf) && !empty_memline)
 				       || did_cmd || nofile_err
 #ifdef FEAT_EVAL
 				       || aborting()

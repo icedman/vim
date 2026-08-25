@@ -19,12 +19,6 @@ src/arglist.c
 src/arglist.c:854: [buffer memline member] 	    && (curbuf->b_ml.ml_flags & ML_EMPTY)
 Stats: 1 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=1
 
-src/autocmd.c
-=============
-src/autocmd.c:1581: [buffer memline member] 	if (buf->b_ml.ml_mfp == NULL || buf == curbuf)
-src/autocmd.c:1869: [buffer memline member] 		    && aco->new_curbuf.br_buf->b_ml.ml_mfp != NULL)
-Stats: 2 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=2
-
 src/buffer.c
 ============
 src/buffer.c:132: [buffer memline member]     line_count = curbuf->b_ml.ml_line_count;
@@ -82,11 +76,8 @@ Stats: 51 access finding(s); 0 mutation follow-up candidate(s); buffer memline m
 
 src/bufwrite.c
 ==============
-src/bufwrite.c:705: [buffer memline member]     if (buf->b_ml.ml_mfp == NULL)
-src/bufwrite.c:796: [buffer memline member] 	int		empty_memline = (buf->b_ml.ml_mfp == NULL);
-src/bufwrite.c:887: [buffer memline member] 	if (buf == NULL || (buf->b_ml.ml_mfp == NULL && !empty_memline)
 src/bufwrite.c:1664: [buffer memline member]     if (buf->b_ml.ml_flags & ML_EMPTY)
-Stats: 4 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=4
+Stats: 1 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=1
 
 src/change.c
 ============
@@ -121,21 +112,16 @@ Stats: 27 access finding(s); 0 mutation follow-up candidate(s); buffer memline m
 
 src/channel.c
 =============
-src/channel.c:1115: [buffer memline member]     if (curbuf->b_ml.ml_mfp == NULL)
 src/channel.c:1148: [implicit current-buffer line access] 	ml_replace(1, (char_u *)(err ? "Reading from channel error..."
-src/channel.c:1235: [buffer memline member] 		if (buf->b_ml.ml_mfp == NULL)
-src/channel.c:1282: [buffer memline member] 		if (buf->b_ml.ml_mfp == NULL)
 src/channel.c:1803: [buffer memline member] 		in_part->ch_bufref.br_buf->b_ml.ml_line_count + 1;
 src/channel.c:1813: [buffer memline member] 	in_part->ch_buf_bot = in_part->ch_bufref.br_buf->b_ml.ml_line_count;
-src/channel.c:1953: [buffer memline member]     if (!bufref_valid(&in_part->ch_bufref) || buf->b_ml.ml_mfp == NULL)
 src/channel.c:3117: [buffer memline member]     linenr_T    lnum = buffer->b_ml.ml_line_count;
 src/channel.c:3121: [buffer memline member]     int		empty = (buffer->b_ml.ml_flags & ML_EMPTY) ? 1 : 0;
 src/channel.c:3163: [implicit current-buffer line access] 	ml_replace(lnum, msg, TRUE);
 src/channel.c:3167: [implicit current-buffer line access] 	ml_append(lnum, msg, 0, FALSE);
 src/channel.c:3193: [buffer memline member] 		if (move_cursor || wp->w_topline > buffer->b_ml.ml_line_count)
 src/channel.c:3223: [buffer memline member] 		in_part->ch_buf_bot = buffer->b_ml.ml_line_count;
-src/channel.c:3297: [buffer memline member] 					       || buffer->b_ml.ml_mfp == NULL))
-Stats: 14 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=11; implicit current-buffer line access=3
+Stats: 9 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=6; implicit current-buffer line access=3
 
 src/cindent.c
 =============
@@ -193,18 +179,16 @@ src/diff.c:913: [buffer memline member]     save_ml_flags = buf->b_ml.ml_flags;
 src/diff.c:924: [buffer memline member] 	buf->b_ml.ml_flags |= ML_EMPTY;
 src/diff.c:932: [buffer memline member]     buf->b_ml.ml_flags =
 src/diff.c:933: [buffer memline member] 		(buf->b_ml.ml_flags & ~ML_EMPTY) | (save_ml_flags & ML_EMPTY);
-src/diff.c:1056: [buffer memline member] 	    if (buf == NULL || buf->b_ml.ml_mfp == NULL)
 src/diff.c:2728: [buffer memline member] 	towin->w_topline = towin->w_buffer->b_ml.ml_line_count
 src/diff.c:2729: [buffer memline member] 				       - (frombuf->b_ml.ml_line_count - lnum);
 src/diff.c:2751: [buffer memline member]     if (towin->w_topline > towin->w_buffer->b_ml.ml_line_count)
 src/diff.c:2753: [buffer memline member] 	towin->w_topline = towin->w_buffer->b_ml.ml_line_count;
 src/diff.c:3217: [implicit current-buffer line access] 	// Make a copy of the line, the next ml_get() will invalidate it.
-src/diff.c:3577: [buffer memline member] 	if (buf == NULL || buf->b_ml.ml_mfp == NULL)
 src/diff.c:4303: [implicit current-buffer line access] 		if (ml_delete(lnum) == OK)
 src/diff.c:4311: [buffer memline member] 		if (nr > curtab->tp_diffbuf[idx_from]->b_ml.ml_line_count)
 src/diff.c:4317: [implicit current-buffer line access] 		    ml_append(lnum + i - 1, p, 0, FALSE);
 src/diff.c:4325: [implicit current-buffer line access] 			ml_delete((linenr_T)2);
-Stats: 18 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=13; implicit current-buffer line access=5
+Stats: 16 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=11; implicit current-buffer line access=5
 
 src/drawline.c
 ==============
@@ -244,53 +228,39 @@ src/edit.c:5335: [buffer memline member] 		    curbuf->b_ml.ml_line_textlen = 0;
 src/edit.c:5336: [buffer memline member] 		    curbuf->b_ml.ml_flags =
 src/edit.c:5337: [buffer memline member] 			   (curbuf->b_ml.ml_flags | ML_LINE_DIRTY) & ~ML_EMPTY;
 src/edit.c:5542: [implicit current-buffer line access]     line = ml_get(lnum);
-src/edit.c:5615: [buffer memline member] 	|| curwin->w_buffer->b_ml.ml_mfp == NULL
-Stats: 27 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=20; memline cached/locked member=5; implicit current-buffer line access=2
+Stats: 26 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=19; memline cached/locked member=5; implicit current-buffer line access=2
 
 src/eval.c
 ==========
-src/eval.c:6975: [buffer memline member]     if (buf == NULL || buf->b_ml.ml_mfp == NULL)
-src/eval.c:7013: [buffer memline member]     if (buf == NULL || buf->b_ml.ml_mfp == NULL)
 src/eval.c:7063: [implicit current-buffer line access] 	    len = (long)mb_charlen(ml_get(pos.lnum));
 src/eval.c:7065: [implicit current-buffer line access] 	    len = (long)ml_get_len(pos.lnum);
-src/eval.c:7256: [buffer memline member] 	if (buf == NULL || buf->b_ml.ml_mfp == NULL)
-Stats: 5 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=3; implicit current-buffer line access=2
+Stats: 2 access finding(s); 0 mutation follow-up candidate(s); implicit current-buffer line access=2
 
 src/evalbuffer.c
 ================
-src/evalbuffer.c:209: [buffer memline member]     if (buf == NULL || (!is_curbuf && buf->b_ml.ml_mfp == NULL) || lnum < 1)
 src/evalbuffer.c:274: [implicit current-buffer line access] 	    if (u_savesub(lnum) == OK && ml_replace_len(
 src/evalbuffer.c:287: [implicit current-buffer line access] 	    if (ml_append(lnum - 1, line, (colnr_T)0, FALSE) == OK)
-src/evalbuffer.c:448: [buffer memline member]     rettv->vval.v_number = (buf != NULL && buf->b_ml.ml_mfp != NULL);
-src/evalbuffer.c:584: [buffer memline member]     if (buf->b_ml.ml_mfp == NULL || first < 1
 src/evalbuffer.c:611: [implicit current-buffer line access] 	ml_delete_flags(first, ML_DEL_MESSAGE);
-src/evalbuffer.c:655: [buffer memline member]     dict_add_number(dict, "loaded", buf->b_ml.ml_mfp != NULL);
-src/evalbuffer.c:660: [buffer memline member] 			    buf->b_ml.ml_mfp != NULL && buf->b_nwindows == 0);
-src/evalbuffer.c:761: [buffer memline member] 	if (filtered && ((sel_bufloaded && buf->b_ml.ml_mfp == NULL)
-src/evalbuffer.c:799: [buffer memline member]     if (buf == NULL || buf->b_ml.ml_mfp == NULL || start < 0)
-Stats: 10 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=7; implicit current-buffer line access=3
+Stats: 3 access finding(s); 0 mutation follow-up candidate(s); implicit current-buffer line access=3
 
 src/evalfunc.c
 ==============
 src/evalfunc.c:3973: [implicit current-buffer line access] 		col = ml_get_len(fp->lnum) + 1;
-src/evalfunc.c:6073: [buffer memline member]     if (findbuf == NULL || findbuf->b_ml.ml_mfp == NULL)
 src/evalfunc.c:6079: [buffer memline member]     if (p1->lnum < 1 || p1->lnum > findbuf->b_ml.ml_line_count)
 src/evalfunc.c:6092: [buffer memline member]     if (p2->lnum < 1 || p2->lnum > findbuf->b_ml.ml_line_count)
 src/evalfunc.c:6209: [implicit current-buffer line access] 	    s.string = ml_get(lnum);
 src/evalfunc.c:6210: [implicit current-buffer line access] 	    s.length = ml_get_len(lnum);
 src/evalfunc.c:6324: [implicit current-buffer line access] 	char_u		*line = ml_get(lnum);
 src/evalfunc.c:6325: [implicit current-buffer line access] 	colnr_T		line_len = ml_get_len(lnum);
-src/evalfunc.c:9458: [buffer memline member]     if (buf->b_ml.ml_mfp == NULL)
 src/evalfunc.c:9823: [implicit current-buffer line access] 	if (*skipwhite(ml_get(lnum)) != NUL)
 src/evalfunc.c:9958: [implicit current-buffer line access] 	while (lnum >= 1 && *skipwhite(ml_get(lnum)) == NUL)
-src/evalfunc.c:12350: [buffer memline member]     if (buf == NULL || buf->b_ml.ml_mfp == NULL
 src/evalfunc.c:12351: [buffer memline member] 					|| buf->b_ml.ml_mfp->mf_fname == NULL)
 src/evalfunc.c:12354: [buffer memline member] 	rettv->vval.v_string = vim_strsave(buf->b_ml.ml_mfp->mf_fname);
 src/evalfunc.c:12381: [implicit current-buffer line access] 	    && col >= 0 && col < (long)ml_get_len(lnum))
 src/evalfunc.c:12558: [implicit current-buffer line access] 	    && col >= 0 && col <= (long)ml_get_len(lnum)
 src/evalfunc.c:12615: [implicit current-buffer line access] 	    && col >= 0 && col <= (long)ml_get_len(lnum)
 src/evalfunc.c:12819: [implicit current-buffer line access] 	    len = (int)ml_get_len(fp->lnum);
-Stats: 18 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=7; implicit current-buffer line access=11
+Stats: 15 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=4; implicit current-buffer line access=11
 
 src/ex_cmds.c
 =============
@@ -314,8 +284,6 @@ src/ex_cmds.c:1054: [implicit current-buffer line access] 	p = vim_strnsave(ml_g
 src/ex_cmds.c:1057: [implicit current-buffer line access] 	    ml_append(curwin->w_cursor.lnum, p, (colnr_T)0, FALSE);
 src/ex_cmds.c:1995: [implicit current-buffer line access]     msg_prt_line(ml_get(lnum), list);
 src/ex_cmds.c:2007: [implicit current-buffer line access]     if (message_filtered(ml_get(lnum)))
-src/ex_cmds.c:2215: [buffer memline member] 	if (alt_buf != NULL && alt_buf->b_ml.ml_mfp != NULL)
-src/ex_cmds.c:3013: [buffer memline member] 	if (buf->b_ml.ml_mfp == NULL)		// no memfile yet
 src/ex_cmds.c:3586: [buffer memline member]     int		empty = (curbuf->b_ml.ml_flags & ML_EMPTY);
 src/ex_cmds.c:3694: [implicit current-buffer line access] 	ml_append(lnum, theline, (colnr_T)0, FALSE);
 src/ex_cmds.c:3706: [implicit current-buffer line access] 	    ml_delete(2L);
@@ -338,28 +306,19 @@ src/ex_cmds.c:5860: [buffer memline member] 	    if (curbuf->b_ml.ml_flags & ML_
 Mutation follow-up candidates:
 src/ex_cmds.c:779: s from line 758 is mutated: 	    s[end_col] = NUL;
 
-Stats: 41 access finding(s); 1 mutation follow-up candidate(s); buffer memline member=5; implicit current-buffer line access=36
+Stats: 39 access finding(s); 1 mutation follow-up candidate(s); buffer memline member=3; implicit current-buffer line access=36
 
 src/ex_docmd.c
 ==============
 src/ex_docmd.c:571: [buffer memline member] 	    if (curbuf->b_ml.ml_flags & ML_EMPTY)
 src/ex_docmd.c:590: [buffer memline member] 	    if (curbuf->b_ml.ml_flags & ML_EMPTY)
-src/ex_docmd.c:1687: [buffer memline member] 	    while (buf->b_ml.ml_mfp == NULL)
-src/ex_docmd.c:1697: [buffer memline member] 	while (buf->b_ml.ml_mfp == NULL)
-src/ex_docmd.c:3479: [buffer memline member] 						  && buf->b_ml.ml_mfp == NULL)
-src/ex_docmd.c:3484: [buffer memline member] 						  && buf->b_ml.ml_mfp == NULL)
-src/ex_docmd.c:4527: [buffer memline member] 			while (buf->b_ml.ml_mfp == NULL)
-src/ex_docmd.c:4834: [buffer memline member] 		while (buf->b_next != NULL && buf->b_ml.ml_mfp == NULL)
-src/ex_docmd.c:4838: [buffer memline member] 		while (buf->b_prev != NULL && buf->b_ml.ml_mfp == NULL)
-src/ex_docmd.c:4962: [buffer memline member] 		while (buf->b_ml.ml_mfp == NULL)
-src/ex_docmd.c:4971: [buffer memline member] 		while (buf->b_ml.ml_mfp == NULL)
 src/ex_docmd.c:6861: [buffer memline member]     if (curbuf->b_ml.ml_flags & ML_EMPTY)
-src/ex_docmd.c:7922: [buffer memline member]     if (curbuf->b_ml.ml_mfp == NULL || curbuf->b_ml.ml_mfp->mf_fname == NULL)
+src/ex_docmd.c:7922: [buffer memline member]     if (!buf_is_loaded(curbuf) || curbuf->b_ml.ml_mfp->mf_fname == NULL)
 src/ex_docmd.c:7925: [buffer memline member] 	msg((char *)curbuf->b_ml.ml_mfp->mf_fname);
 src/ex_docmd.c:8010: [buffer memline member]     int		empty = (curbuf->b_ml.ml_flags & ML_EMPTY);
 src/ex_docmd.c:8072: [implicit current-buffer line access] 	    if (*ml_get(lnum) == NUL && u_savedel(lnum, 1L) == OK)
 src/ex_docmd.c:8074: [implicit current-buffer line access] 		ml_delete(lnum);
-Stats: 17 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=15; implicit current-buffer line access=2
+Stats: 8 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=6; implicit current-buffer line access=2
 
 src/ex_getln.c
 ==============
@@ -370,7 +329,6 @@ Stats: 2 access finding(s); 0 mutation follow-up candidate(s); implicit current-
 src/fileio.c
 ============
 src/fileio.c:107: [implicit current-buffer line access]  * 3. The lines are inserted in the buffer with ml_append().
-src/fileio.c:645: [buffer memline member] 	if (swap_mode > 0 && curbuf->b_ml.ml_mfp != NULL
 src/fileio.c:646: [buffer memline member] 			  && curbuf->b_ml.ml_mfp->mf_fname != NULL)
 src/fileio.c:648: [buffer memline member] 	    char_u *swap_fname = curbuf->b_ml.ml_mfp->mf_fname;
 src/fileio.c:664: [buffer memline member] 			&& fchown(curbuf->b_ml.ml_mfp->mf_fd, -1, st.st_gid)
@@ -383,16 +341,14 @@ src/fileio.c:2353: [implicit current-buffer line access] 		    if (ml_append(lnu
 src/fileio.c:2414: [implicit current-buffer line access] 	if (ml_append(lnum, line_start, len, newfile) == FAIL)
 src/fileio.c:2488: [buffer memline member] 	if (newfile && wasempty && !(curbuf->b_ml.ml_flags & ML_EMPTY))
 src/fileio.c:2493: [implicit current-buffer line access] 	    ml_delete(buf_line_count(curbuf));
-src/fileio.c:2801: [buffer memline member]     if (curbuf->b_ml.ml_mfp != NULL
 src/fileio.c:2802: [buffer memline member] 		       && curbuf->b_ml.ml_mfp->mf_dirty == MF_DIRTY_YES_NOSYNC)
 src/fileio.c:2804: [buffer memline member] 	curbuf->b_ml.ml_mfp->mf_dirty = MF_DIRTY_YES;
 src/fileio.c:3598: [buffer memline member] 	mf_fullname(buf->b_ml.ml_mfp);
 src/fileio.c:4209: [buffer memline member]     for (lnum = 1; lnum <= frombuf->b_ml.ml_line_count; ++lnum)
 src/fileio.c:4212: [implicit current-buffer line access] 	if (p == NULL || ml_append(lnum - 1, p, 0, FALSE) == FAIL)
 src/fileio.c:4226: [implicit current-buffer line access] 	    if (ml_delete(lnum) == FAIL)
-src/fileio.c:4280: [buffer memline member] 	    || buf->b_ml.ml_mfp == NULL
 src/fileio.c:4687: [implicit current-buffer line access] 			if (ml_delete(buf_line_count(buf)) == FAIL)
-Stats: 23 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=12; implicit current-buffer line access=11
+Stats: 20 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=9; implicit current-buffer line access=11
 
 src/fold.c
 ==========
@@ -506,10 +462,8 @@ Stats: 15 access finding(s); 1 mutation follow-up candidate(s); buffer memline m
 src/insexpand.c
 ===============
 src/insexpand.c:1604: [implicit current-buffer line access]     char_u	*line = ml_get(curwin->w_cursor.lnum);
-src/insexpand.c:3429: [buffer memline member] 		    (buf->b_ml.ml_mfp == NULL) != (flag == 'u');
 src/insexpand.c:4484: [buffer memline member] 	    st->first_match_pos.lnum = st->ins_buf->b_ml.ml_line_count;
 src/insexpand.c:4485: [implicit current-buffer line access] 	    st->first_match_pos.col = ml_get_len(st->first_match_pos.lnum);
-src/insexpand.c:4500: [buffer memline member] 	if (st->ins_buf->b_ml.ml_mfp != NULL)   // loaded buffer
 src/insexpand.c:4504: [buffer memline member] 	    st->first_match_pos.lnum = st->ins_buf->b_ml.ml_line_count + 1;
 src/insexpand.c:5035: [buffer memline member] 	    if (cur_match_pos->lnum >= ins_buf->b_ml.ml_line_count)
 src/insexpand.c:5067: [buffer memline member] 	    if (cur_match_pos->lnum < ins_buf->b_ml.ml_line_count)
@@ -519,28 +473,20 @@ src/insexpand.c:7053: [implicit current-buffer line access]     line = ml_get(cu
 src/insexpand.c:7208: [implicit current-buffer line access]     line = ml_get(curwin->w_cursor.lnum);
 src/insexpand.c:7244: [implicit current-buffer line access] 	line = ml_get(curwin->w_cursor.lnum);
 src/insexpand.c:7301: [implicit current-buffer line access]     // be called before line = ml_get(), or when this address is no
-Stats: 14 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=6; implicit current-buffer line access=8
+Stats: 12 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=4; implicit current-buffer line access=8
 
 src/job.c
 =========
-src/job.c:1365: [buffer memline member] 	if (buf->b_ml.ml_mfp == NULL)
 src/job.c:1571: [implicit current-buffer line access]     ml_append(lnum, (char_u  *)"", 0, FALSE);
 src/job.c:1578: [implicit current-buffer line access]     text = ml_get(lnum);
 src/job.c:1649: [implicit current-buffer line access] 	    ml_replace(buf_line_count(curbuf), prompt, TRUE);
 src/job.c:1651: [implicit current-buffer line access] 	    ml_append(buf_line_count(curbuf), prompt, 0, FALSE);
-Stats: 5 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=1; implicit current-buffer line access=4
+Stats: 4 access finding(s); 0 mutation follow-up candidate(s); implicit current-buffer line access=4
 
 src/macros.h
 ============
 src/macros.h:46: [implicit current-buffer line access] #define LINEEMPTY(p) (*ml_get(p) == NUL)
 Stats: 1 access finding(s); 0 mutation follow-up candidate(s); implicit current-buffer line access=1
-
-src/main.c
-==========
-src/main.c:1776: [buffer memline member] 	    if (buf->b_ml.ml_mfp != NULL)
-src/main.c:3058: [buffer memline member] 	if (curbuf->b_ml.ml_mfp == NULL) // failed
-src/main.c:3098: [buffer memline member] 	    if (curbuf->b_ml.ml_mfp == NULL)
-Stats: 3 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=3
 
 src/mark.c
 ==========
@@ -1008,7 +954,7 @@ Stats: 8 access finding(s); 0 mutation follow-up candidate(s); buffer memline me
 src/misc1.c
 ===========
 src/misc1.c:552: [implicit current-buffer line access]     ptrlen = ml_get_len(pos->lnum);
-src/misc1.c:2338: [buffer memline member] 	if (buf->b_ml.ml_mfp != NULL && buf->b_ml.ml_mfp->mf_fname != NULL)
+src/misc1.c:2338: [buffer memline member] 	if (buf_is_loaded(buf) && buf->b_ml.ml_mfp->mf_fname != NULL)
 Stats: 2 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=1; implicit current-buffer line access=1
 
 src/misc2.c
@@ -1126,11 +1072,6 @@ src/ops.c:4322: [implicit current-buffer line access] 		oap->end.col = ml_get_le
 src/ops.c:4648: [buffer memline member]     int	len = curbuf->b_ml.ml_line_len;
 Stats: 53 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=5; implicit current-buffer line access=48
 
-src/option.c
-============
-src/option.c:4993: [buffer memline member] 		&& !curbufIsChanged() && curbuf->b_ml.ml_mfp != NULL)
-Stats: 1 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=1
-
 src/os_unix.c
 =============
 src/os_unix.c:5412: [implicit current-buffer line access] 			char_u	    *lp = ml_get(lnum);
@@ -1157,8 +1098,7 @@ src/popupwin.c
 ==============
 src/popupwin.c:3063: [implicit current-buffer line access] 	ml_delete(lnum);
 src/popupwin.c:3093: [implicit current-buffer line access]     ml_delete(buf_line_count(buf));
-src/popupwin.c:4905: [buffer memline member]     if (wp->w_buffer == NULL || wp->w_buffer->b_ml.ml_mfp == NULL)
-Stats: 3 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=1; implicit current-buffer line access=2
+Stats: 2 access finding(s); 0 mutation follow-up candidate(s); implicit current-buffer line access=2
 
 src/proto/memline.pro
 =====================
@@ -1181,11 +1121,9 @@ src/quickfix.c:5193: [implicit current-buffer line access]  * ml_delete() is use
 src/quickfix.c:5222: [buffer memline member] 	while ((curbuf->b_ml.ml_flags & ML_EMPTY) == 0)
 src/quickfix.c:5223: [implicit current-buffer line access] 	    (void)ml_delete((linenr_T)1);
 src/quickfix.c:5292: [implicit current-buffer line access] 	    (void)ml_delete(lnum + 1);
-src/quickfix.c:6714: [buffer memline member]     if (buf->b_ml.ml_mfp != NULL && buf->b_ml.ml_mfp->mf_fname != NULL)
+src/quickfix.c:6714: [buffer memline member]     if (buf_is_loaded(buf) && buf->b_ml.ml_mfp->mf_fname != NULL)
 src/quickfix.c:6716: [buffer memline member] 	char_u *fname = buf->b_ml.ml_mfp->mf_fname;
-src/quickfix.c:6773: [buffer memline member] 	if (buf == NULL || buf->b_ml.ml_mfp == NULL)
-src/quickfix.c:8531: [buffer memline member]     if (buf->b_ml.ml_mfp == NULL)
-Stats: 11 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=8; implicit current-buffer line access=3
+Stats: 9 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=6; implicit current-buffer line access=3
 
 src/regexp.c
 ============
@@ -1252,8 +1190,7 @@ src/spellfile.c
 ===============
 src/spellfile.c:5632: [buffer memline member] 				 (long)spin->si_spellbuf->b_ml.ml_line_count);
 src/spellfile.c:5971: [buffer memline member]     wcount = spin->si_spellbuf->b_ml.ml_line_count;
-src/spellfile.c:6367: [buffer memline member] 	if (buf != NULL && buf->b_ml.ml_mfp == NULL)
-Stats: 3 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=3
+Stats: 2 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=2
 
 src/spellsuggest.c
 ==================
@@ -1275,11 +1212,6 @@ src/syntax.c:1079: [buffer memline member]     len = syn_buf->b_ml.ml_line_count
 src/syntax.c:1087: [buffer memline member] 	len = syn_buf->b_ml.ml_line_count;
 src/syntax.c:1230: [buffer memline member] 	dist = syn_buf->b_ml.ml_line_count / (syn_block->b_sst_len - Rows) + 1;
 Stats: 7 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=5; implicit current-buffer line access=2
-
-src/term.c
-==========
-src/term.c:2437: [buffer memline member] 		if (curbuf->b_ml.ml_mfp != NULL)
-Stats: 1 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=1
 
 src/terminal.c
 ==============
@@ -1350,7 +1282,6 @@ src/textprop.c:514: [buffer memline member]     um->buf->b_ml.ml_line_ptr = pack
 src/textprop.c:514: [memline cached/locked member]     um->buf->b_ml.ml_line_ptr = packed;
 src/textprop.c:515: [buffer memline member]     um->buf->b_ml.ml_line_len = packed_len;
 src/textprop.c:516: [buffer memline member]     um->buf->b_ml.ml_flags |= ML_LINE_DIRTY;
-src/textprop.c:734: [buffer memline member]     if (buf->b_ml.ml_mfp == NULL)
 src/textprop.c:859: [buffer memline member] 	mch_memmove(newtext, buf->b_ml.ml_line_ptr, textlen);
 src/textprop.c:859: [memline cached/locked member] 	mch_memmove(newtext, buf->b_ml.ml_line_ptr, textlen);
 src/textprop.c:916: [buffer memline member] 	if (buf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
@@ -1360,7 +1291,6 @@ src/textprop.c:918: [buffer memline member] 	buf->b_ml.ml_line_ptr = newtext;
 src/textprop.c:918: [memline cached/locked member] 	buf->b_ml.ml_line_ptr = newtext;
 src/textprop.c:919: [buffer memline member] 	buf->b_ml.ml_line_len = new_line_len;
 src/textprop.c:920: [buffer memline member] 	buf->b_ml.ml_flags |= ML_LINE_DIRTY;
-src/textprop.c:1239: [buffer memline member]     if ((!buf->b_has_textprop && !will_change) || buf->b_ml.ml_mfp == NULL)
 src/textprop.c:1245: [buffer memline member]     propdata_len = buf->b_ml.ml_line_len - textlen;
 src/textprop.c:1502: [implicit current-buffer line access]     text = ml_get(lnum);
 src/textprop.c:1503: [implicit current-buffer line access]     textlen = ml_get_len(lnum) + 1;
@@ -1378,9 +1308,7 @@ src/textprop.c:1568: [buffer memline member] 	curbuf->b_ml.ml_line_ptr = newtext
 src/textprop.c:1568: [memline cached/locked member] 	curbuf->b_ml.ml_line_ptr = newtext;
 src/textprop.c:1569: [buffer memline member] 	curbuf->b_ml.ml_line_len = total_len;
 src/textprop.c:1570: [buffer memline member] 	curbuf->b_ml.ml_flags |= ML_LINE_DIRTY;
-src/textprop.c:1925: [buffer memline member]     if (buf->b_ml.ml_mfp == NULL)
-src/textprop.c:2405: [buffer memline member]     if (buf->b_ml.ml_mfp == NULL)
-Stats: 40 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=29; memline cached/locked member=9; implicit current-buffer line access=2
+Stats: 36 access finding(s); 0 mutation follow-up candidate(s); buffer memline member=25; memline cached/locked member=9; implicit current-buffer line access=2
 
 src/ui.c
 ========
@@ -1413,10 +1341,10 @@ Stats: 19 access finding(s); 0 mutation follow-up candidate(s); buffer memline m
 Totals
 ======
 Source files scanned: 449
-Files with findings: 66
-Total access findings: 1131
+Files with findings: 62
+Total access findings: 1075
 Mutation follow-up candidates: 2
-buffer memline member: 570
+buffer memline member: 514
 memline cached/locked member: 100
 implicit current-buffer line access: 460
 BUFEMPTY macro: 0

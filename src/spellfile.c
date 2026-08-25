@@ -6364,7 +6364,7 @@ spell_add_word(
 
 	// Check that the user isn't editing the .add file somewhere.
 	buf = buflist_findname_exp(fnamebuf);
-	if (buf != NULL && buf->b_ml.ml_mfp == NULL)
+	if (buf != NULL && !buf_is_loaded(buf))
 	    buf = NULL;
 	if (buf != NULL && bufIsChanged(buf))
 	{

@@ -1773,7 +1773,7 @@ getout(int exitval)
 
 	// Trigger BufUnload for buffers that are loaded
 	FOR_ALL_BUFFERS(buf)
-	    if (buf->b_ml.ml_mfp != NULL)
+	    if (buf_is_loaded(buf))
 	    {
 		bufref_T bufref;
 
@@ -3055,7 +3055,7 @@ create_windows(mparm_T *parmp UNUSED)
     {
 	msg_scroll = TRUE;		// scroll message up
 	ml_recover(TRUE);
-	if (curbuf->b_ml.ml_mfp == NULL) // failed
+	if (!buf_is_loaded(curbuf)) // failed
 	    getout(1);
 	do_modelines(0);		// do modelines
     }
@@ -3095,7 +3095,7 @@ create_windows(mparm_T *parmp UNUSED)
 	    }
 	    dorewind = FALSE;
 	    curbuf = curwin->w_buffer;
-	    if (curbuf->b_ml.ml_mfp == NULL)
+	    if (!buf_is_loaded(curbuf))
 	    {
 # ifdef FEAT_FOLDING
 		// Set 'foldlevel' to 'foldlevelstart' if it's not negative.

@@ -642,7 +642,7 @@ readfile(
 	}
 #ifdef UNIX
 	// Set swap file protection bits after creating it.
-	if (swap_mode > 0 && curbuf->b_ml.ml_mfp != NULL
+	if (swap_mode > 0 && buf_is_loaded(curbuf)
 			  && curbuf->b_ml.ml_mfp->mf_fname != NULL)
 	{
 	    char_u *swap_fname = curbuf->b_ml.ml_mfp->mf_fname;
@@ -2798,7 +2798,7 @@ failed:
 	retval = OK;
 
 theend:
-    if (curbuf->b_ml.ml_mfp != NULL
+    if (buf_is_loaded(curbuf)
 		       && curbuf->b_ml.ml_mfp->mf_dirty == MF_DIRTY_YES_NOSYNC)
 	// OK to sync the swap file now
 	curbuf->b_ml.ml_mfp->mf_dirty = MF_DIRTY_YES;
@@ -4277,7 +4277,7 @@ buf_check_timestamp(
     // set, we are in the middle of a save or being called recursively: ignore
     // this buffer.
     if (buf->b_ffname == NULL
-	    || buf->b_ml.ml_mfp == NULL
+	    || !buf_is_loaded(buf)
 	    || !bt_normal(buf)
 	    || buf->b_saving
 	    || busy

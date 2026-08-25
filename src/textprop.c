@@ -731,7 +731,7 @@ prop_add_one(
 	goto theend;
     }
 
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
     {
 	emsg(_(e_cannot_add_text_property_to_unloaded_buffer));
 	goto theend;
@@ -1236,7 +1236,7 @@ get_text_props(buf_T *buf, linenr_T lnum, char_u **props, int will_change)
 
     // Be quick when no text property types have been defined for the buffer,
     // unless we are adding one.
-    if ((!buf->b_has_textprop && !will_change) || buf->b_ml.ml_mfp == NULL)
+    if ((!buf->b_has_textprop && !will_change) || !buf_is_loaded(buf))
 	return 0;
 
     // Fetch the line to get the ml_line_len field updated.
@@ -1922,7 +1922,7 @@ f_prop_find(typval_T *argvars, typval_T *rettv)
 
     if (get_bufnr_from_arg(&argvars[0], &buf) == FAIL)
 	return;
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
 	return;
 
     if (argvars[1].v_type != VAR_UNKNOWN)
@@ -2402,7 +2402,7 @@ f_prop_remove(typval_T *argvars, typval_T *rettv)
     dict = argvars[0].vval.v_dict;
     if (get_bufnr_from_arg(&argvars[0], &buf) == FAIL)
 	return;
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
 	return;
 
     do_all = dict_get_bool(dict, "all", FALSE);

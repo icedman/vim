@@ -3426,7 +3426,7 @@ ins_compl_next_buf(buf_T *buf, int flag)
 		skip_buffer = buf->b_p_bl;
 	    else
 		skip_buffer = !buf->b_p_bl ||
-		    (buf->b_ml.ml_mfp == NULL) != (flag == 'u');
+		    (!buf_is_loaded(buf)) != (flag == 'u');
 
 	    // Break if we found a buffer that matches our criteria
 	    if (!skip_buffer && !buf->b_scanned)
@@ -4497,7 +4497,7 @@ process_next_cpt_value(
 					   st->ins_buf, *st->e_cpt)) != curbuf)
     {
 	// Scan a buffer, but not the current one.
-	if (st->ins_buf->b_ml.ml_mfp != NULL)   // loaded buffer
+	if (buf_is_loaded(st->ins_buf))   // loaded buffer
 	{
 	    compl_started = TRUE;
 	    st->first_match_pos.col = st->last_match_pos.col = 0;

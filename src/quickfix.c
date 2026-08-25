@@ -6711,7 +6711,7 @@ vgr_process_args(
     static int
 existing_swapfile(buf_T *buf)
 {
-    if (buf->b_ml.ml_mfp != NULL && buf->b_ml.ml_mfp->mf_fname != NULL)
+    if (buf_is_loaded(buf) && buf->b_ml.ml_mfp->mf_fname != NULL)
     {
 	char_u *fname = buf->b_ml.ml_mfp->mf_fname;
 	size_t len = STRLEN(fname);
@@ -6770,7 +6770,7 @@ vgr_process_files(
 	}
 
 	buf = buflist_findname_exp(cmd_args->fnames[fi]);
-	if (buf == NULL || buf->b_ml.ml_mfp == NULL)
+	if (buf == NULL || !buf_is_loaded(buf))
 	{
 	    // Remember that a buffer with this name already exists.
 	    duplicate_name = (buf != NULL);
@@ -8528,7 +8528,7 @@ cbuffer_process_args(
 	return FAIL;
     }
 
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
     {
 	emsg(_(e_buffer_is_not_loaded));
 	return FAIL;

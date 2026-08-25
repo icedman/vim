@@ -6070,7 +6070,7 @@ getregionpos(
     }
 
     findbuf = fnum1 != 0 ? buflist_findnr(fnum1) : curbuf;
-    if (findbuf == NULL || findbuf->b_ml.ml_mfp == NULL)
+    if (findbuf == NULL || !buf_is_loaded(findbuf))
     {
 	emsg(_(e_buffer_is_not_loaded));
 	return FAIL;
@@ -9455,7 +9455,7 @@ f_matchbufline(typval_T *argvars, typval_T *rettv)
 	    semsg(_(e_invalid_buffer_name_str), tv_get_string(&argvars[0]));
 	return;
     }
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
     {
 	emsg(_(e_buffer_is_not_loaded));
 	return;
@@ -12347,7 +12347,7 @@ f_swapname(typval_T *argvars, typval_T *rettv)
 	return;
 
     buf = tv_get_buf(&argvars[0], FALSE);
-    if (buf == NULL || buf->b_ml.ml_mfp == NULL
+    if (buf == NULL || !buf_is_loaded(buf)
 					|| buf->b_ml.ml_mfp->mf_fname == NULL)
 	rettv->vval.v_string = NULL;
     else

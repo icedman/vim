@@ -2335,7 +2335,7 @@ preserve_exit(void)
 
     FOR_ALL_BUFFERS(buf)
     {
-	if (buf->b_ml.ml_mfp != NULL && buf->b_ml.ml_mfp->mf_fname != NULL)
+	if (buf_is_loaded(buf) && buf->b_ml.ml_mfp->mf_fname != NULL)
 	{
 	    OUT_STR("Vim: preserving files...\r\n");
 	    screen_start();	    // don't know where cursor is now

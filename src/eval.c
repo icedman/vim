@@ -6972,7 +6972,7 @@ buf_byteidx_to_charidx(buf_T *buf, int lnum, int byteidx)
     char_u	*t;
     int		count;
 
-    if (buf == NULL || buf->b_ml.ml_mfp == NULL)
+    if (buf == NULL || !buf_is_loaded(buf))
 	return -1;
 
     if (lnum > buf_line_count(buf))
@@ -7010,7 +7010,7 @@ buf_charidx_to_byteidx(buf_T *buf, int lnum, int charidx)
     char_u	*str;
     char_u	*t;
 
-    if (buf == NULL || buf->b_ml.ml_mfp == NULL)
+    if (buf == NULL || !buf_is_loaded(buf))
 	return -1;
 
     if (lnum > buf_line_count(buf))
@@ -7253,7 +7253,7 @@ list2fpos(
 
 	// Get the text for the specified line in a loaded buffer
 	buf = buflist_findnr(fnump == NULL ? curbuf->b_fnum : *fnump);
-	if (buf == NULL || buf->b_ml.ml_mfp == NULL)
+	if (buf == NULL || !buf_is_loaded(buf))
 	    return FAIL;
 
 	n = buf_charidx_to_byteidx(buf,

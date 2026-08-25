@@ -1362,7 +1362,7 @@ job_start(
 	    buf = buflist_find_by_name(opt.jo_io_name[PART_IN], FALSE);
 	if (buf == NULL)
 	    goto theend;
-	if (buf->b_ml.ml_mfp == NULL)
+	if (!buf_is_loaded(buf))
 	{
 	    char_u	numbuf[NUMBUFLEN];
 	    char_u	*s;

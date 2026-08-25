@@ -2212,7 +2212,7 @@ do_write(exarg_T *eap)
 	    alt_buf = setaltfname(ffname, fname, (linenr_T)1);
 	else
 	    alt_buf = buflist_findname(ffname);
-	if (alt_buf != NULL && alt_buf->b_ml.ml_mfp != NULL)
+	if (alt_buf != NULL && buf_is_loaded(alt_buf))
 	{
 	    // Overwriting a file that is loaded in another buffer is not a
 	    // good idea.
@@ -3010,7 +3010,7 @@ do_ecmd(
 	    // reusing the buffer, keep the old alternate file
 	    curwin->w_alt_fnum = prev_alt_fnum;
 
-	if (buf->b_ml.ml_mfp == NULL)		// no memfile yet
+	if (!buf_is_loaded(buf))		// no memfile yet
 	{
 	    oldbuf = FALSE;
 	}

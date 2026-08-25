@@ -1112,7 +1112,7 @@ prepare_buffer(buf_T *buf)
 					    0L, (char_u *)"nofile", OPT_LOCAL);
     set_option_value_give_err((char_u *)"bh", 0L, (char_u *)"hide", OPT_LOCAL);
 #endif
-    if (curbuf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(curbuf))
 	ml_open(curbuf);
     curbuf = save_curbuf;
 }
@@ -1232,7 +1232,7 @@ channel_set_options(channel_T *channel, jobopt_T *opt)
 						       (char *)buf->b_ffname);
 		set_bufref(&channel->ch_part[PART_OUT].ch_bufref, buf);
 		// if the buffer was deleted or unloaded resurrect it
-		if (buf->b_ml.ml_mfp == NULL)
+		if (!buf_is_loaded(buf))
 		    prepare_buffer(buf);
 	    }
 	}
@@ -1279,7 +1279,7 @@ channel_set_options(channel_T *channel, jobopt_T *opt)
 						       (char *)buf->b_ffname);
 		set_bufref(&channel->ch_part[PART_ERR].ch_bufref, buf);
 		// if the buffer was deleted or unloaded resurrect it
-		if (buf->b_ml.ml_mfp == NULL)
+		if (!buf_is_loaded(buf))
 		    prepare_buffer(buf);
 	    }
 	}
@@ -1950,7 +1950,7 @@ channel_write_in(channel_T *channel)
 
     if (buf == NULL || in_part->ch_buf_append)
 	return;  // no buffer or using appending
-    if (!bufref_valid(&in_part->ch_bufref) || buf->b_ml.ml_mfp == NULL)
+    if (!bufref_valid(&in_part->ch_bufref) || !buf_is_loaded(buf))
     {
 	// buffer was wiped out or unloaded
 	ch_log(channel, "input buffer has been wiped out");
@@ -3294,7 +3294,7 @@ may_invoke_callback(channel_T *channel, ch_part_T part)
 
     buffer = ch_part->ch_bufref.br_buf;
     if (buffer != NULL && (!bufref_valid(&ch_part->ch_bufref)
-					       || buffer->b_ml.ml_mfp == NULL))
+					       || !buf_is_loaded(buffer)))
     {
 	// buffer was wiped out or unloaded
 	ch_log(channel, "%s buffer has been wiped out", ch_part_names[part]);

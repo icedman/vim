@@ -206,7 +206,7 @@ set_buffer_lines(
     // setline() is used on startup.  For other buffers the buffer must be
     // loaded.
     int is_curbuf = buf == curbuf;
-    if (buf == NULL || (!is_curbuf && buf->b_ml.ml_mfp == NULL) || lnum < 1)
+    if (buf == NULL || (!is_curbuf && !buf_is_loaded(buf)) || lnum < 1)
     {
 	rettv->vval.v_number = 1;	// FAIL
 	if (in_vim9script() && lnum < 1)
@@ -445,7 +445,7 @@ f_bufloaded(typval_T *argvars, typval_T *rettv)
 	return;
 
     buf = find_buffer(&argvars[0]);
-    rettv->vval.v_number = (buf != NULL && buf->b_ml.ml_mfp != NULL);
+    rettv->vval.v_number = (buf != NULL && buf_is_loaded(buf));
 }
 
 /*
@@ -581,7 +581,7 @@ f_deletebufline(typval_T *argvars, typval_T *rettv)
     else
 	last = first;
 
-    if (buf->b_ml.ml_mfp == NULL || first < 1
+    if (!buf_is_loaded(buf) || first < 1
 			   || first > buf_line_count(buf) || last < first)
 	return;
 
@@ -652,12 +652,12 @@ get_buffer_info(buf_T *buf)
     dict_add_number(dict, "lnum", buf == curbuf ? curwin->w_cursor.lnum
 						     : buflist_findlnum(buf));
     dict_add_number(dict, "linecount", buf_line_count(buf));
-    dict_add_number(dict, "loaded", buf->b_ml.ml_mfp != NULL);
+    dict_add_number(dict, "loaded", buf_is_loaded(buf));
     dict_add_number(dict, "listed", buf->b_p_bl);
     dict_add_number(dict, "changed", bufIsChanged(buf));
     dict_add_number(dict, "changedtick", CHANGEDTICK(buf));
     dict_add_number(dict, "hidden",
-			    buf->b_ml.ml_mfp != NULL && buf->b_nwindows == 0);
+			    buf_is_loaded(buf) && buf->b_nwindows == 0);
     dict_add_number(dict, "command", buf == cmdwin_buf);
 
     // Get a reference to buffer variables
@@ -758,7 +758,7 @@ f_getbufinfo(typval_T *argvars, typval_T *rettv)
     {
 	if (argbuf != NULL && argbuf != buf)
 	    continue;
-	if (filtered && ((sel_bufloaded && buf->b_ml.ml_mfp == NULL)
+	if (filtered && ((sel_bufloaded && !buf_is_loaded(buf))
 			|| (sel_buflisted && !buf->b_p_bl)
 			|| (sel_bufmodified && !buf->b_changed)))
 	    continue;
@@ -796,7 +796,7 @@ get_buffer_lines(
 	rettv->vval.v_string = NULL;
     }
 
-    if (buf == NULL || buf->b_ml.ml_mfp == NULL || start < 0)
+    if (buf == NULL || !buf_is_loaded(buf) || start < 0)
 	return;
 
     if (!retlist)
