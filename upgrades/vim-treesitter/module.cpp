@@ -27,6 +27,7 @@ const TSLanguage *tree_sitter_python(void);
 #include <sstream>
 #include <string>
 #include <thread>
+#include <time.h>
 
 extern "C" {
 typedef struct file_buffer buf_T;
@@ -97,6 +98,23 @@ std::map<std::string, std::function<const TSLanguage *()>> ts_languages = {
     {".json", tree_sitter_json},
     {".py", tree_sitter_python},
 };
+
+// Custom payload payload structure to track deadlines
+typedef struct {
+    clock_t deadline;
+} TimeoutPayload;
+
+// Callback function invoked periodically by Tree-sitter
+bool check_parse_timeout(TSParseState *state) {
+    TimeoutPayload *timeout = (TimeoutPayload *)state->payload;
+    
+    // Check if current system clock has exceeded our target deadline
+    if (timeout->deadline != 0 && clock() > timeout->deadline) {
+        return true; // Return true to ABORT parsing
+    }
+    
+    return false; // Return false to CONTINUE parsing
+}
 
 class TSNodeEx {
 public:
@@ -291,12 +309,21 @@ TSTree *build_tree(char *content, int content_length, char *type) {
   std::function<const TSLanguage *()> lang = ts_languages[langId];
 
   TSParser *parser = ts_parser_new();
+
   if (!ts_parser_set_language(parser, lang())) {
     log("invalid language\n");
     return NULL;
   } else {
     // log("language: %s", type);
   }
+
+  TimeoutPayload payload;
+  payload.deadline = clock() + (CLOCKS_PER_SEC * 0); // zero - no deadline 
+
+  TSParseOptions options = {
+    .payload = &payload,
+    .progress_callback = check_parse_timeout
+  };
 
   TSTree *tree = ts_parser_parse_string(parser, NULL /* TODO: old_tree */,
                                         content, content_length);
