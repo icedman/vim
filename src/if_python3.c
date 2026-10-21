@@ -1731,7 +1731,7 @@ BufferSubscript(PyObject *self, PyObject* idx)
 	    return NULL;
 
 	if (PySlice_GetIndicesEx((PySliceObject_T *)idx,
-	      (Py_ssize_t)((BufferObject *)(self))->buf->b_ml.ml_line_count,
+	      (Py_ssize_t)buf_line_count(((BufferObject *)(self))->buf),
 	      &start, &stop,
 	      &step, &slicelen) < 0)
 	    return NULL;
@@ -1755,7 +1755,7 @@ BufferAsSubscript(PyObject *self, PyObject* idx, PyObject* val)
 	    return -1;
 
 	return RBAsItem((BufferObject *)(self), n, val, 1,
-		    (Py_ssize_t)((BufferObject *)(self))->buf->b_ml.ml_line_count,
+		    (Py_ssize_t)buf_line_count(((BufferObject *)(self))->buf),
 		    NULL);
     }
     else if (PySlice_Check(idx))
@@ -1766,12 +1766,12 @@ BufferAsSubscript(PyObject *self, PyObject* idx, PyObject* val)
 	    return -1;
 
 	if (PySlice_GetIndicesEx((PySliceObject_T *)idx,
-	      (Py_ssize_t)((BufferObject *)(self))->buf->b_ml.ml_line_count,
+	      (Py_ssize_t)buf_line_count(((BufferObject *)(self))->buf),
 	      &start, &stop,
 	      &step, &slicelen) < 0)
 	    return -1;
 	return RBAsSlice((BufferObject *)(self), start, stop, val, 1,
-			  (PyInt)((BufferObject *)(self))->buf->b_ml.ml_line_count,
+			  (PyInt)buf_line_count(((BufferObject *)(self))->buf),
 			  NULL);
     }
     else

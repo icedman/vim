@@ -156,7 +156,8 @@ clip_update_selection(Clipboard_T *clip)
 	    start = VIsual;
 	    end = curwin->w_cursor;
 	    if (has_mbyte)
-		end.col += (*mb_ptr2len)(ml_get_cursor()) - 1;
+		end.col += (*mb_ptr2len)(buf_line_at(curbuf,
+						     &curwin->w_cursor)) - 1;
 	}
 	else
 	{

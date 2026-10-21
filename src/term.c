@@ -2434,7 +2434,7 @@ set_termname(char_u *term)
 	     */
 	    FOR_ALL_BUFFERS(buf)
 	    {
-		if (curbuf->b_ml.ml_mfp != NULL)
+		if (buf_is_loaded(curbuf))
 		{
 		    aucmd_prepbuf(&aco, buf);
 		    if (curbuf == buf)

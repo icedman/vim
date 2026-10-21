@@ -5081,12 +5081,12 @@ copy_substring_from_pos(pos_T *start, pos_T *end, char_u **match,
     ga_init2(&ga, 1, 128);
 
     // Append start line from start->col to end
-    start_line = ml_get(start->lnum);
+    start_line = buf_line(curbuf, start->lnum, FALSE);
     char_u  *start_ptr = start_line + start->col;
     int	    is_single_line = start->lnum == end->lnum;
 
     segment_len = is_single_line ? (end->col - start->col)
-			: (int)(ml_get_len(start->lnum) - start->col);
+			: (int)(buf_line_len(curbuf, start->lnum) - start->col);
     if (ga_grow(&ga, segment_len + 2) != OK)
 	goto fail;
 
@@ -5106,8 +5106,8 @@ copy_substring_from_pos(pos_T *start, pos_T *end, char_u **match,
 	{
 	    int  linelen;
 
-	    line = ml_get(lnum);
-	    linelen = (int)ml_get_len(lnum);
+	    line = buf_line(curbuf, lnum, FALSE);
+	    linelen = (int)buf_line_len(curbuf, lnum);
 	    if (ga_grow(&ga, linelen + 2) != OK)
 		goto fail;
 	    ga_concat_len(&ga, line, linelen);
@@ -5119,7 +5119,7 @@ copy_substring_from_pos(pos_T *start, pos_T *end, char_u **match,
     }
 
     // Append partial end line (up to word end)
-    end_line = ml_get(end->lnum);
+    end_line = buf_line(curbuf, end->lnum, FALSE);
     word_end = find_word_end(end_line + end->col);
     segment_len = (int)(word_end - end_line);
     if (ga_grow(&ga, segment_len) != OK)
@@ -5193,7 +5193,7 @@ concat_pattern_with_buffer_match(
 	pos_T *end_match_pos,
 	int lowercase UNUSED)
 {
-    char_u  *line = ml_get(end_match_pos->lnum);
+    char_u  *line = buf_line(curbuf, end_match_pos->lnum, FALSE);
     char_u  *word_end = find_word_end(line + end_match_pos->col);
     int	    match_len = (int)(word_end - (line + end_match_pos->col));
     char_u  *match = alloc(match_len + pat_len + 1);  // +1 for NUL
@@ -5327,7 +5327,7 @@ expand_pattern_in_buf(
 
 	// searchit() can return line number +1 past the last line when
 	// searching for "foo\n" if "foo" is at end of buffer.
-	if (end_match_pos.lnum > curbuf->b_ml.ml_line_count)
+	if (end_match_pos.lnum > buf_line_count(curbuf))
 	{
 	    cur_match_pos.lnum = 1;
 	    cur_match_pos.col = 0;

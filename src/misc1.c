@@ -407,7 +407,7 @@ plines_win_nofold(win_T *wp, linenr_T lnum)
     int		width;
     chartabsize_T cts;
 
-    s = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    s = buf_line(wp->w_buffer, lnum, FALSE);
     init_chartabsize_arg(&cts, wp, lnum, 0, s, s);
     if (*s == NUL
 #ifdef FEAT_PROP_POPUP
@@ -462,7 +462,7 @@ plines_win_col(win_T *wp, linenr_T lnum, long column)
     if (wp->w_width == 0)
 	return lines + 1;
 
-    line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    line = buf_line(wp->w_buffer, lnum, FALSE);
 
     init_chartabsize_arg(&cts, wp, lnum, 0, line, line);
     // "column" is a byte index, advance the pointer until it is reached.
@@ -534,7 +534,7 @@ plines_m_win(win_T *wp, linenr_T first, linenr_T last, int max)
 	}
     }
 #ifdef FEAT_DIFF
-    if (first == wp->w_buffer->b_ml.ml_line_count + 1)
+    if (first == buf_line_count(wp->w_buffer) + 1)
 	count += diff_check_fill(wp, first);
 #endif
     return MIN(max, count);
@@ -549,8 +549,8 @@ gchar_pos(pos_T *pos)
     // When searching columns is sometimes put at the end of a line.
     if (pos->col == MAXCOL)
 	return NUL;
-    ptrlen = ml_get_len(pos->lnum);
-    ptr = ml_get_pos(pos);
+    ptrlen = buf_line_len(curbuf, pos->lnum);
+    ptr = buf_line_at(curbuf, pos);
     if (pos->col > ptrlen)
 	return NUL;
     if (has_mbyte)
@@ -562,8 +562,8 @@ gchar_pos(pos_T *pos)
 gchar_cursor(void)
 {
     if (has_mbyte)
-	return (*mb_ptr2char)(ml_get_cursor());
-    return (int)*ml_get_cursor();
+	return (*mb_ptr2char)(buf_line_at(curbuf, &curwin->w_cursor));
+    return (int)*buf_line_at(curbuf, &curwin->w_cursor);
 }
 
 /*
@@ -575,7 +575,7 @@ char_before_cursor(void)
     if (curwin->w_cursor.col == 0)
 	return -1;
 
-    char_u *line = ml_get_curline();
+    char_u *line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 
     if (has_mbyte)
     {
@@ -593,7 +593,7 @@ char_before_cursor(void)
     void
 pchar_cursor(int c)
 {
-    *(ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE)
+    *(buf_line(curbuf, curwin->w_cursor.lnum, TRUE)
 						  + curwin->w_cursor.col) = c;
 }
 
@@ -2335,7 +2335,7 @@ preserve_exit(void)
 
     FOR_ALL_BUFFERS(buf)
     {
-	if (buf->b_ml.ml_mfp != NULL && buf->b_ml.ml_mfp->mf_fname != NULL)
+	if (buf_swapfile_name(buf) != NULL)
 	{
 	    OUT_STR("Vim: preserving files...\r\n");
 	    screen_start();	    // don't know where cursor is now
@@ -2573,9 +2573,9 @@ get_cmd_output_as_rettv(
 		goto errret;
 	    }
 
-	    for (lnum = 1; lnum <= buf->b_ml.ml_line_count; lnum++)
+	    for (lnum = 1; lnum <= buf_line_count(buf); lnum++)
 	    {
-		for (p = ml_get_buf(buf, lnum, FALSE); *p != NUL; ++p)
+		for (p = buf_line(buf, lnum, FALSE); *p != NUL; ++p)
 		    if (putc(*p == '\n' ? NUL : *p, fd) == EOF)
 		    {
 			err = TRUE;

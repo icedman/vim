@@ -41,7 +41,7 @@ do_ascii(exarg_T *eap UNUSED)
     int		len;
 
     if (enc_utf8)
-	c = utfc_ptr2char(ml_get_cursor(), cc);
+	c = utfc_ptr2char(buf_line_at(curbuf, &curwin->w_cursor), cc);
     else
 	c = gchar_cursor();
     if (c == NUL)
@@ -243,7 +243,7 @@ linelen(int *has_tab)
 
     // Get the line.  If it's empty bail out early (could be the empty string
     // for an unloaded buffer).
-    line = ml_get_curline();
+    line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     if (*line == NUL)
 	return 0;
 
@@ -336,10 +336,12 @@ sort_compare(const void *s1, const void *s2)
 	// We need to copy one line into "sortbuf1", because there is no
 	// guarantee that the first pointer becomes invalid when obtaining the
 	// second one.
-	STRNCPY(sortbuf1, ml_get(l1.lnum) + l1.st_u.line.start_col_nr,
+	STRNCPY(sortbuf1,
+		buf_line(curbuf, l1.lnum, FALSE) + l1.st_u.line.start_col_nr,
 		     l1.st_u.line.end_col_nr - l1.st_u.line.start_col_nr + 1);
 	sortbuf1[l1.st_u.line.end_col_nr - l1.st_u.line.start_col_nr] = 0;
-	STRNCPY(sortbuf2, ml_get(l2.lnum) + l2.st_u.line.start_col_nr,
+	STRNCPY(sortbuf2,
+		buf_line(curbuf, l2.lnum, FALSE) + l2.st_u.line.start_col_nr,
 		     l2.st_u.line.end_col_nr - l2.st_u.line.start_col_nr + 1);
 	sortbuf2[l2.st_u.line.end_col_nr - l2.st_u.line.start_col_nr] = 0;
 
@@ -488,8 +490,8 @@ ex_sort(exarg_T *eap)
      */
     for (lnum = eap->line1; lnum <= eap->line2; ++lnum)
     {
-	s = ml_get(lnum);
-	len = ml_get_len(lnum);
+	s = buf_line(curbuf, lnum, FALSE);
+	len = buf_line_len(curbuf, lnum);
 	if (maxlen < len)
 	    maxlen = len;
 
@@ -597,13 +599,14 @@ ex_sort(exarg_T *eap)
 	if (get_lnum + ((linenr_T)count - 1) != lnum)
 	    change_occurred = TRUE;
 
-	s = ml_get(get_lnum);
+	s = buf_line(curbuf, get_lnum, FALSE);
 	if (!unique || i == 0 || string_compare(s, sortbuf1) != 0)
 	{
 	    // Copy the line into a buffer, it may become invalid in
 	    // ml_append(). And it's needed for "unique".
 	    STRCPY(sortbuf1, s);
-	    if (ml_append(lnum++, sortbuf1, (colnr_T)0, FALSE) == FAIL)
+	    if (buf_append_line(curbuf, lnum++, sortbuf1, (colnr_T)0, FALSE)
+								      == FAIL)
 		break;
 	}
 	fast_breakcheck();
@@ -614,7 +617,7 @@ ex_sort(exarg_T *eap)
     // delete the original lines if appending worked
     if (i == count)
 	for (i = 0; i < count; ++i)
-	    ml_delete(eap->line1);
+	    buf_delete_line(curbuf, eap->line1, 0);
     else
 	count = 0;
 
@@ -732,7 +735,7 @@ ex_uniq(exarg_T *eap)
     // Find the length of the longest line.
     for (lnum = eap->line1; lnum <= eap->line2; ++lnum)
     {
-	len = ml_get_len(lnum);
+	len = buf_line_len(curbuf, lnum);
 	if (maxlen < len)
 	    maxlen = len;
 
@@ -755,8 +758,8 @@ ex_uniq(exarg_T *eap)
     {
 	linenr_T get_lnum = eap->line1 + i;
 
-	s = ml_get(get_lnum);
-	len = ml_get_len(get_lnum);
+	s = buf_line(curbuf, get_lnum, FALSE);
+	len = buf_line_len(curbuf, get_lnum);
 
 	start_col = 0;
 	end_col = len;
@@ -839,7 +842,7 @@ ex_uniq(exarg_T *eap)
 
 	if (delete_lnum > 0)
 	{
-	    ml_delete(delete_lnum);
+	    buf_delete_line(curbuf, delete_lnum, 0);
 	    i -= get_lnum - delete_lnum + 1;
 	    count--;
 	    deleted++;
@@ -916,10 +919,11 @@ do_move(linenr_T line1, linenr_T line2, linenr_T dest)
 	return FAIL;
     for (extra = 0, l = line1; l <= line2; l++)
     {
-	str = vim_strnsave(ml_get(l + extra), ml_get_len(l + extra));
+	str = vim_strnsave(buf_line(curbuf, l + extra, FALSE),
+					      buf_line_len(curbuf, l + extra));
 	if (str != NULL)
 	{
-	    ml_append(dest + l - line1, str, (colnr_T)0, FALSE);
+	    buf_append_line(curbuf, dest + l - line1, str, (colnr_T)0, FALSE);
 	    vim_free(str);
 	    if (dest < line1)
 		extra++;
@@ -941,7 +945,7 @@ do_move(linenr_T line1, linenr_T line2, linenr_T dest)
      * And Finally we adjust the marks we put at the end of the file back to
      * their final destination at the new text position -- webb
      */
-    last_line = curbuf->b_ml.ml_line_count;
+    last_line = buf_line_count(curbuf);
     mark_adjust_nofold(line1, line2, last_line - line2, 0L);
     if (dest >= line2)
     {
@@ -987,7 +991,7 @@ do_move(linenr_T line1, linenr_T line2, linenr_T dest)
 	return FAIL;
 
     for (l = line1; l <= line2; l++)
-	ml_delete_flags(line1 + extra, ML_DEL_MESSAGE);
+	buf_delete_line(curbuf, line1 + extra, ML_DEL_MESSAGE);
 
     if (!global_busy && num_lines > p_report)
 	smsg(NGETTEXT("%ld line moved", "%ld lines moved", num_lines),
@@ -1004,7 +1008,7 @@ do_move(linenr_T line1, linenr_T line2, linenr_T dest)
     if (line1 < dest)
     {
 	dest += num_lines + 1;
-	last_line = curbuf->b_ml.ml_line_count;
+	last_line = buf_line_count(curbuf);
 	if (dest > last_line + 1)
 	    dest = last_line + 1;
 	changed_lines(line1, 0, dest, 0L);
@@ -1051,10 +1055,12 @@ ex_copy(linenr_T line1, linenr_T line2, linenr_T n)
     {
 	// need to make a copy because the line will be unlocked within
 	// ml_append()
-	p = vim_strnsave(ml_get(line1), ml_get_len(line1));
+	p = vim_strnsave(buf_line(curbuf, line1, FALSE),
+						  buf_line_len(curbuf, line1));
 	if (p != NULL)
 	{
-	    ml_append(curwin->w_cursor.lnum, p, (colnr_T)0, FALSE);
+	    buf_append_line(curbuf, curwin->w_cursor.lnum, p, (colnr_T)0,
+									FALSE);
 	    vim_free(p);
 	}
 	// situation 2: skip already copied lines
@@ -1426,7 +1432,7 @@ do_filter(
 	}
 	redraw_curbuf_later(UPD_VALID);
     }
-    read_linecount = curbuf->b_ml.ml_line_count;
+    read_linecount = buf_line_count(curbuf);
 
     /*
      * When call_shell() fails wait_return() is called to give the user a
@@ -1473,7 +1479,7 @@ do_filter(
 		goto filterend;
 	}
 
-	read_linecount = curbuf->b_ml.ml_line_count - read_linecount;
+	read_linecount = buf_line_count(curbuf) - read_linecount;
 
 	if (shell_flags & SHELL_READ)
 	{
@@ -1520,7 +1526,7 @@ do_filter(
 	    {
 		// no filter output: clamp '[ and '] to a valid line
 		curbuf->b_op_start.lnum = curbuf->b_op_end.lnum =
-					MIN(line1, curbuf->b_ml.ml_line_count);
+					MIN(line1, buf_line_count(curbuf));
 		curbuf->b_op_start.col = curbuf->b_op_end.col = 0;
 	    }
 	    else
@@ -1992,7 +1998,7 @@ print_line_no_prefix(
 				   "%*ld ", number_width(curwin), (long)lnum);
 	msg_puts_attr(numbuf, HL_ATTR(HLF_N));	// Highlight line nrs
     }
-    msg_prt_line(ml_get(lnum), list);
+    msg_prt_line(buf_line(curbuf, lnum, FALSE), list);
 }
 
 /*
@@ -2004,7 +2010,7 @@ print_line(linenr_T lnum, int use_number, int list)
     int		save_silent = silent_mode;
 
     // apply :filter /pat/
-    if (message_filtered(ml_get(lnum)))
+    if (message_filtered(buf_line(curbuf, lnum, FALSE)))
 	return;
 
     msg_start();
@@ -2122,7 +2128,7 @@ ex_write(exarg_T *eap)
     {
 	// :saveas does not take a range, uses all lines.
 	eap->line1 = 1;
-	eap->line2 = curbuf->b_ml.ml_line_count;
+	eap->line2 = buf_line_count(curbuf);
     }
 
     if (eap->usefilter)		// input lines to shell command
@@ -2212,7 +2218,7 @@ do_write(exarg_T *eap)
 	    alt_buf = setaltfname(ffname, fname, (linenr_T)1);
 	else
 	    alt_buf = buflist_findname(ffname);
-	if (alt_buf != NULL && alt_buf->b_ml.ml_mfp != NULL)
+	if (alt_buf != NULL && buf_is_loaded(alt_buf))
 	{
 	    // Overwriting a file that is loaded in another buffer is not a
 	    // good idea.
@@ -2241,7 +2247,7 @@ do_write(exarg_T *eap)
 	 * Not writing the whole file is only allowed with '!'.
 	 */
 	if (	   (eap->line1 != 1
-		    || eap->line2 != curbuf->b_ml.ml_line_count)
+		    || eap->line2 != buf_line_count(curbuf))
 		&& !eap->forceit
 		&& !eap->append
 		&& !p_wa)
@@ -2497,7 +2503,7 @@ ex_wnext(exarg_T *eap)
     else
 	i = curwin->w_arg_idx - (int)eap->line2;
     eap->line1 = 1;
-    eap->line2 = curbuf->b_ml.ml_line_count;
+    eap->line2 = buf_line_count(curbuf);
     if (do_write(eap) != FAIL)
 	do_argfile(eap, i);
 }
@@ -3010,7 +3016,7 @@ do_ecmd(
 	    // reusing the buffer, keep the old alternate file
 	    curwin->w_alt_fnum = prev_alt_fnum;
 
-	if (buf->b_ml.ml_mfp == NULL)		// no memfile yet
+	if (!buf_is_loaded(buf))		// no memfile yet
 	{
 	    oldbuf = FALSE;
 	}
@@ -3252,11 +3258,11 @@ do_ecmd(
 	// the reload can be undone.  Do not do this if the (empty) buffer is
 	// being re-used for another file.
 	if (!(curbuf->b_flags & BF_NEVERLOADED)
-		&& (p_ur < 0 || curbuf->b_ml.ml_line_count <= p_ur))
+		&& (p_ur < 0 || buf_line_count(curbuf) <= p_ur))
 	{
 	    // Sync first so that this is a separate undo-able action.
 	    u_sync(FALSE);
-	    if (u_savecommon(0, curbuf->b_ml.ml_line_count + 1, 0, TRUE)
+	    if (u_savecommon(0, buf_line_count(curbuf) + 1, 0, TRUE)
 								     == FAIL)
 	    {
 		vim_free(new_name);
@@ -3391,7 +3397,7 @@ do_ecmd(
 	// to the first non-blank.
 	if (!EQUAL_POS(curwin->w_cursor, orig_pos))
 	{
-	    char_u *text = ml_get_curline();
+	    char_u *text = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 
 	    if (curwin->w_cursor.lnum != orig_pos.lnum
 		    || curwin->w_cursor.col != (int)(skipwhite(text) - text))
@@ -3457,7 +3463,7 @@ do_ecmd(
 	else			// no line number, go to last line in Ex mode
 	{
 	    if (exmode_active)
-		curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+		curwin->w_cursor.lnum = buf_line_count(curbuf);
 	    beginline(BL_WHITE | BL_FIX);
 	}
     }
@@ -3583,7 +3589,7 @@ ex_append(exarg_T *eap)
     int		indent = 0;
     char_u	*p;
     int		vcol;
-    int		empty = (curbuf->b_ml.ml_flags & ML_EMPTY);
+    int		empty = buf_has_empty_flag(curbuf);
 
 #ifdef FEAT_EVAL
     if (not_in_vim9(eap) == FAIL)
@@ -3691,7 +3697,7 @@ ex_append(exarg_T *eap)
 	    theline[0] = NUL;
 
 	did_undo = TRUE;
-	ml_append(lnum, theline, (colnr_T)0, FALSE);
+	buf_append_line(curbuf, lnum, theline, (colnr_T)0, FALSE);
 	if (empty)
 	    // there are no marks below the inserted lines
 	    appended_lines(lnum, 1L);
@@ -3703,7 +3709,7 @@ ex_append(exarg_T *eap)
 
 	if (empty)
 	{
-	    ml_delete(2L);
+	    buf_delete_line(curbuf, 2L, 0);
 	    empty = FALSE;
 	}
     }
@@ -3718,8 +3724,8 @@ ex_append(exarg_T *eap)
     // it is the same as "start"  -- Acevedo
     if ((cmdmod.cmod_flags & CMOD_LOCKMARKS) == 0)
     {
-	curbuf->b_op_start.lnum = (eap->line2 < curbuf->b_ml.ml_line_count) ?
-	    eap->line2 + 1 : curbuf->b_ml.ml_line_count;
+	curbuf->b_op_start.lnum = (eap->line2 < buf_line_count(curbuf)) ?
+	    eap->line2 + 1 : buf_line_count(curbuf);
 	if (eap->cmdidx != CMD_append)
 	    --curbuf->b_op_start.lnum;
 	curbuf->b_op_end.lnum = (eap->line2 < lnum)
@@ -3756,9 +3762,9 @@ ex_change(exarg_T *eap)
 
     for (lnum = eap->line2; lnum >= eap->line1; --lnum)
     {
-	if (curbuf->b_ml.ml_flags & ML_EMPTY)	    // nothing to delete
+	if (buf_has_empty_flag(curbuf))	    // nothing to delete
 	    break;
-	ml_delete(eap->line1);
+	buf_delete_line(curbuf, eap->line1, 0);
     }
 
     // make sure the cursor is not beyond the end of the file now
@@ -3812,8 +3818,8 @@ ex_z(exarg_T *eap)
 	    bigness = atol((char *)x);
 
 	    // bigness could be < 0 if atol(x) overflows.
-	    if (bigness > 2 * curbuf->b_ml.ml_line_count || bigness < 0)
-		bigness = 2 * curbuf->b_ml.ml_line_count;
+	    if (bigness > 2 * buf_line_count(curbuf) || bigness < 0)
+		bigness = 2 * buf_line_count(curbuf);
 
 	    p_window = bigness;
 	    if (*kind == '=')
@@ -3867,11 +3873,11 @@ ex_z(exarg_T *eap)
     if (start < 1)
 	start = 1;
 
-    if (end > curbuf->b_ml.ml_line_count)
-	end = curbuf->b_ml.ml_line_count;
+    if (end > buf_line_count(curbuf))
+	end = buf_line_count(curbuf);
 
-    if (curs > curbuf->b_ml.ml_line_count)
-	curs = curbuf->b_ml.ml_line_count;
+    if (curs > buf_line_count(curbuf))
+	curs = buf_line_count(curbuf);
     else if (curs < 1)
 	curs = 1;
 
@@ -4033,7 +4039,7 @@ ex_substitute(exarg_T *eap)
     linenr_T	first_line = 0;		// first changed line
     linenr_T	last_line = 0;		// below last changed line AFTER the
 					// change
-    linenr_T	old_line_count = curbuf->b_ml.ml_line_count;
+    linenr_T	old_line_count = buf_line_count(curbuf);
     linenr_T	line2;
     long	nmatch;			// number of lines in match
     string_T	sub_firstline;		// allocated copy of first sub line
@@ -4197,7 +4203,7 @@ ex_substitute(exarg_T *eap)
 	// The number of lines joined is the number of lines in the range plus
 	// one.  One less when the last line is included.
 	joined_lines_count = eap->line2 - eap->line1 + 1;
-	if (eap->line2 < curbuf->b_ml.ml_line_count)
+	if (eap->line2 < buf_line_count(curbuf))
 	    ++joined_lines_count;
 	if (joined_lines_count > 1)
 	{
@@ -4313,8 +4319,8 @@ ex_substitute(exarg_T *eap)
 	}
 	eap->line1 = eap->line2;
 	eap->line2 += i - 1;
-	if (eap->line2 > curbuf->b_ml.ml_line_count)
-	    eap->line2 = curbuf->b_ml.ml_line_count;
+	if (eap->line2 > buf_line_count(curbuf))
+	    eap->line2 = buf_line_count(curbuf);
     }
 
     /*
@@ -4507,14 +4513,15 @@ ex_substitute(exarg_T *eap)
 
 		// Match might be after the last line for "\n\zs" matching at
 		// the end of the last line.
-		if (lnum > curbuf->b_ml.ml_line_count)
+		if (lnum > buf_line_count(curbuf))
 		    break;
 
 		if (sub_firstline.string == NULL)
 		{
-		    sub_firstline.length = ml_get_len(sub_firstlnum);
+		    sub_firstline.length = buf_line_len(curbuf, sub_firstlnum);
 		    sub_firstline.string =
-			vim_strnsave(ml_get(sub_firstlnum), sub_firstline.length);
+			vim_strnsave(buf_line(curbuf, sub_firstlnum, FALSE),
+							 sub_firstline.length);
 		    if (sub_firstline.string == NULL)
 		    {
 			vim_free(new_start.string);
@@ -4670,8 +4677,10 @@ ex_substitute(exarg_T *eap)
 				// really update the line, it would change
 				// what matches.  Temporarily replace the line
 				// and change it back afterwards.
-				orig_line.length = ml_get_len(lnum);
-				orig_line.string = vim_strnsave(ml_get(lnum), orig_line.length);
+				orig_line.length = buf_line_len(curbuf, lnum);
+				orig_line.string = vim_strnsave(
+					    buf_line(curbuf, lnum, FALSE),
+					    orig_line.length);
 				if (orig_line.string != NULL)
 				{
 				    string_T new_line;
@@ -4692,7 +4701,8 @@ ex_substitute(exarg_T *eap)
 					len_change =
 					    (int)new_line.length - (int)orig_line.length;
 					curwin->w_cursor.col += len_change;
-					ml_replace(lnum, new_line.string, FALSE);
+					buf_replace_line(curbuf, lnum,
+					    new_line.string, -1, FALSE, FALSE);
 				    }
 				}
 			    }
@@ -4750,7 +4760,8 @@ ex_substitute(exarg_T *eap)
 
 			    // restore the line
 			    if (orig_line.string != NULL)
-				ml_replace(lnum, orig_line.string, FALSE);
+				buf_replace_line(curbuf, lnum,
+					   orig_line.string, -1, FALSE, FALSE);
 			}
 
 			need_wait_return = FALSE; // no hit-return prompt
@@ -4853,9 +4864,9 @@ ex_substitute(exarg_T *eap)
 
 		// When the match included the "$" of the last line it may
 		// go beyond the last line of the buffer.
-		if (nmatch > curbuf->b_ml.ml_line_count - sub_firstlnum + 1)
+		if (nmatch > buf_line_count(curbuf) - sub_firstlnum + 1)
 		{
-		    nmatch = curbuf->b_ml.ml_line_count - sub_firstlnum + 1;
+		    nmatch = buf_line_count(curbuf) - sub_firstlnum + 1;
 		    skip_match = TRUE;
 		    // safety check
 		    if (nmatch < 0)
@@ -4951,8 +4962,8 @@ ex_substitute(exarg_T *eap)
 			}
 		    }
 #endif
-		    tmp.string = ml_get(lastlnum);
-		    tmp.length = ml_get_len(lastlnum);
+		    tmp.string = buf_line(curbuf, lastlnum, FALSE);
+		    tmp.length = buf_line_len(curbuf, lastlnum);
 		    nmatch_tl += nmatch - 1;
 #ifdef FEAT_PROP_POPUP
 		    if (curbuf->b_has_textprop)
@@ -5040,9 +5051,10 @@ ex_substitute(exarg_T *eap)
 		{
 		    sub_firstlnum += nmatch - 1;
 		    vim_free(sub_firstline.string);
-		    sub_firstline.length = ml_get_len(sub_firstlnum);
+		    sub_firstline.length = buf_line_len(curbuf, sub_firstlnum);
 		    sub_firstline.string =
-			vim_strnsave(ml_get(sub_firstlnum), sub_firstline.length);
+			vim_strnsave(buf_line(curbuf, sub_firstlnum, FALSE),
+							 sub_firstline.length);
 		    if (sub_firstline.string == NULL)
 		    {
 			vim_free(new_start.string);
@@ -5107,7 +5119,8 @@ ex_substitute(exarg_T *eap)
 			    colnr_T	plen = (colnr_T)(p1 - new_start.string + 1);
 
 			    *p1 = NUL;		    // truncate up to the CR
-			    ml_append(lnum - 1, new_start.string, plen, FALSE);
+			    buf_append_line(curbuf, lnum - 1,
+						new_start.string, plen, FALSE);
 			    mark_adjust(lnum + 1, (linenr_T)MAXLNUM, 1L, 0L);
 			    if (subflags.do_ask)
 				appended_lines(lnum - 1, 1L);
@@ -5197,7 +5210,8 @@ skip:
 
 			if (u_savesub(lnum) != OK)
 			    break;
-			ml_replace(lnum, new_start.string, TRUE);
+			buf_replace_line(curbuf, lnum, new_start.string, -1,
+								  FALSE, TRUE);
 #ifdef FEAT_PROP_POPUP
 			if (text_props != NULL)
 			    add_text_props(lnum, text_props, text_prop_count);
@@ -5214,7 +5228,7 @@ skip:
 			    if (u_savedel(lnum, nmatch_tl) != OK)
 				break;
 			    for (i = 0; i < nmatch_tl; ++i)
-				ml_delete(lnum);
+				buf_delete_line(curbuf, lnum, 0);
 			    if (copycol > 0)
 				mark_adjust(lnum, lnum + nmatch_tl - 1,
 						   (long)MAXLNUM, -nmatch_tl);
@@ -5289,7 +5303,7 @@ skip:
 	// Need to subtract the number of added lines from "last_line" to get
 	// the line number before the change (same as adding the number of
 	// deleted lines).
-	i = curbuf->b_ml.ml_line_count - old_line_count;
+	i = buf_line_count(curbuf) - old_line_count;
 	changed_lines(first_line, 0, last_line - i, i);
     }
 
@@ -5458,7 +5472,7 @@ ex_global(exarg_T *eap)
     // When nesting the command works on one line.  This allows for
     // ":g/found/v/notfound/command".
     if (global_busy && (eap->line1 != 1
-				  || eap->line2 != curbuf->b_ml.ml_line_count))
+				  || eap->line2 != buf_line_count(curbuf)))
     {
 	// will increment global_busy to break out of the loop
 	emsg(_(e_cannot_do_global_recursive_with_range));
@@ -5622,7 +5636,7 @@ global_exe(char_u *cmd)
     sub_nlines = 0;
     global_need_beginline = FALSE;
     global_busy = 1;
-    old_lcount = curbuf->b_ml.ml_line_count;
+    old_lcount = buf_line_count(curbuf);
     while (!got_int && (lnum = ml_firstmarked()) != 0 && global_busy == 1)
     {
 	global_exe_one(cmd, lnum);
@@ -5649,7 +5663,7 @@ global_exe(char_u *cmd)
     // Don't report extra or deleted lines in the edge case where the buffer
     // we are in after execution is different from the buffer we started in.
     if (!do_sub_msg(FALSE) && curbuf == old_buf)
-	msgmore(curbuf->b_ml.ml_line_count - old_lcount);
+	msgmore(buf_line_count(curbuf) - old_lcount);
 }
 
 #ifdef FEAT_VIMINFO
@@ -5857,7 +5871,7 @@ ex_drop(exarg_T *eap)
 		buf_check_timestamp(curbuf, FALSE);
 		curbuf->b_p_ar = save_ar;
 	    }
-	    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+	    if (buf_has_empty_flag(curbuf))
 		ex_rewind(eap);
 	    return;
 	}

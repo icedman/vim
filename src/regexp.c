@@ -1304,9 +1304,9 @@ reg_getline_common(
     }
 
     if (get_line)
-	*line = ml_get_buf(rex.reg_buf, firstlnum, FALSE);
+	*line = buf_line(rex.reg_buf, firstlnum, FALSE);
     if (get_length)
-	*length = ml_get_buf_len(rex.reg_buf, firstlnum);
+	*length = buf_line_len(rex.reg_buf, firstlnum);
 }
 
 /*
@@ -1449,8 +1449,8 @@ reg_match_visual(void)
 	    bot = curbuf->b_visual.vi_start;
 	}
 	// a substitute command may have removed some lines
-	if (bot.lnum > curbuf->b_ml.ml_line_count)
-	    bot.lnum = curbuf->b_ml.ml_line_count;
+	if (bot.lnum > buf_line_count(curbuf))
+	    bot.lnum = buf_line_count(curbuf);
 	mode = curbuf->b_visual.vi_mode;
 	curswant = curbuf->b_visual.vi_curswant;
     }
@@ -2136,7 +2136,7 @@ vim_regsub_multi(
     rex.reg_mmatch = rmp;
     rex.reg_buf = curbuf;	// always works on the current buffer!
     rex.reg_firstlnum = lnum;
-    rex.reg_maxline = curbuf->b_ml.ml_line_count - lnum;
+    rex.reg_maxline = buf_line_count(curbuf) - lnum;
     rex.reg_line_lbr = FALSE;
     result = vim_regsub_both(source, NULL, dest, destlen, flags);
 
@@ -2873,7 +2873,7 @@ init_regexec_multi(
     rex.reg_buf = buf;
     rex.reg_win = win;
     rex.reg_firstlnum = lnum;
-    rex.reg_maxline = rex.reg_buf->b_ml.ml_line_count - lnum;
+    rex.reg_maxline = buf_line_count(rex.reg_buf) - lnum;
     rex.reg_line_lbr = FALSE;
     rex.reg_ic = rmp->rmm_ic;
     rex.reg_icombine = FALSE;

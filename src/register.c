@@ -1008,7 +1008,7 @@ get_spec_reg(
 	    if (!errmsg)
 		return FALSE;
 
-	    *argp = ml_get_buf(curwin->w_buffer,
+	    *argp = buf_line(curwin->w_buffer,
 			curwin->w_cursor.lnum, FALSE);
 	    return TRUE;
 
@@ -1420,9 +1420,9 @@ op_yank(oparg_T *oap, int deleting, int mess)
 		break;
 
 	    case MLINE:
-		y_current->y_array[y_idx].length = ml_get_len(lnum);
+		y_current->y_array[y_idx].length = buf_line_len(curbuf, lnum);
 		if ((y_current->y_array[y_idx].string =
-					vim_strnsave(ml_get(lnum),
+				vim_strnsave(buf_line(curbuf, lnum, FALSE),
 					y_current->y_array[y_idx].length)) == NULL)
 		{
 		    VIM_CLEAR_STRING(y_current->y_array[y_idx]);
@@ -1905,24 +1905,26 @@ do_put(
 	    // between.
 	    if (u_save_cursor() == FAIL)
 		goto end;
-	    p_orig = p = ml_get_cursor();
-	    plen = ml_get_cursor_len();
+	    p_orig = p = buf_line_at(curbuf, &curwin->w_cursor);
+	    plen = buf_line_at_len(curbuf, &curwin->w_cursor);
 	    if (dir == FORWARD && *p != NUL)
 		MB_PTR_ADV(p);
 	    ptr = vim_strnsave(p, plen - (size_t)(p - p_orig));
 	    if (ptr == NULL)
 		goto end;
-	    ml_append(curwin->w_cursor.lnum, ptr, (colnr_T)0, FALSE);
+	    buf_append_line(curbuf, curwin->w_cursor.lnum, ptr,
+							    (colnr_T)0, FALSE);
 	    vim_free(ptr);
 
-	    oldp = ml_get_curline();
+	    oldp = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 	    p = oldp + curwin->w_cursor.col;
 	    if (dir == FORWARD && *p != NUL)
 		MB_PTR_ADV(p);
 	    ptr = vim_strnsave(oldp, (size_t)(p - oldp));
 	    if (ptr == NULL)
 		goto end;
-	    ml_replace(curwin->w_cursor.lnum, ptr, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum, ptr, -1,
+								 FALSE, FALSE);
 	    ++nr_lines;
 	    dir = FORWARD;
 	}
@@ -1949,8 +1951,8 @@ do_put(
     if (y_type == MBLOCK)
     {
 	lnum = curwin->w_cursor.lnum + y_size + 1;
-	if (lnum > curbuf->b_ml.ml_line_count)
-	    lnum = curbuf->b_ml.ml_line_count + 1;
+	if (lnum > buf_line_count(curbuf))
+	    lnum = buf_line_count(curbuf) + 1;
 	if (u_save(curwin->w_cursor.lnum - 1, lnum) == FAIL)
 	    goto end;
     }
@@ -1969,7 +1971,8 @@ do_put(
 	    ++lnum;
 	// In an empty buffer the empty line is going to be replaced, include
 	// it in the saved lines.
-	if ((BUFEMPTY() ? u_save(0, 2) : u_save(lnum - 1, lnum)) == FAIL)
+	if ((buf_is_empty(curbuf) ? u_save(0, 2) : u_save(lnum - 1, lnum))
+								      == FAIL)
 	    goto end;
 #ifdef FEAT_FOLDING
 	if (dir == FORWARD)
@@ -2028,7 +2031,8 @@ do_put(
 
 	    if (has_mbyte)
 		// move to start of next multi-byte character
-		curwin->w_cursor.col += (*mb_ptr2len)(ml_get_cursor());
+		curwin->w_cursor.col += (*mb_ptr2len)(buf_line_at(curbuf,
+							  &curwin->w_cursor));
 	    else
 		if (c != TAB || cur_ve_flags != VE_ALL)
 		    ++curwin->w_cursor.col;
@@ -2068,16 +2072,16 @@ do_put(
 	    delcount = 0;
 
 	    // add a new line
-	    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
+	    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
 	    {
-		if (ml_append(curbuf->b_ml.ml_line_count, (char_u *)"",
-						   (colnr_T)1, FALSE) == FAIL)
+		if (buf_append_line(curbuf, buf_line_count(curbuf),
+				     (char_u *)"", (colnr_T)1, FALSE) == FAIL)
 		    break;
 		++nr_lines;
 	    }
 	    // get the old line and advance to the position to insert at
-	    oldp = ml_get_curline();
-	    oldlen = ml_get_curline_len();
+	    oldp = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
+	    oldlen = buf_line_len(curbuf, curwin->w_cursor.lnum);
 	    init_chartabsize_arg(&cts, curwin, curwin->w_cursor.lnum, 0,
 								  oldp, oldp);
 
@@ -2181,7 +2185,8 @@ do_put(
 	    // move the text after the cursor to the end of the line.
 	    mch_memmove(ptr, oldp + bd.textcol + delcount,
 				(size_t)(oldlen - bd.textcol - delcount + 1));
-	    ml_replace(curwin->w_cursor.lnum, newp, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum, newp, -1,
+								 FALSE, FALSE);
 
 	    ++curwin->w_cursor.lnum;
 	    if (i == 0)
@@ -2208,7 +2213,7 @@ do_put(
 	    curwin->w_cursor.col++;
 
 	    // in Insert mode we might be after the NUL, correct for that
-	    len = ml_get_curline_len();
+	    len = buf_line_len(curbuf, curwin->w_cursor.lnum);
 	    if (curwin->w_cursor.col > len)
 		curwin->w_cursor.col = len;
 	}
@@ -2230,7 +2235,8 @@ do_put(
 	    {
 		if (has_mbyte)
 		{
-		    int bytelen = (*mb_ptr2len)(ml_get_cursor());
+		    int bytelen = (*mb_ptr2len)(buf_line_at(curbuf,
+							    &curwin->w_cursor));
 
 		    // put it on the next of the multi-byte character.
 		    col += bytelen;
@@ -2296,8 +2302,8 @@ do_put(
 		totlen = count * yanklen;
 		do
 		{
-		    oldp = ml_get(lnum);
-		    oldlen = ml_get_len(lnum);
+		    oldp = buf_line(curbuf, lnum, FALSE);
+		    oldlen = buf_line_len(curbuf, lnum);
 		    if (lnum > start_lnum)
 		    {
 			pos_T   pos;
@@ -2329,7 +2335,7 @@ do_put(
 		    first_byte_off = mb_head_off(newp, ptr - 1);
 
 		    // Note: this may free "newp"
-		    ml_replace(lnum, newp, FALSE);
+		    buf_replace_line(curbuf, lnum, newp, -1, FALSE, FALSE);
 
 		    inserted_bytes(lnum, col, totlen);
 
@@ -2383,19 +2389,19 @@ do_put(
 		    // First insert y_array[size - 1] in front of second line.
 		    // Then append y_array[0] to first line.
 		    lnum = new_cursor.lnum;
-		    ptr = ml_get(lnum) + col;
+		    ptr = buf_line(curbuf, lnum, FALSE) + col;
 		    totlen = (int)y_array[y_size - 1].length;
-		    newp = alloc(ml_get_len(lnum) - col + totlen + 1);
+		    newp = alloc(buf_line_len(curbuf, lnum) - col + totlen + 1);
 		    if (newp == NULL)
 			goto error;
 		    STRCPY(newp, y_array[y_size - 1].string);
 		    STRCPY(newp + totlen, ptr);
 		    // insert second line
-		    ml_append(lnum, newp, (colnr_T)0, FALSE);
+		    buf_append_line(curbuf, lnum, newp, (colnr_T)0, FALSE);
 		    ++new_lnum;
 		    vim_free(newp);
 
-		    oldp = ml_get(lnum);
+		    oldp = buf_line(curbuf, lnum, FALSE);
 		    newp = alloc(col + yanklen + 1);
 		    if (newp == NULL)
 			goto error;
@@ -2403,7 +2409,7 @@ do_put(
 		    mch_memmove(newp, oldp, (size_t)col);
 					    // append to first line
 		    mch_memmove(newp + col, y_array[0].string, (size_t)(yanklen + 1));
-		    ml_replace(lnum, newp, FALSE);
+		    buf_replace_line(curbuf, lnum, newp, -1, FALSE, FALSE);
 
 		    curwin->w_cursor.lnum = lnum;
 		    i = 1;
@@ -2413,8 +2419,8 @@ do_put(
 		{
 		    if (y_type != MCHAR || i < y_size - 1)
 		    {
-			if (ml_append(lnum, y_array[i].string, (colnr_T)0, FALSE)
-								      == FAIL)
+			if (buf_append_line(curbuf, lnum, y_array[i].string,
+						   (colnr_T)0, FALSE) == FAIL)
 			    goto error;
 			new_lnum++;
 		    }
@@ -2425,9 +2431,9 @@ do_put(
 			pos_T	old_pos = curwin->w_cursor;
 
 			curwin->w_cursor.lnum = lnum;
-			ptr = ml_get(lnum);
+			ptr = buf_line(curbuf, lnum, FALSE);
 			if (cnt == count && i == y_size - 1)
-			    lendiff = ml_get_len(lnum);
+			    lendiff = buf_line_len(curbuf, lnum);
 			if (*ptr == '#' && preprocs_left())
 			    indent = 0;     // Leave # lines at start
 			else if (*ptr == NUL)
@@ -2444,7 +2450,7 @@ do_put(
 			curwin->w_cursor = old_pos;
 			// remember how many chars were removed
 			if (cnt == count && i == y_size - 1)
-			    lendiff -= ml_get_len(lnum);
+			    lendiff -= buf_line_len(curbuf, lnum);
 		    }
 		}
 		if (cnt == 1)
@@ -2503,8 +2509,8 @@ error:
 		// put cursor after inserted text
 		if (y_type == MLINE)
 		{
-		    if (lnum >= curbuf->b_ml.ml_line_count)
-			curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+		    if (lnum >= buf_line_count(curbuf))
+			curwin->w_cursor.lnum = buf_line_count(curbuf);
 		    else
 			curwin->w_cursor.lnum = lnum + 1;
 		    curwin->w_cursor.col = 0;
@@ -2535,7 +2541,7 @@ error:
     curwin->w_set_curswant = true;
 
     // Make sure the cursor is not after the NUL.
-    int len = ml_get_curline_len();
+    int len = buf_line_len(curbuf, curwin->w_cursor.lnum);
     if (curwin->w_cursor.col > len)
     {
 	if (cur_ve_flags == VE_ALL)

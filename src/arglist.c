@@ -851,7 +851,7 @@ ex_argedit(exarg_T *eap)
     maketitle();
 
     if (curwin->w_arg_idx == 0
-	    && (curbuf->b_ml.ml_flags & ML_EMPTY)
+	    && buf_has_empty_flag(curbuf)
 	    && (curbuf->b_ffname == NULL || curbuf_is_reusable))
 	i = 0;
     // Edit the argument.
@@ -1133,7 +1133,7 @@ arg_all_open_windows(arg_all_state_T *aall, int count)
 
     // ":tab drop file" should re-use an empty window to avoid "--remote-tab"
     // leaving an empty tab page when executed locally.
-    if (aall->keep_tabs && BUFEMPTY() && curbuf->b_nwindows == 1
+    if (aall->keep_tabs && buf_is_empty(curbuf) && curbuf->b_nwindows == 1
 			    && curbuf->b_ffname == NULL && !curbuf->b_changed)
     {
 	aall->use_firstwin = TRUE;

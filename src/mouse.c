@@ -96,7 +96,7 @@ find_start_of_word(pos_T *pos)
     int		cclass;
     int		col;
 
-    line = ml_get(pos->lnum);
+    line = buf_line(curbuf, pos->lnum, FALSE);
     cclass = get_mouse_class(line + pos->col);
 
     while (pos->col > 0)
@@ -120,7 +120,7 @@ find_end_of_word(pos_T *pos)
     int		cclass;
     int		col;
 
-    line = ml_get(pos->lnum);
+    line = buf_line(curbuf, pos->lnum, FALSE);
     if (*p_sel == 'e' && pos->col > 0)
     {
 	--pos->col;
@@ -1152,9 +1152,10 @@ do_mouse(
 		else
 		{
 		    find_start_of_word(&VIsual);
-		    if (*p_sel == 'e' && *ml_get_cursor() != NUL)
+		    if (*p_sel == 'e'
+			    && *buf_line_at(curbuf, &curwin->w_cursor) != NUL)
 			curwin->w_cursor.col +=
-					 (*mb_ptr2len)(ml_get_cursor());
+			  (*mb_ptr2len)(buf_line_at(curbuf, &curwin->w_cursor));
 		    find_end_of_word(&curwin->w_cursor);
 		}
 	    }
@@ -2341,7 +2342,7 @@ retnomove:
 	else if (row >= curwin->w_height)
 	{
 	    count = 0;
-	    for (first = TRUE; curwin->w_topline < curbuf->b_ml.ml_line_count; )
+	    for (first = TRUE; curwin->w_topline < buf_line_count(curbuf); )
 	    {
 #ifdef FEAT_DIFF
 		if (curwin->w_topfill > 0)
@@ -2354,7 +2355,7 @@ retnomove:
 		first = FALSE;
 #ifdef FEAT_FOLDING
 		if (hasFolding(curwin->w_topline, NULL, &curwin->w_topline)
-			&& curwin->w_topline == curbuf->b_ml.ml_line_count)
+			&& curwin->w_topline == buf_line_count(curbuf))
 		    break;
 #endif
 #ifdef FEAT_DIFF
@@ -2385,7 +2386,7 @@ retnomove:
 	    // the text down (done later when recomputing w_topline).
 	    if (mouse_dragging > 0
 		    && curwin->w_cursor.lnum
-				       == curwin->w_buffer->b_ml.ml_line_count
+				       == buf_line_count(curwin->w_buffer)
 		    && curwin->w_cursor.lnum == curwin->w_topline)
 		curwin->w_valid &= ~(VALID_TOPLINE);
 	}
@@ -3415,7 +3416,7 @@ mouse_comp_pos(
 #ifdef FEAT_FOLDING
 	(void)hasFoldingWin(win, lnum, NULL, &lnum, TRUE, NULL);
 #endif
-	if (lnum == win->w_buffer->b_ml.ml_line_count)
+	if (lnum == buf_line_count(win->w_buffer))
 	{
 	    retval = TRUE;
 	    break;		// past end of file
@@ -3554,7 +3555,7 @@ vcol2col(win_T *wp, linenr_T lnum, int vcol, colnr_T *coladdp)
     chartabsize_T   cts;
 
     // try to advance to the specified column
-    line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    line = buf_line(wp->w_buffer, lnum, FALSE);
     init_chartabsize_arg(&cts, wp, lnum, 0, line, line);
     while (cts.cts_vcol < vcol && *cts.cts_ptr != NUL)
     {

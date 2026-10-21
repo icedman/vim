@@ -4750,7 +4750,7 @@ WindowSetattr(PyObject *self_obj, char *name, PyObject *valObject)
 	if (!PyArg_Parse(valObject, "(ll)", &lnum, &col))
 	    return -1;
 
-	if (lnum <= 0 || lnum > self->win->w_buffer->b_ml.ml_line_count)
+	if (lnum <= 0 || lnum > buf_line_count(self->win->w_buffer))
 	{
 	    PyErr_SET_VIM(N_("cursor position outside buffer"));
 	    return -1;
@@ -5032,7 +5032,7 @@ StringToLine(PyObject *obj)
     static PyObject *
 GetBufferLine(buf_T *buf, PyInt n)
 {
-    return LineToString((char *)ml_get_buf(buf, (linenr_T)n, FALSE));
+    return LineToString((char *)buf_line(buf, (linenr_T)n, FALSE));
 }
 
 
@@ -5057,10 +5057,10 @@ GetBufferLineList(buf_T *buf, PyInt lo, PyInt hi)
 	char		*text;
 	PyObject	*string;
 
-	if (lnum > buf->b_ml.ml_line_count)
+	if (lnum > buf_line_count(buf))
 	    text = "";
 	else
-	    text = (char *)ml_get_buf(buf, lnum, FALSE);
+	    text = (char *)buf_line(buf, lnum, FALSE);
 	string = LineToString(text);
 	if (string == NULL)
 	{
@@ -5137,7 +5137,7 @@ SetBufferLine(buf_T *buf, PyInt n, PyObject *line, PyInt *len_change)
 
 	if (u_savedel((linenr_T)n, 1L) == FAIL)
 	    RAISE_UNDO_FAIL;
-	else if (ml_delete((linenr_T)n) == FAIL)
+	else if (buf_delete_line(curbuf, (linenr_T)n, 0) == FAIL)
 	    RAISE_DELETE_LINE_FAIL;
 	else
 	{
@@ -5180,7 +5180,8 @@ SetBufferLine(buf_T *buf, PyInt n, PyObject *line, PyInt *len_change)
 	    RAISE_UNDO_FAIL;
 	    vim_free(save);
 	}
-	else if (ml_replace((linenr_T)n, (char_u *)save, FALSE) == FAIL)
+	else if (buf_replace_line(curbuf, (linenr_T)n, (char_u *)save,
+						     -1, FALSE, FALSE) == FAIL)
 	{
 	    RAISE_REPLACE_LINE_FAIL;
 	    vim_free(save);
@@ -5250,7 +5251,7 @@ SetBufferLineList(
 	{
 	    for (i = 0; i < n; ++i)
 	    {
-		if (ml_delete((linenr_T)lo) == FAIL)
+		if (buf_delete_line(curbuf, (linenr_T)lo, 0) == FAIL)
 		{
 		    RAISE_DELETE_LINE_FAIL;
 		    break;
@@ -5327,7 +5328,7 @@ SetBufferLineList(
 	if (!PyErr_Occurred())
 	{
 	    for (i = 0; i < old_len - new_len; ++i)
-		if (ml_delete((linenr_T)lo) == FAIL)
+		if (buf_delete_line(curbuf, (linenr_T)lo, 0) == FAIL)
 		{
 		    RAISE_DELETE_LINE_FAIL;
 		    break;
@@ -5341,7 +5342,8 @@ SetBufferLineList(
 	if (!PyErr_Occurred())
 	{
 	    for (i = 0; i < old_len && i < new_len; ++i)
-		if (ml_replace((linenr_T)(lo+i), (char_u *)array[i], FALSE)
+		if (buf_replace_line(curbuf, (linenr_T)(lo+i),
+					  (char_u *)array[i], -1, FALSE, FALSE)
 								      == FAIL)
 		{
 		    RAISE_REPLACE_LINE_FAIL;
@@ -5358,7 +5360,7 @@ SetBufferLineList(
 	{
 	    while (i < new_len)
 	    {
-		if (ml_append((linenr_T)(lo + i - 1),
+		if (buf_append_line(curbuf, (linenr_T)(lo + i - 1),
 					(char_u *)array[i], 0, FALSE) == FAIL)
 		{
 		    RAISE_INSERT_LINE_FAIL;
@@ -5447,7 +5449,8 @@ InsertBufferLines(buf_T *buf, PyInt n, PyObject *lines, PyInt *len_change)
 
 	if (u_save((linenr_T)n, (linenr_T)(n + 1)) == FAIL)
 	    RAISE_UNDO_FAIL;
-	else if (ml_append((linenr_T)n, (char_u *)str, 0, FALSE) == FAIL)
+	else if (buf_append_line(curbuf, (linenr_T)n, (char_u *)str, 0, FALSE)
+								      == FAIL)
 	    RAISE_INSERT_LINE_FAIL;
 	else if (save_curbuf.br_buf == NULL)
 	    // Only adjust marks if we managed to switch to a window that
@@ -5503,7 +5506,7 @@ InsertBufferLines(buf_T *buf, PyInt n, PyObject *lines, PyInt *len_change)
 	{
 	    for (i = 0; i < size; ++i)
 	    {
-		if (ml_append((linenr_T)(n + i),
+		if (buf_append_line(curbuf, (linenr_T)(n + i),
 					(char_u *)array[i], 0, FALSE) == FAIL)
 		{
 		    RAISE_INSERT_LINE_FAIL;
@@ -5580,7 +5583,7 @@ RBItem(BufferObject *self, PyInt n, PyInt start, PyInt end)
 	return NULL;
 
     if (end == -1)
-	end = self->buf->b_ml.ml_line_count;
+	end = buf_line_count(self->buf);
 
     if (n < 0)
 	n += end - start + 1;
@@ -5603,7 +5606,7 @@ RBSlice(BufferObject *self, PyInt lo, PyInt hi, PyInt start, PyInt end)
 	return NULL;
 
     if (end == -1)
-	end = self->buf->b_ml.ml_line_count;
+	end = buf_line_count(self->buf);
 
     size = end - start + 1;
 
@@ -5636,7 +5639,7 @@ RBAsItem(
 	return -1;
 
     if (end == -1)
-	end = self->buf->b_ml.ml_line_count;
+	end = buf_line_count(self->buf);
 
     if (n < 0)
 	n += end - start + 1;
@@ -5674,7 +5677,7 @@ RBAsSlice(
 	return -1;
 
     if (end == -1)
-	end = self->buf->b_ml.ml_line_count;
+	end = buf_line_count(self->buf);
 
     // Sort out the slice range
     size = end - start + 1;
@@ -5718,7 +5721,7 @@ RBAppend(
 	return NULL;
 
     if (end == -1)
-	end = self->buf->b_ml.ml_line_count;
+	end = buf_line_count(self->buf);
 
     max = n = end - start + 1;
 
@@ -5930,7 +5933,7 @@ BufferLength(BufferObject *self)
     if (CheckBuffer(self))
 	return -1; // ???
 
-    return (PyInt)(self->buf->b_ml.ml_line_count);
+    return (PyInt)(buf_line_count(self->buf));
 }
 
     static PyObject *
@@ -6510,7 +6513,7 @@ run_do(const char *cmd, dict_T* locals UNUSED, void *arg UNUSED
 	*pygilstate = PyGILState_Ensure();
 #endif
 	// Check the line number, the command my have deleted lines.
-	if (lnum > curbuf->b_ml.ml_line_count
+	if (lnum > buf_line_count(curbuf)
 		|| !(line = GetBufferLine(curbuf, lnum)))
 	    goto err;
 	if (!(linenr = PyInt_FromLong((long) lnum)))
@@ -6526,7 +6529,7 @@ run_do(const char *cmd, dict_T* locals UNUSED, void *arg UNUSED
 
 	// Check that the command didn't switch to another buffer.
 	// Check the line number, the command my have deleted lines.
-	if (curbuf != was_curbuf || lnum > curbuf->b_ml.ml_line_count)
+	if (curbuf != was_curbuf || lnum > buf_line_count(curbuf))
 	{
 	    Py_XDECREF(ret);
 	    goto err;

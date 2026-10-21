@@ -226,8 +226,8 @@ hasFoldingWin(
 	return FALSE;
     }
 
-    if (last > win->w_buffer->b_ml.ml_line_count)
-	last = win->w_buffer->b_ml.ml_line_count;
+    if (last > buf_line_count(win->w_buffer))
+	last = buf_line_count(win->w_buffer);
     if (lastp != NULL)
 	*lastp = last;
     if (firstp != NULL)
@@ -1081,7 +1081,7 @@ foldAdjustVisual(void)
     if (!hasFolding(end->lnum, NULL, &end->lnum))
 	return;
 
-    end->col = ml_get_len(end->lnum);
+    end->col = buf_line_len(curbuf, end->lnum);
     if (end->col > 0 && *p_sel == 'o')
 	--end->col;
     // prevent cursor from moving on the trail byte
@@ -1801,8 +1801,8 @@ foldAddMarker(linenr_T lnum, char_u *marker, int markerlen)
     int		line_is_comment = FALSE;
 
     // Allocate a new line: old-line + 'cms'-start + marker + 'cms'-end
-    line = ml_get(lnum);
-    line_len = ml_get_len(lnum);
+    line = buf_line(curbuf, lnum, FALSE);
+    line_len = buf_line_len(curbuf, lnum);
 
     if (u_save(lnum - 1, lnum + 1) != OK)
 	return;
@@ -1823,7 +1823,7 @@ foldAddMarker(linenr_T lnum, char_u *marker, int markerlen)
 	STRCPY(newline + line_len + (p - cms) + markerlen, p + 2);
     }
 
-    ml_replace(lnum, newline, FALSE);
+    buf_replace_line(curbuf, lnum, newline, -1, FALSE, FALSE);
 }
 
 // deleteFoldMarkers() {{{2
@@ -1865,9 +1865,9 @@ foldDelMarker(linenr_T lnum, char_u *marker, int markerlen)
     char_u	*cms2;
 
     // end marker may be missing and fold extends below the last line
-    if (lnum > curbuf->b_ml.ml_line_count)
+    if (lnum > buf_line_count(curbuf))
 	return;
-    line = ml_get(lnum);
+    line = buf_line(curbuf, lnum, FALSE);
     for (p = line; *p != NUL; ++p)
 	if (STRNCMP(p, marker, markerlen) == 0)
 	{
@@ -1890,12 +1890,12 @@ foldDelMarker(linenr_T lnum, char_u *marker, int markerlen)
 	    if (u_save(lnum - 1, lnum + 1) == OK)
 	    {
 		// Make new line: text-before-marker + text-after-marker
-		newline = alloc(ml_get_len(lnum) - len + 1);
+		newline = alloc(buf_line_len(curbuf, lnum) - len + 1);
 		if (newline != NULL)
 		{
 		    STRNCPY(newline, line, p - line);
 		    STRCPY(newline + (p - line), p + len);
-		    ml_replace(lnum, newline, FALSE);
+		    buf_replace_line(curbuf, lnum, newline, -1, FALSE, FALSE);
 		}
 	    }
 	    break;
@@ -2176,7 +2176,7 @@ foldUpdateIEMS(win_T *wp, linenr_T top, linenr_T bot)
     {
 	// Need to update all folds.
 	top = 1;
-	bot = wp->w_buffer->b_ml.ml_line_count;
+	bot = buf_line_count(wp->w_buffer);
 	wp->w_foldinvalid = false;
 
 	// Mark all folds as maybe-small.
@@ -2197,8 +2197,8 @@ foldUpdateIEMS(win_T *wp, linenr_T top, linenr_T bot)
 
     // When deleting lines at the end of the buffer "top" can be past the end
     // of the buffer.
-    if (top > wp->w_buffer->b_ml.ml_line_count)
-	top = wp->w_buffer->b_ml.ml_line_count;
+    if (top > buf_line_count(wp->w_buffer))
+	top = buf_line_count(wp->w_buffer);
 
     fold_changed = FALSE;
     fline.wp = wp;
@@ -2320,13 +2320,13 @@ foldUpdateIEMS(win_T *wp, linenr_T top, linenr_T bot)
     start = fline.lnum;
     end = bot;
     // Do at least one line.
-    if (start > end && end < wp->w_buffer->b_ml.ml_line_count)
+    if (start > end && end < buf_line_count(wp->w_buffer))
 	end = start;
     while (!got_int)
     {
 	// Always stop at the end of the file ("end" can be past the end of
 	// the file).
-	if (fline.lnum > wp->w_buffer->b_ml.ml_line_count)
+	if (fline.lnum > buf_line_count(wp->w_buffer))
 	    break;
 	if (fline.lnum > end)
 	{
@@ -2365,7 +2365,7 @@ foldUpdateIEMS(win_T *wp, linenr_T top, linenr_T bot)
 	}
 	else
 	{
-	    if (fline.lnum == wp->w_buffer->b_ml.ml_line_count)
+	    if (fline.lnum == buf_line_count(wp->w_buffer))
 		break;
 	    ++fline.lnum;
 	    fline.lvl = fline.lvl_next;
@@ -2431,7 +2431,7 @@ foldUpdateIEMSRecurse(
     linenr_T	firstlnum = flp->lnum;	// first lnum we got
     int		i;
     int		finish = FALSE;
-    linenr_T	linecount = flp->wp->w_buffer->b_ml.ml_line_count - flp->off;
+    linenr_T	linecount = buf_line_count(flp->wp->w_buffer) - flp->off;
     int		concat;
 
     /*
@@ -3257,14 +3257,14 @@ foldlevelIndent(fline_T *flp)
     linenr_T	lnum = flp->lnum + flp->off;
 
     buf = flp->wp->w_buffer;
-    s = skipwhite(ml_get_buf(buf, lnum, FALSE));
+    s = skipwhite(buf_line(buf, lnum, FALSE));
 
     // empty line or lines starting with a character in 'foldignore': level
     // depends on surrounding lines
     if (*s == NUL || vim_strchr(flp->wp->w_p_fdi, *s) != NULL)
     {
 	// first and last line can't be undefined, use level 0
-	if (lnum == 1 || lnum == buf->b_ml.ml_line_count)
+	if (lnum == 1 || lnum == buf_line_count(buf))
 	    flp->lvl = 0;
 	else
 	    flp->lvl = -1;
@@ -3390,7 +3390,7 @@ foldlevelExpr(fline_T *flp)
 	    flp->lvl = 0;
 	    flp->lvl_next = 0;
 	}
-	if (lnum == curbuf->b_ml.ml_line_count)
+	if (lnum == buf_line_count(curbuf))
 	    flp->lvl_next = 0;
     }
 
@@ -3443,7 +3443,7 @@ foldlevelMarker(fline_T *flp)
     flp->start = 0;
     flp->lvl_next = flp->lvl;
 
-    s = ml_get_buf(flp->wp->w_buffer, flp->lnum + flp->off, FALSE);
+    s = buf_line(flp->wp->w_buffer, flp->lnum + flp->off, FALSE);
     while (*s)
     {
 	if (*s == cstart
@@ -3518,7 +3518,7 @@ foldlevelSyntax(fline_T *flp)
     // Use the maximum fold level at the start of this line and the next.
     flp->lvl = syn_get_foldlevel(flp->wp, lnum);
     flp->start = 0;
-    if (lnum < flp->wp->w_buffer->b_ml.ml_line_count)
+    if (lnum < buf_line_count(flp->wp->w_buffer))
     {
 	n = syn_get_foldlevel(flp->wp, lnum + 1);
 	if (n > flp->lvl)
@@ -3684,7 +3684,7 @@ foldclosed_both(
 	return;
 
     lnum = tv_get_lnum(argvars);
-    if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count)
+    if (lnum >= 1 && lnum <= buf_line_count(curbuf))
     {
 	if (hasFoldingWin(curwin, lnum, &first, &last, FALSE, NULL))
 	{
@@ -3730,7 +3730,7 @@ f_foldlevel(typval_T *argvars UNUSED, typval_T *rettv UNUSED)
 	return;
 
     lnum = tv_get_lnum(argvars);
-    if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count)
+    if (lnum >= 1 && lnum <= buf_line_count(curbuf))
 	rettv->vval.v_number = foldLevel(lnum);
 # endif
 }
@@ -3759,7 +3759,7 @@ f_foldtext(typval_T *argvars UNUSED, typval_T *rettv)
     foldstart = (linenr_T)get_vim_var_nr(VV_FOLDSTART);
     foldend = (linenr_T)get_vim_var_nr(VV_FOLDEND);
     dashes = get_vim_var_str(VV_FOLDDASHES);
-    if (foldstart > 0 && foldend <= curbuf->b_ml.ml_line_count
+    if (foldstart > 0 && foldend <= buf_line_count(curbuf)
 	    && dashes != NULL)
     {
 	// Find first non-empty line in the fold.
@@ -3768,7 +3768,7 @@ f_foldtext(typval_T *argvars UNUSED, typval_T *rettv)
 		break;
 
 	// Find interesting text in this line.
-	s = skipwhite(ml_get(lnum));
+	s = skipwhite(buf_line(curbuf, lnum, FALSE));
 	// skip C comment-start
 	if (s[0] == '/' && (s[1] == '*' || s[1] == '/'))
 	{
@@ -3776,7 +3776,7 @@ f_foldtext(typval_T *argvars UNUSED, typval_T *rettv)
 	    if (*skipwhite(s) == NUL
 			    && lnum + 1 < (linenr_T)get_vim_var_nr(VV_FOLDEND))
 	    {
-		s = skipwhite(ml_get(lnum + 1));
+		s = skipwhite(buf_line(curbuf, lnum + 1, FALSE));
 		if (*s == '*')
 		    s = skipwhite(s + 1);
 	    }

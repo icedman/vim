@@ -789,8 +789,8 @@ qf_get_next_buf_line(qfstate_T *state)
     if (state->buflnum > state->lnumlast)
 	return QF_END_OF_INPUT;
 
-    p_buf = ml_get_buf(state->buf, state->buflnum, FALSE);
-    len = ml_get_buf_len(state->buf, state->buflnum);
+    p_buf = buf_line(state->buf, state->buflnum, FALSE);
+    len = buf_line_len(state->buf, state->buflnum);
     state->buflnum += 1;
 
     if (len > IOSIZE - 2)
@@ -3635,7 +3635,7 @@ qf_jump_edit_buffer(
     static int
 qf_screen_col_to_idx(colnr_T vcol)
 {
-    char_u	*line = ml_get_curline();
+    char_u	*line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     char_u	*p = line;
     colnr_T	col = 0;
 
@@ -3671,8 +3671,8 @@ qf_jump_goto_line(
 	i = qf_lnum;
 	if (i > 0)
 	{
-	    if (i > curbuf->b_ml.ml_line_count)
-		i = curbuf->b_ml.ml_line_count;
+	    if (i > buf_line_count(curbuf))
+		i = buf_line_count(curbuf);
 	    curwin->w_cursor.lnum = i;
 	}
 	if (qf_col > 0)
@@ -4822,8 +4822,8 @@ ex_cbottom(exarg_T *eap)
 	return;
 
     win = qf_find_win(qi);
-    if (win != NULL && win->w_cursor.lnum != win->w_buffer->b_ml.ml_line_count)
-	qf_win_goto(win, win->w_buffer->b_ml.ml_line_count);
+    if (win != NULL && win->w_cursor.lnum != buf_line_count(win->w_buffer))
+	qf_win_goto(win, buf_line_count(win->w_buffer));
 }
 
 /*
@@ -4860,7 +4860,7 @@ qf_win_pos_update(
     // it's viewable.
     win = qf_find_win(qi);
     if (win != NULL
-	    && qf_index <= win->w_buffer->b_ml.ml_line_count
+	    && qf_index <= buf_line_count(win->w_buffer)
 	    && old_qf_index != qf_index)
     {
 	if (qf_index > old_qf_index)
@@ -4990,7 +4990,7 @@ qf_update_buffer(qf_info_T *qi, qfline_T *old_last)
     if (buf == NULL)
 	return;
 
-    linenr_T	old_line_count = buf->b_ml.ml_line_count;
+    linenr_T	old_line_count = buf_line_count(buf);
     int		qf_winid = 0;
 
     if (IS_LL_STACK(qi))
@@ -5119,7 +5119,7 @@ qf_buf_add_line(
     }
 
     ga_append(gap, NUL);
-    if (ml_append_buf(buf, lnum, gap->ga_data, gap->ga_len, FALSE) == FAIL)
+    if (buf_append_line(buf, lnum, gap->ga_data, gap->ga_len, FALSE) == FAIL)
 	return FAIL;
 
     return OK;
@@ -5219,8 +5219,8 @@ qf_fill_buffer(qf_list_T *qfl, buf_T *buf, qfline_T *old_last, int qf_winid)
 	//
 	// So we need to clean up undo information
 	// otherwise autocommands may invalidate the undo stack
-	while ((curbuf->b_ml.ml_flags & ML_EMPTY) == 0)
-	    (void)ml_delete((linenr_T)1);
+	while (!buf_has_empty_flag(curbuf))
+	    (void)buf_delete_line(curbuf, (linenr_T)1, 0);
 
 	FOR_ALL_TAB_WINDOWS(tp, wp)
 	    if (wp->w_buffer == curbuf)
@@ -5251,7 +5251,7 @@ qf_fill_buffer(qf_list_T *qfl, buf_T *buf, qfline_T *old_last, int qf_winid)
 		qfp = old_last->qf_next;
 	    else
 		qfp = old_last;
-	    lnum = buf->b_ml.ml_line_count;
+	    lnum = buf_line_count(buf);
 	}
 
 	qftf_list = call_qftf_func(qfl, qf_winid, (long)(lnum + 1),
@@ -5289,7 +5289,7 @@ qf_fill_buffer(qf_list_T *qfl, buf_T *buf, qfline_T *old_last, int qf_winid)
 
 	if (old_last == NULL)
 	    // Delete the empty line which is now at the end
-	    (void)ml_delete(lnum + 1);
+	    (void)buf_delete_line(curbuf, lnum + 1, 0);
 
 	qfga_clear();
     }
@@ -6505,7 +6505,7 @@ vgr_match_buflines(
     if (pat_len > FUZZY_MATCH_MAX_LEN)
 	pat_len = FUZZY_MATCH_MAX_LEN;
 
-    for (lnum = 1; lnum <= buf->b_ml.ml_line_count && *tomatch > 0; ++lnum)
+    for (lnum = 1; lnum <= buf_line_count(buf) && *tomatch > 0; ++lnum)
     {
 	col = 0;
 	if (!(flags & VGR_FUZZY))
@@ -6522,7 +6522,7 @@ vgr_match_buflines(
 			    fname,
 			    NULL,
 			    duplicate_name ? 0 : buf->b_fnum,
-			    ml_get_buf(buf,
+			    buf_line(buf,
 				regmatch->startpos[0].lnum + lnum, FALSE),
 			    regmatch->startpos[0].lnum + lnum,
 			    regmatch->endpos[0].lnum + lnum,
@@ -6547,14 +6547,14 @@ vgr_match_buflines(
 		    break;
 		col = regmatch->endpos[0].col
 		    + (col == regmatch->endpos[0].col);
-		if (col > ml_get_buf_len(buf, lnum))
+		if (col > buf_line_len(buf, lnum))
 		    break;
 	    }
 	}
 	else
 	{
-	    char_u  *str = ml_get_buf(buf, lnum, FALSE);
-	    colnr_T linelen = ml_get_buf_len(buf, lnum);
+	    char_u  *str = buf_line(buf, lnum, FALSE);
+	    colnr_T linelen = buf_line_len(buf, lnum);
 	    int	    score;
 	    int_u   matches[FUZZY_MATCH_MAX_LEN];
 	    int_u   sz = ARRAY_LENGTH(matches);
@@ -6711,9 +6711,10 @@ vgr_process_args(
     static int
 existing_swapfile(buf_T *buf)
 {
-    if (buf->b_ml.ml_mfp != NULL && buf->b_ml.ml_mfp->mf_fname != NULL)
+    char_u *fname = buf_swapfile_name(buf);
+
+    if (fname != NULL)
     {
-	char_u *fname = buf->b_ml.ml_mfp->mf_fname;
 	size_t len = STRLEN(fname);
 
 	return fname[len - 1] != 'p' || fname[len - 2] != 'w';
@@ -6770,7 +6771,7 @@ vgr_process_files(
 	}
 
 	buf = buflist_findname_exp(cmd_args->fnames[fi]);
-	if (buf == NULL || buf->b_ml.ml_mfp == NULL)
+	if (buf == NULL || !buf_is_loaded(buf))
 	{
 	    // Remember that a buffer with this name already exists.
 	    duplicate_name = (buf != NULL);
@@ -8528,7 +8529,7 @@ cbuffer_process_args(
 	return FAIL;
     }
 
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
     {
 	emsg(_(e_buffer_is_not_loaded));
 	return FAIL;
@@ -8537,11 +8538,11 @@ cbuffer_process_args(
     if (eap->addr_count == 0)
     {
 	eap->line1 = 1;
-	eap->line2 = buf->b_ml.ml_line_count;
+	eap->line2 = buf_line_count(buf);
     }
 
-    if (eap->line1 < 1 || eap->line1 > buf->b_ml.ml_line_count
-	    || eap->line2 < 1 || eap->line2 > buf->b_ml.ml_line_count)
+    if (eap->line1 < 1 || eap->line1 > buf_line_count(buf)
+	    || eap->line2 < 1 || eap->line2 > buf_line_count(buf))
     {
 	emsg(_(e_invalid_range));
 	return FAIL;

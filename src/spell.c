@@ -1380,9 +1380,9 @@ spell_move_to(
     {
 	int empty_line;
 
-	line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+	line = buf_line(wp->w_buffer, lnum, FALSE);
 
-	len = ml_get_buf_len(wp->w_buffer, lnum);
+	len = buf_line_len(wp->w_buffer, lnum);
 	if (buflen < len + MAXWLEN + 2)
 	{
 	    vim_free(buf);
@@ -1408,17 +1408,17 @@ spell_move_to(
 
 	    // Need to get the line again, may have looked at the previous
 	    // one.
-	    line = ml_get_buf(wp->w_buffer, lnum, FALSE);
+	    line = buf_line(wp->w_buffer, lnum, FALSE);
 	}
 
 	// Copy the line into "buf" and append the start of the next line if
-	// possible.  Note: this ml_get_buf() may make "line" invalid, check
+	// possible.  Note: this buf_line() may make "line" invalid, check
 	// for empty line first.
 	empty_line = *skipwhite(line) == NUL;
 	STRCPY(buf, line);
-	if (lnum < wp->w_buffer->b_ml.ml_line_count)
+	if (lnum < buf_line_count(wp->w_buffer))
 	    spell_cat_line(buf + STRLEN(buf),
-			  ml_get_buf(wp->w_buffer, lnum + 1, FALSE), MAXWLEN);
+			  buf_line(wp->w_buffer, lnum + 1, FALSE), MAXWLEN);
 
 	p = buf + skip;
 	endp = buf + len;
@@ -1524,7 +1524,7 @@ spell_move_to(
 	    {
 		// Wrap around to the end of the buffer.  May search the
 		// starting line again and accept the last match.
-		lnum = wp->w_buffer->b_ml.ml_line_count;
+		lnum = buf_line_count(wp->w_buffer);
 		wrapped = TRUE;
 		if (!shortmess(SHM_SEARCH))
 		    give_warning((char_u *)_(top_bot_msg), TRUE);
@@ -1533,7 +1533,7 @@ spell_move_to(
 	}
 	else
 	{
-	    if (lnum < wp->w_buffer->b_ml.ml_line_count)
+	    if (lnum < buf_line_count(wp->w_buffer))
 		++lnum;
 	    else if (!p_ws)
 		break;	    // at first line and 'nowrapscan'
@@ -2899,7 +2899,7 @@ check_need_cap(win_T *wp, linenr_T lnum, colnr_T col)
 	return FALSE;
 
     int		need_cap = FALSE;
-    char_u	*line = col ? ml_get_buf(wp->w_buffer, lnum, FALSE) : NULL;
+    char_u	*line = col ? buf_line(wp->w_buffer, lnum, FALSE) : NULL;
     char_u	*line_copy = NULL;
     colnr_T	endcol = 0;
 
@@ -2911,7 +2911,7 @@ check_need_cap(win_T *wp, linenr_T lnum, colnr_T col)
 	    need_cap = TRUE;
 	else
 	{
-	    line = ml_get_buf(wp->w_buffer, lnum - 1, FALSE);
+	    line = buf_line(wp->w_buffer, lnum - 1, FALSE);
 	    if (*skipwhite(line) == NUL)
 		need_cap = TRUE;
 	    else
@@ -2997,17 +2997,18 @@ ex_spellrepall(exarg_T *eap UNUSED)
 
 	// Only replace when the right word isn't there yet.  This happens
 	// when changing "etc" to "etc.".
-	line = ml_get_curline();
+	line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 	if (addlen <= 0 || STRNCMP(line + curwin->w_cursor.col,
 						   repl_to, repl_to_len) != 0)
 	{
-	    p = alloc(ml_get_curline_len() + addlen + 1);
+	    p = alloc(buf_line_len(curbuf, curwin->w_cursor.lnum) + addlen + 1);
 	    if (p == NULL)
 		break;
 	    mch_memmove(p, line, curwin->w_cursor.col);
 	    STRCPY(p + curwin->w_cursor.col, repl_to);
 	    STRCAT(p, line + curwin->w_cursor.col + repl_from_len);
-	    ml_replace(curwin->w_cursor.lnum, p, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum, p, -1,
+								 FALSE, FALSE);
 	    changed_bytes(curwin->w_cursor.lnum, curwin->w_cursor.col);
 #if defined(FEAT_PROP_POPUP)
 	    if (curbuf->b_has_textprop && addlen != 0)
@@ -3940,14 +3941,14 @@ ex_spelldump(exarg_T *eap)
     set_option_value_give_err((char_u*)"spl",  dummy, spl, OPT_LOCAL);
     vim_free(spl);
 
-    if (!BUFEMPTY())
+    if (!buf_is_empty(curbuf))
 	return;
 
     spell_dump_compl(NULL, 0, NULL, eap->forceit ? DUMPFLAG_COUNT : 0);
 
     // Delete the empty line that we started with.
-    if (curbuf->b_ml.ml_line_count > 1)
-	ml_delete(curbuf->b_ml.ml_line_count);
+    if (buf_line_count(curbuf) > 1)
+	buf_delete_line(curbuf, buf_line_count(curbuf), 0);
 
     redraw_later(UPD_NOT_VALID);
 }
@@ -4022,7 +4023,7 @@ spell_dump_compl(
     if (do_region && region_names != NULL && pat == NULL)
     {
 	vim_snprintf((char *)IObuff, IOSIZE, "/regions=%s", region_names);
-	ml_append(lnum++, IObuff, (colnr_T)0, FALSE);
+	buf_append_line(curbuf, lnum++, IObuff, (colnr_T)0, FALSE);
     }
     else
 	do_region = FALSE;
@@ -4040,7 +4041,7 @@ spell_dump_compl(
 	if (pat == NULL)
 	{
 	    vim_snprintf((char *)IObuff, IOSIZE, "# file: %s", slang->sl_fname);
-	    ml_append(lnum++, IObuff, (colnr_T)0, FALSE);
+	    buf_append_line(curbuf, lnum++, IObuff, (colnr_T)0, FALSE);
 	}
 
 	// When matching with a pattern and there are no prefixes only use
@@ -4224,7 +4225,7 @@ dump_word(
 	    }
 	}
 
-	ml_append(lnum, p, (colnr_T)0, FALSE);
+	buf_append_line(curbuf, lnum, p, (colnr_T)0, FALSE);
     }
     else if (((dumpflags & DUMPFLAG_ICASE)
 		    ? MB_STRNICMP(p, pat, STRLEN(pat)) == 0
@@ -4385,7 +4386,7 @@ spell_word_start(int startcol)
 	return startcol;
 
     // Find a word character before "startcol".
-    line = ml_get_curline();
+    line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     for (p = line + startcol; p > line; )
     {
 	MB_PTR_BACK(line, p);

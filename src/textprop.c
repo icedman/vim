@@ -85,9 +85,9 @@ um_goto_line(unpacked_memline_T *um, linenr_T lnum, int extra_props)
     if (lnum == 0)
 	return true;	// just unload
 
-    line = ml_get_buf(um->buf, lnum, FALSE);
-    textlen = ml_get_buf_len(um->buf, lnum) + 1;
-    propdata_len = um->buf->b_ml.ml_line_len - textlen;
+    line = buf_line(um->buf, lnum, FALSE);
+    textlen = buf_line_len(um->buf, lnum) + 1;
+    propdata_len = buf_line_full_len(um->buf) - textlen;
 
     um->lnum = lnum;
     um->text_size = (colnr_T)textlen;
@@ -294,13 +294,13 @@ um_open_at_no_props(buf_T *buf, linenr_T lnum, int prop_count)
     CLEAR_FIELD(um);
     um.buf = buf;
 
-    if (lnum < 1 || lnum > buf->b_ml.ml_line_count)
+    if (lnum < 1 || lnum > buf_line_count(buf))
     {
 	um.buf = NULL;
 	return um;
     }
 
-    char_u *line = ml_get_buf(buf, lnum, FALSE);
+    char_u *line = buf_line(buf, lnum, FALSE);
     char_u *text_copy = vim_strsave(line);
 
     if (text_copy == NULL)
@@ -339,7 +339,7 @@ clear_cont_flag_on_neighbor(buf_T *buf, linenr_T lnum,
 {
     unpacked_memline_T	neighbor;
 
-    if (lnum < 1 || lnum > buf->b_ml.ml_line_count)
+    if (lnum < 1 || lnum > buf_line_count(buf))
 	return;
 
     neighbor = um_open_at(buf, lnum, 0);
@@ -497,23 +497,14 @@ um_store_changes(unpacked_memline_T *um)
 	return;
     }
 
-    // Flush any other dirty line before setting ours.  ml_get_buf()
-    // with will_change=TRUE will flush the current dirty line and set
-    // up for our line.
-    if (um->buf->b_ml.ml_line_lnum != um->lnum)
-	ml_get_buf(um->buf, um->lnum, TRUE);
-    else if (!(um->buf->b_ml.ml_flags & ML_LINE_DIRTY))
-	(void)ml_get_buf(um->buf, um->lnum, TRUE);
+    // Flush any other dirty line and set up ours as the dirty cached line.
+    buf_prepare_cached_line(um->buf, um->lnum);
 
     // Free the detached text and vtext before switching to packed.
     vim_free(um->text);
     um_free_vtext(um->props, um->prop_count);
 
-    if (um->buf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
-	vim_free(um->buf->b_ml.ml_line_ptr);
-    um->buf->b_ml.ml_line_ptr = packed;
-    um->buf->b_ml.ml_line_len = packed_len;
-    um->buf->b_ml.ml_flags |= ML_LINE_DIRTY;
+    buf_replace_cached_line(um->buf, packed, packed_len, 0, FALSE, FALSE);
 
     um->detached = false;
     um->text = packed;
@@ -720,18 +711,18 @@ prop_add_one(
     if (type == NULL)
 	goto theend;
 
-    if (start_lnum < 1 || start_lnum > buf->b_ml.ml_line_count)
+    if (start_lnum < 1 || start_lnum > buf_line_count(buf))
     {
 	semsg(_(e_invalid_line_number_nr), (long)start_lnum);
 	goto theend;
     }
-    if (end_lnum < start_lnum || end_lnum > buf->b_ml.ml_line_count)
+    if (end_lnum < start_lnum || end_lnum > buf_line_count(buf))
     {
 	semsg(_(e_invalid_line_number_nr), (long)end_lnum);
 	goto theend;
     }
 
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
     {
 	emsg(_(e_cannot_add_text_property_to_unloaded_buffer));
 	goto theend;
@@ -756,7 +747,7 @@ prop_add_one(
 
 	// Fetch the line to get the ml_line_len field updated.
 	proplen = get_text_props(buf, lnum, &props, TRUE);
-	textlen = ml_get_buf_len(buf, lnum) + 1;
+	textlen = buf_line_len(buf, lnum) + 1;
 
 	// prop_count is a uint16_t; stop before proplen + 1 wraps to zero.
 	if (proplen >= 0xffff)
@@ -855,8 +846,8 @@ prop_add_one(
 	if (newtext == NULL)
 	    goto theend;
 
-	// Copy line text.
-	mch_memmove(newtext, buf->b_ml.ml_line_ptr, textlen);
+	// Copy line text.  get_text_props() above cached this line.
+	mch_memmove(newtext, buf_line(buf, lnum, FALSE), textlen);
 
 	// Write prop_count.
 	count_dest = newtext + textlen;
@@ -913,11 +904,7 @@ prop_add_one(
 	mch_memmove(newprops + i * sizeof(textprop_T), &tmp_prop,
 							sizeof(textprop_T));
 
-	if (buf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
-	    vim_free(buf->b_ml.ml_line_ptr);
-	buf->b_ml.ml_line_ptr = newtext;
-	buf->b_ml.ml_line_len = new_line_len;
-	buf->b_ml.ml_flags |= ML_LINE_DIRTY;
+	buf_replace_cached_line(buf, newtext, new_line_len, 0, FALSE, FALSE);
     }
 
     changed_line_display_buf(buf);
@@ -1236,13 +1223,13 @@ get_text_props(buf_T *buf, linenr_T lnum, char_u **props, int will_change)
 
     // Be quick when no text property types have been defined for the buffer,
     // unless we are adding one.
-    if ((!buf->b_has_textprop && !will_change) || buf->b_ml.ml_mfp == NULL)
+    if ((!buf->b_has_textprop && !will_change) || !buf_is_loaded(buf))
 	return 0;
 
     // Fetch the line to get the ml_line_len field updated.
-    text = ml_get_buf(buf, lnum, will_change);
-    textlen = ml_get_buf_len(buf, lnum) + 1;
-    propdata_len = buf->b_ml.ml_line_len - textlen;
+    text = buf_line(buf, lnum, will_change);
+    textlen = buf_line_len(buf, lnum) + 1;
+    propdata_len = buf_line_full_len(buf) - textlen;
     if (propdata_len == 0)
 	return 0;
 
@@ -1445,8 +1432,8 @@ find_prop_in_lines(
 
     if (first_lnum < 1)
 	first_lnum = 1;
-    if (last_lnum > wp->w_buffer->b_ml.ml_line_count)
-	last_lnum = wp->w_buffer->b_ml.ml_line_count;
+    if (last_lnum > buf_line_count(wp->w_buffer))
+	last_lnum = buf_line_count(wp->w_buffer);
 
     for (linenr_T lnum = first_lnum; lnum <= last_lnum; ++lnum)
     {
@@ -1499,8 +1486,8 @@ set_text_props(linenr_T lnum, textprop_T *tps, int count)
     char_u  *newtext;
     int	    textlen;
 
-    text = ml_get(lnum);
-    textlen = ml_get_len(lnum) + 1;
+    text = buf_line(curbuf, lnum, FALSE);
+    textlen = buf_line_len(curbuf, lnum) + 1;
 
     if (count == 0)
     {
@@ -1509,11 +1496,7 @@ set_text_props(linenr_T lnum, textprop_T *tps, int count)
 	if (newtext == NULL)
 	    return;
 	mch_memmove(newtext, text, textlen);
-	if (curbuf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
-	    vim_free(curbuf->b_ml.ml_line_ptr);
-	curbuf->b_ml.ml_line_ptr = newtext;
-	curbuf->b_ml.ml_line_len = textlen;
-	curbuf->b_ml.ml_flags |= ML_LINE_DIRTY;
+	buf_replace_cached_line(curbuf, newtext, textlen, 0, FALSE, FALSE);
     }
     else
     {
@@ -1563,11 +1546,7 @@ set_text_props(linenr_T lnum, textprop_T *tps, int count)
 	    prop_dest += sizeof(textprop_T);
 	}
 
-	if (curbuf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
-	    vim_free(curbuf->b_ml.ml_line_ptr);
-	curbuf->b_ml.ml_line_ptr = newtext;
-	curbuf->b_ml.ml_line_len = total_len;
-	curbuf->b_ml.ml_flags |= ML_LINE_DIRTY;
+	buf_replace_cached_line(curbuf, newtext, total_len, 0, FALSE, FALSE);
     }
 }
 
@@ -1872,7 +1851,7 @@ f_prop_clear(typval_T *argvars, typval_T *rettv UNUSED)
 	{
 	    int idx;
 
-	    if (lnum > buf->b_ml.ml_line_count)
+	    if (lnum > buf_line_count(buf))
 		break;
 	    if (!um_goto_line(&um, lnum, 0))
 		break;
@@ -1922,7 +1901,7 @@ f_prop_find(typval_T *argvars, typval_T *rettv)
 
     if (get_bufnr_from_arg(&argvars[0], &buf) == FAIL)
 	return;
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
 	return;
 
     if (argvars[1].v_type != VAR_UNKNOWN)
@@ -1954,7 +1933,7 @@ f_prop_find(typval_T *argvars, typval_T *rettv)
     else if (col == -1)
 	col = 1;
 
-    if (lnum < 1 || lnum > buf->b_ml.ml_line_count)
+    if (lnum < 1 || lnum > buf_line_count(buf))
     {
 	emsg(_(e_invalid_range));
 	return;
@@ -2079,7 +2058,7 @@ f_prop_find(typval_T *argvars, typval_T *rettv)
 
 	if (dir > 0)
 	{
-	    if (lnum >= buf->b_ml.ml_line_count)
+	    if (lnum >= buf_line_count(buf))
 		break;
 	    lnum++;
 	}
@@ -2302,9 +2281,9 @@ f_prop_list(typval_T *argvars, typval_T *rettv)
 	    if (end_lnum < 0)
 		// negative end_lnum is used as an offset from the last buffer
 		// line
-		end_lnum = buf->b_ml.ml_line_count + end_lnum + 1;
-	    else if (end_lnum > buf->b_ml.ml_line_count)
-		end_lnum = buf->b_ml.ml_line_count;
+		end_lnum = buf_line_count(buf) + end_lnum + 1;
+	    else if (end_lnum > buf_line_count(buf))
+		end_lnum = buf_line_count(buf);
 	    add_lnum = TRUE;
 	}
 	if (d != NULL && (di = dict_find(d, (char_u *)"types", -1)) != NULL)
@@ -2340,7 +2319,7 @@ f_prop_list(typval_T *argvars, typval_T *rettv)
 	    }
 	}
     }
-    if (start_lnum < 1 || start_lnum > buf->b_ml.ml_line_count
+    if (start_lnum < 1 || start_lnum > buf_line_count(buf)
 		|| end_lnum < 1 || end_lnum < start_lnum)
 	emsg(_(e_invalid_range));
     else
@@ -2402,7 +2381,7 @@ f_prop_remove(typval_T *argvars, typval_T *rettv)
     dict = argvars[0].vval.v_dict;
     if (get_bufnr_from_arg(&argvars[0], &buf) == FAIL)
 	return;
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
 	return;
 
     do_all = dict_get_bool(dict, "all", FALSE);
@@ -2466,7 +2445,7 @@ f_prop_remove(typval_T *argvars, typval_T *rettv)
     }
 
     if (end == 0)
-	end = buf->b_ml.ml_line_count;
+	end = buf_line_count(buf);
 
     {
 	unpacked_memline_T um = um_open(buf);
@@ -2475,7 +2454,7 @@ f_prop_remove(typval_T *argvars, typval_T *rettv)
 	{
 	    int idx;
 
-	    if (lnum > buf->b_ml.ml_line_count)
+	    if (lnum > buf_line_count(buf))
 		break;
 	    if (!um_goto_line(&um, lnum, 0))
 		break;

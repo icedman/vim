@@ -3250,7 +3250,7 @@ static void intro_message(int colon);
     void
 maybe_intro_message(void)
 {
-    if (BUFEMPTY()
+    if (buf_is_empty(curbuf)
 	    && curbuf->b_fname == NULL
 	    && firstwin->w_next == NULL
 	    && vim_strchr(p_shm, SHM_INTRO) == NULL)

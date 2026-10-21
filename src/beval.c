@@ -48,7 +48,7 @@ find_word_under_cursor(
 	return FAIL;		// position is below the last line
 
     // Not past end of the file.
-    lbuf = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    lbuf = buf_line(wp->w_buffer, lnum, FALSE);
     if (col > win_linetabsize(wp, lnum, lbuf, (colnr_T)MAXCOL))
 	return FAIL;		// past end of line
 
@@ -92,7 +92,7 @@ find_word_under_cursor(
 	    if (spos->lnum != epos->lnum || spos->col == epos->col)
 		return FAIL;
 
-	    lbuf = ml_get_buf(curwin->w_buffer, VIsual.lnum, FALSE);
+	    lbuf = buf_line(curwin->w_buffer, VIsual.lnum, FALSE);
 	    len = epos->col - spos->col;
 	    if (*p_sel != 'e')
 		len += mb_ptr2len(lbuf + epos->col);

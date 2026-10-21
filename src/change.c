@@ -306,12 +306,12 @@ add_change_text(
     if (l == NULL)
 	return 0;
 
-    if (below > buf->b_ml.ml_line_count + 1)
-	below = buf->b_ml.ml_line_count + 1;
+    if (below > buf_line_count(buf) + 1)
+	below = buf_line_count(buf) + 1;
     for (linenr_T lp = lnum < 1 ? 1 : lnum; lp < below; ++lp)
     {
-	char_u	*line = ml_get_buf(buf, lp, FALSE);
-	colnr_T	len = ml_get_buf_len(buf, lp);
+	char_u	*line = buf_line(buf, lp, FALSE);
+	colnr_T	len = buf_line_len(buf, lp);
 
 	// Rather than storing a part of the text, store none of it.
 	if (list_append_string(l, line, len) == FAIL)
@@ -1006,7 +1006,7 @@ changed_bytes(linenr_T lnum, colnr_T col)
     // displayed.  Schedule the next line for redrawing just in case.
     // Don't do this when displaying '$' at the end of changed text.
     if (spell_check_window(curwin)
-	    && lnum < curbuf->b_ml.ml_line_count
+	    && lnum < buf_line_count(curbuf)
 	    && vim_strchr(p_cpo, CPO_DOLLAR) == NULL)
 	redrawWinline(curwin, lnum + 1);
 #endif
@@ -1238,8 +1238,8 @@ file_ff_differs(buf_T *buf, int ignore_empty)
 	return FALSE;
     if (ignore_empty
 	    && (buf->b_flags & BF_NEW)
-	    && buf->b_ml.ml_line_count == 1
-	    && *ml_get_buf(buf, (linenr_T)1, FALSE) == NUL)
+	    && buf_line_count(buf) == 1
+	    && *buf_line(buf, (linenr_T)1, FALSE) == NUL)
 	return FALSE;
     if (buf->b_start_ffc != *buf->b_p_ff)
 	return TRUE;
@@ -1329,8 +1329,8 @@ ins_char_bytes(char_u *buf, int charlen)
 	coladvance_force(getviscol());
 
     col = curwin->w_cursor.col;
-    oldp = ml_get(lnum);
-    linelen = (int)ml_get_len(lnum) + 1;
+    oldp = buf_line(curbuf, lnum, FALSE);
+    linelen = (int)buf_line_len(curbuf, lnum) + 1;
 
     // The lengths default to the values for when not replacing.
     oldlen = 0;
@@ -1415,7 +1415,7 @@ ins_char_bytes(char_u *buf, int charlen)
 	p[i++] = ' ';
 
     // Replace the line in the buffer.
-    ml_replace(lnum, newp, FALSE);
+    buf_replace_line(curbuf, lnum, newp, -1, FALSE, FALSE);
 
     // mark the buffer as changed and prepare for displaying
     changed_bytes(lnum, col);
@@ -1465,8 +1465,8 @@ ins_str(char_u *s, size_t slen)
 	coladvance_force(getviscol());
 
     col = curwin->w_cursor.col;
-    oldp = ml_get(lnum);
-    oldlen = (int)ml_get_len(lnum);
+    oldp = buf_line(curbuf, lnum, FALSE);
+    oldlen = (int)buf_line_len(curbuf, lnum);
 
     newp = alloc(oldlen + slen + 1);
     if (newp == NULL)
@@ -1475,7 +1475,7 @@ ins_str(char_u *s, size_t slen)
 	mch_memmove(newp, oldp, (size_t)col);
     mch_memmove(newp + col, s, slen);
     mch_memmove(newp + col + slen, oldp + col, (size_t)(oldlen - col + 1));
-    ml_replace(lnum, newp, FALSE);
+    buf_replace_line(curbuf, lnum, newp, -1, FALSE, FALSE);
     inserted_bytes(lnum, col, (int)slen);
     curwin->w_cursor.col += (colnr_T)slen;
 }
@@ -1494,7 +1494,7 @@ del_char(int fixpos)
     {
 	// Make sure the cursor is at the start of a character.
 	mb_adjust_cursor();
-	if (*ml_get_cursor() == NUL)
+	if (*buf_line_at(curbuf, &curwin->w_cursor) == NUL)
 	    return FAIL;
 	return del_chars(1L, fixpos);
     }
@@ -1512,7 +1512,7 @@ del_chars(long count, int fixpos)
     char_u	*p;
     int		l;
 
-    p = ml_get_cursor();
+    p = buf_line_at(curbuf, &curwin->w_cursor);
     for (i = 0; i < count && *p != NUL; ++i)
     {
 	l = (*mb_ptr2len)(p);
@@ -1544,8 +1544,8 @@ del_bytes(
     long	movelen;
     int		fixpos = fixpos_arg;
 
-    oldp = ml_get(lnum);
-    oldlen = (int)ml_get_len(lnum);
+    oldp = buf_line(curbuf, lnum, FALSE);
+    oldlen = (int)buf_line_len(curbuf, lnum);
 
     // Can't do anything when the cursor is on the NUL after the line.
     if (col >= oldlen)
@@ -1628,17 +1628,16 @@ del_bytes(
     }
     mch_memmove(newp + col, oldp + col + count, (size_t)movelen);
     if (alloc_newp)
-	ml_replace(lnum, newp, FALSE);
+	buf_replace_line(curbuf, lnum, newp, -1, FALSE, FALSE);
     else
     {
 #ifdef FEAT_PROP_POPUP
 	// Also move any following text properties.
-	if (oldlen + 1 < curbuf->b_ml.ml_line_len)
+	if (oldlen + 1 < buf_line_full_len(curbuf))
 	    mch_memmove(newp + newlen + 1, oldp + oldlen + 1,
-			       (size_t)curbuf->b_ml.ml_line_len - oldlen - 1);
+			       (size_t)buf_line_full_len(curbuf) - oldlen - 1);
 #endif
-	curbuf->b_ml.ml_line_len -= count;
-	curbuf->b_ml.ml_line_textlen = 0;
+	buf_adjust_cached_line_len(curbuf, -count, 0);
     }
 
     // mark the buffer as changed and prepare for displaying
@@ -1711,12 +1710,14 @@ open_line(
 #endif
 
     // make a copy of the current line so we can mess with it
-    saved_line = vim_strnsave(ml_get_curline(), ml_get_curline_len());
+    saved_line = vim_strnsave(buf_line(curbuf, curwin->w_cursor.lnum, FALSE),
+			      buf_line_len(curbuf, curwin->w_cursor.lnum));
     if (saved_line == NULL)	    // out of memory!
 	return FALSE;
 
 #ifdef FEAT_PROP_POPUP
-    at_eol = curwin->w_cursor.col >= (int)ml_get_curline_len();
+    at_eol = curwin->w_cursor.col
+	     >= (int)buf_line_len(curbuf, curwin->w_cursor.lnum);
 #endif
 
     if (State & VREPLACE_FLAG)
@@ -1729,7 +1730,9 @@ open_line(
 	// the line, replacing what was there before and pushing the right
 	// stuff onto the replace stack.  -- webb.
 	if (curwin->w_cursor.lnum < orig_line_count)
-	    next_line = vim_strnsave(ml_get(curwin->w_cursor.lnum + 1), ml_get_len(curwin->w_cursor.lnum + 1));
+	    next_line = vim_strnsave(
+			    buf_line(curbuf, curwin->w_cursor.lnum + 1, FALSE),
+			    buf_line_len(curbuf, curwin->w_cursor.lnum + 1));
 	else
 	    next_line = vim_strsave((char_u *)"");
 	if (next_line == NULL)	    // out of memory!
@@ -1816,7 +1819,7 @@ open_line(
 		if ( lead_len == 0 && ptr[0] == '#')
 		{
 		    while (ptr[0] == '#' && curwin->w_cursor.lnum > 1)
-			ptr = ml_get(--curwin->w_cursor.lnum);
+			ptr = buf_line(curbuf, --curwin->w_cursor.lnum, FALSE);
 		    newindent = get_indent();
 		}
 		if (flags & OPENLINE_DO_COM)
@@ -1851,7 +1854,8 @@ open_line(
 				    break;
 				}
 				// this may make "ptr" invalid, get it again
-				ptr = ml_get(curwin->w_cursor.lnum);
+				ptr = buf_line(curbuf, curwin->w_cursor.lnum,
+									FALSE);
 				p = ptr + curwin->w_cursor.col;
 			    }
 			}
@@ -1886,7 +1890,8 @@ open_line(
 			{
 			    curwin->w_cursor.lnum = pos->lnum;
 			    newindent = get_indent();
-			    ptr = ml_get_curline();
+			    ptr = buf_line(curbuf,
+					   curwin->w_cursor.lnum, FALSE);
 			}
 		    }
 		    // If last character is '{' do indent, without
@@ -1913,13 +1918,13 @@ open_line(
 		    int was_backslashed = FALSE;
 
 		    while ((ptr[0] == '#' || was_backslashed) &&
-			 curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+			 curwin->w_cursor.lnum < buf_line_count(curbuf))
 		    {
 			if (*ptr && ptr[STRLEN(ptr) - 1] == '\\')
 			    was_backslashed = TRUE;
 			else
 			    was_backslashed = FALSE;
-			ptr = ml_get(++curwin->w_cursor.lnum);
+			ptr = buf_line(curbuf, ++curwin->w_cursor.lnum, FALSE);
 		    }
 		    if (was_backslashed)
 			newindent = 0;	    // Got to end of file
@@ -2428,8 +2433,8 @@ open_line(
 	--curwin->w_cursor.lnum;
     if (!(State & VREPLACE_FLAG) || old_cursor.lnum >= orig_line_count)
     {
-	if (ml_append(curwin->w_cursor.lnum, p_extra, (colnr_T)0, FALSE)
-								      == FAIL)
+	if (buf_append_line(curbuf, curwin->w_cursor.lnum, p_extra, (colnr_T)0,
+								FALSE) == FAIL)
 	    goto theend;
 	// Postpone calling changed_lines(), because it would mess up folding
 	// with markers.
@@ -2453,7 +2458,8 @@ open_line(
 	    (void)u_save_cursor();		    // errors are ignored!
 	    vr_lines_changed++;
 	}
-	ml_replace(curwin->w_cursor.lnum, p_extra, TRUE);
+	buf_replace_line(curbuf, curwin->w_cursor.lnum, p_extra, -1,
+								 FALSE, TRUE);
 	changed_bytes(curwin->w_cursor.lnum, 0);
 	curwin->w_cursor.lnum--;
 	did_append = FALSE;
@@ -2513,7 +2519,8 @@ open_line(
 	    // Remove trailing white space, unless OPENLINE_KEEPTRAIL used.
 	    if (trunc_line && !(flags & OPENLINE_KEEPTRAIL))
 		truncate_spaces(saved_line, curwin->w_cursor.col);
-	    ml_replace(curwin->w_cursor.lnum, saved_line, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum, saved_line, -1,
+								FALSE, FALSE);
 	    saved_line = NULL;
 	    if (did_append)
 	    {
@@ -2586,12 +2593,14 @@ open_line(
     if (State & VREPLACE_FLAG)
     {
 	// Put new line in p_extra
-	p_extra = vim_strnsave(ml_get_curline(), ml_get_curline_len());
+	p_extra = vim_strnsave(buf_line(curbuf, curwin->w_cursor.lnum, FALSE),
+			       buf_line_len(curbuf, curwin->w_cursor.lnum));
 	if (p_extra == NULL)
 	    goto theend;
 
 	// Put back original line
-	ml_replace(curwin->w_cursor.lnum, next_line, FALSE);
+	buf_replace_line(curbuf, curwin->w_cursor.lnum, next_line, -1,
+								FALSE, FALSE);
 
 	// Insert new stuff into line again
 	curwin->w_cursor.col = 0;
@@ -2626,17 +2635,17 @@ truncate_line(int fixpos)
     char_u	*old_line;
     int		deleted;
 
-    old_line = ml_get(lnum);
+    old_line = buf_line(curbuf, lnum, FALSE);
     if (col == 0)
 	newp = vim_strsave((char_u *)"");
     else
 	newp = vim_strnsave(old_line, col);
-    deleted = (int)ml_get_len(lnum) - col;
+    deleted = (int)buf_line_len(curbuf, lnum) - col;
 
     if (newp == NULL)
 	return FAIL;
 
-    ml_replace(lnum, newp, FALSE);
+    buf_replace_line(curbuf, lnum, newp, -1, FALSE, FALSE);
 
     // mark the buffer as changed and prepare for displaying
     inserted_bytes(lnum, curwin->w_cursor.col, -deleted);
@@ -2667,14 +2676,14 @@ del_lines(long nlines, int undo)
 
     for (n = 0; n < nlines; )
     {
-	if (curbuf->b_ml.ml_flags & ML_EMPTY)	    // nothing to delete
+	if (buf_has_empty_flag(curbuf))	    // nothing to delete
 	    break;
 
-	ml_delete_flags(first, ML_DEL_MESSAGE);
+	buf_delete_line(curbuf, first, ML_DEL_MESSAGE);
 	++n;
 
 	// If we delete the last line in the file, stop
-	if (first > curbuf->b_ml.ml_line_count)
+	if (first > buf_line_count(curbuf))
 	    break;
     }
 

@@ -63,7 +63,7 @@ findsent(int dir, long count)
 	else if (dir == FORWARD && pos.col == 0 &&
 						startPS(pos.lnum, NUL, FALSE))
 	{
-	    if (pos.lnum == curbuf->b_ml.ml_line_count)
+	    if (pos.lnum == buf_line_count(curbuf))
 		return FAIL;
 	    ++pos.lnum;
 	    goto found;
@@ -189,7 +189,7 @@ findpar(
 	did_skip = FALSE;
 	for (first = TRUE; ; first = FALSE)
 	{
-	    if (*ml_get(curr) != NUL)
+	    if (*buf_line(curbuf, curr, FALSE) != NUL)
 		did_skip = TRUE;
 
 #ifdef FEAT_FOLDING
@@ -206,14 +206,15 @@ findpar(
 	    // doesn't match historical Vi: It also stops at a "{" in the
 	    // first column and at an empty line.
 	    if (!first && did_skip && (startPS(curr, what, both)
-			   || (posix && what == NUL && *ml_get(curr) == '{')))
+			   || (posix && what == NUL
+			       && *buf_line(curbuf, curr, FALSE) == '{')))
 		break;
 
 #ifdef FEAT_FOLDING
 	    if (fold_skipped)
 		curr -= dir;
 #endif
-	    if ((curr += dir) < 1 || curr > curbuf->b_ml.ml_line_count)
+	    if ((curr += dir) < 1 || curr > buf_line_count(curbuf))
 	    {
 		if (count)
 		    return FALSE;
@@ -223,16 +224,16 @@ findpar(
 	}
     }
     setpcmark();
-    if (both && *ml_get(curr) == '}')	// include line with '}'
+    if (both && *buf_line(curbuf, curr, FALSE) == '}')	// include line with '}'
 	++curr;
     curwin->w_cursor.lnum = curr;
-    if (curr == curbuf->b_ml.ml_line_count && what != '}' && dir == FORWARD)
+    if (curr == buf_line_count(curbuf) && what != '}' && dir == FORWARD)
     {
-	char_u *line = ml_get(curr);
+	char_u *line = buf_line(curbuf, curr, FALSE);
 
 	// Put the cursor on the last character in the last line and make the
 	// motion inclusive.
-	if ((curwin->w_cursor.col = ml_get_len(curr)) != 0)
+	if ((curwin->w_cursor.col = buf_line_len(curbuf, curr)) != 0)
 	{
 	    --curwin->w_cursor.col;
 	    curwin->w_cursor.col -=
@@ -282,7 +283,7 @@ startPS(linenr_T lnum, int para, int both)
 {
     char_u	*s;
 
-    s = ml_get(lnum);
+    s = buf_line(curbuf, lnum, FALSE);
     if (*s == para || *s == '\f' || (both && *s == '}'))
 	return TRUE;
     if (*s == '.' && (inmacro(p_sections, s + 1) ||
@@ -383,7 +384,7 @@ fwd_word(
 	 * We always move at least one character, unless on the last
 	 * character in the buffer.
 	 */
-	last_line = (curwin->w_cursor.lnum == curbuf->b_ml.ml_line_count);
+	last_line = (curwin->w_cursor.lnum == buf_line_count(curbuf));
 	i = inc_cursor();
 	if (i == -1 || (i >= 1 && last_line)) // started at last char in file
 	    return FAIL;
@@ -409,7 +410,8 @@ fwd_word(
 	    /*
 	     * We'll stop if we land on a blank line
 	     */
-	    if (curwin->w_cursor.col == 0 && *ml_get_curline() == NUL)
+	    if (curwin->w_cursor.col == 0
+		    && *buf_line(curbuf, curwin->w_cursor.lnum, FALSE) == NUL)
 		break;
 
 	    i = inc_cursor();
@@ -1215,7 +1217,7 @@ current_block(
 in_html_tag(
     int		end_tag)
 {
-    char_u	*line = ml_get_curline();
+    char_u	*line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     char_u	*p;
     int		c;
     int		lc = NUL;
@@ -1271,7 +1273,7 @@ in_html_tag(
     {
 	if (inc(&pos) < 0)
 	    return FALSE;
-	c = *ml_get_pos(&pos);
+	c = *buf_line_at(curbuf, &pos);
 	if (c == '>')
 	    break;
 	lc = c;
@@ -1327,14 +1329,14 @@ current_tagblock(
 	if (in_html_tag(FALSE))
 	{
 	    // cursor on start tag, move to its '>'
-	    while (*ml_get_cursor() != '>')
+	    while (*buf_line_at(curbuf, &curwin->w_cursor) != '>')
 		if (inc_cursor() < 0)
 		    break;
 	}
 	else if (in_html_tag(TRUE))
 	{
 	    // cursor on end tag, move to just before it
-	    while (*ml_get_cursor() != '<')
+	    while (*buf_line_at(curbuf, &curwin->w_cursor) != '<')
 		if (dec_cursor() < 0)
 		    break;
 	    dec_cursor();
@@ -1371,7 +1373,7 @@ again:
      * Search for matching "</aaa>".  First isolate the "aaa".
      */
     inc_cursor();
-    p = ml_get_cursor();
+    p = buf_line_at(curbuf, &curwin->w_cursor);
     for (cp = p; *cp != NUL && *cp != '>' && !VIM_ISWHITE(*cp); MB_PTR_ADV(cp))
 	;
     len = (int)(cp - p);
@@ -1411,13 +1413,13 @@ again:
     if (do_include)
     {
 	// Include up to the '>'.
-	while (*ml_get_cursor() != '>')
+	while (*buf_line_at(curbuf, &curwin->w_cursor) != '>')
 	    if (inc_cursor() < 0)
 		break;
     }
     else
     {
-	char_u *c = ml_get_cursor();
+	char_u *c = buf_line_at(curbuf, &curwin->w_cursor);
 
 	// Exclude the '<' of the end tag.
 	// If the closing tag is on new line, do not decrement cursor, but
@@ -1438,7 +1440,7 @@ again:
 	curwin->w_cursor = start_pos;
 	while (inc_cursor() >= 0)
 	{
-	    p = ml_get_cursor();
+	    p = buf_line_at(curbuf, &curwin->w_cursor);
 	    if (*p == '>' && !in_quotes)
 	    {
 		inc_cursor();
@@ -1533,7 +1535,7 @@ extend:
 	for (i = count; --i >= 0; )
 	{
 	    if (start_lnum ==
-			   (dir == BACKWARD ? 1 : curbuf->b_ml.ml_line_count))
+			   (dir == BACKWARD ? 1 : buf_line_count(curbuf)))
 	    {
 		retval = FAIL;
 		break;
@@ -1552,7 +1554,7 @@ extend:
 		for (;;)
 		{
 		    if (start_lnum == (dir == BACKWARD
-					    ? 1 : curbuf->b_ml.ml_line_count))
+					    ? 1 : buf_line_count(curbuf)))
 			break;
 		    if (start_is_white != linewhite(start_lnum + dir)
 			    || (!start_is_white
@@ -1564,7 +1566,7 @@ extend:
 		if (!include)
 		    break;
 		if (start_lnum == (dir == BACKWARD
-					    ? 1 : curbuf->b_ml.ml_line_count))
+					    ? 1 : buf_line_count(curbuf)))
 		    break;
 		prev_start_is_white = start_is_white;
 	    }
@@ -1597,7 +1599,7 @@ extend:
      * Move past the end of any white lines.
      */
     end_lnum = start_lnum;
-    while (end_lnum <= curbuf->b_ml.ml_line_count && linewhite(end_lnum))
+    while (end_lnum <= buf_line_count(curbuf) && linewhite(end_lnum))
 	++end_lnum;
 
     --end_lnum;
@@ -1606,7 +1608,7 @@ extend:
 	--i;
     while (i--)
     {
-	if (end_lnum == curbuf->b_ml.ml_line_count)
+	if (end_lnum == buf_line_count(curbuf))
 	    return FAIL;
 
 	if (!include)
@@ -1618,7 +1620,7 @@ extend:
 	    /*
 	     * skip to end of paragraph
 	     */
-	    while (end_lnum < curbuf->b_ml.ml_line_count
+	    while (end_lnum < buf_line_count(curbuf)
 		    && !linewhite(end_lnum + 1)
 		    && !startPS(end_lnum + 1, 0, 0))
 		++end_lnum;
@@ -1631,7 +1633,7 @@ extend:
 	 * skip to end of white lines after paragraph
 	 */
 	if (include || do_white)
-	    while (end_lnum < curbuf->b_ml.ml_line_count
+	    while (end_lnum < buf_line_count(curbuf)
 						   && linewhite(end_lnum + 1))
 		++end_lnum;
     }
@@ -1750,7 +1752,7 @@ current_quote(
     int		include,	// TRUE == include quote char
     int		quotechar)	// Quote character
 {
-    char_u	*line = ml_get_curline();
+    char_u	*line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     int		col_end;
     int		col_start = curwin->w_cursor.col;
     int		inclusive = FALSE;

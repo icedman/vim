@@ -399,7 +399,7 @@ syntax_start(win_T *wp, linenr_T lnum)
      */
     if (VALID_STATE(&current_state)
 	    && current_lnum < lnum
-	    && current_lnum < syn_buf->b_ml.ml_line_count)
+	    && current_lnum < buf_line_count(syn_buf))
     {
 	(void)syn_finish_line(FALSE);
 	if (!current_state_stored)
@@ -466,7 +466,7 @@ syntax_start(win_T *wp, linenr_T lnum)
     if (syn_block->b_sst_len <= Rows)
 	dist = 999999;
     else
-	dist = syn_buf->b_ml.ml_line_count / (syn_block->b_sst_len - Rows) + 1;
+	dist = buf_line_count(syn_buf) / (syn_block->b_sst_len - Rows) + 1;
     while (current_lnum < lnum)
     {
 	syn_start_line();
@@ -650,9 +650,10 @@ syn_sync(
 	 */
 	for ( ; start_lnum > 1; --start_lnum)
 	{
-	    char_u	*l = ml_get(start_lnum - 1);
+	    char_u	*l = buf_line(curbuf, start_lnum - 1, FALSE);
 
-	    if (*l == NUL || *(l + ml_get_len(start_lnum - 1) - 1) != '\\')
+	    if (*l == NUL
+		    || *(l + buf_line_len(curbuf, start_lnum - 1) - 1) != '\\')
 		break;
 	}
 	current_lnum = start_lnum;
@@ -1076,7 +1077,7 @@ syn_stack_alloc(void)
     synstate_T	*to, *from;
     synstate_T	*sstp;
 
-    len = syn_buf->b_ml.ml_line_count / SST_DIST + Rows * 2;
+    len = buf_line_count(syn_buf) / SST_DIST + Rows * 2;
     if (len < SST_MIN_ENTRIES)
 	len = SST_MIN_ENTRIES;
     else if (len > SST_MAX_ENTRIES)
@@ -1084,7 +1085,7 @@ syn_stack_alloc(void)
     if (syn_block->b_sst_len > len * 2 || syn_block->b_sst_len < len)
     {
 	// Allocate 50% too much, to avoid reallocating too often.
-	len = syn_buf->b_ml.ml_line_count;
+	len = buf_line_count(syn_buf);
 	len = (len + len / 2) / SST_DIST + Rows * 2;
 	if (len < SST_MIN_ENTRIES)
 	    len = SST_MIN_ENTRIES;
@@ -1227,7 +1228,7 @@ syn_stack_cleanup(void)
     if (syn_block->b_sst_len <= Rows)
 	dist = 999999;
     else
-	dist = syn_buf->b_ml.ml_line_count / (syn_block->b_sst_len - Rows) + 1;
+	dist = buf_line_count(syn_buf) / (syn_block->b_sst_len - Rows) + 1;
 
     /*
      * Go through the list to find the "tick" for the oldest entry that can
@@ -2901,7 +2902,7 @@ find_endpos(
 		if (pos.lnum > startpos->lnum)
 		    break;
 
-		line_len = ml_get_buf_len(syn_buf, startpos->lnum);
+		line_len = buf_line_len(syn_buf, startpos->lnum);
 
 		// take care of an empty match or negative offset
 		if (pos.col <= matchcol)
@@ -3048,11 +3049,11 @@ syn_add_end_off(
     }
     // Don't go past the end of the line.  Matters for "rs=e+2" when there
     // is a matchgroup. Watch out for match with last NL in the buffer.
-    if (result->lnum > syn_buf->b_ml.ml_line_count)
+    if (result->lnum > buf_line_count(syn_buf))
 	col = 0;
     else if (off != 0)
     {
-	base = ml_get_buf(syn_buf, result->lnum, FALSE);
+	base = buf_line(syn_buf, result->lnum, FALSE);
 	p = base + col;
 	if (off > 0)
 	{
@@ -3098,15 +3099,15 @@ syn_add_start_off(
 	col = regmatch->startpos[0].col;
 	off = spp->sp_offsets[idx];
     }
-    if (result->lnum > syn_buf->b_ml.ml_line_count)
+    if (result->lnum > buf_line_count(syn_buf))
     {
 	// a "\n" at the end of the pattern may take us below the last line
-	result->lnum = syn_buf->b_ml.ml_line_count;
-	col = ml_get_buf_len(syn_buf, result->lnum);
+	result->lnum = buf_line_count(syn_buf);
+	col = buf_line_len(syn_buf, result->lnum);
     }
     if (off != 0)
     {
-	base = ml_get_buf(syn_buf, result->lnum, FALSE);
+	base = buf_line(syn_buf, result->lnum, FALSE);
 	p = base + col;
 	if (off > 0)
 	{
@@ -3129,7 +3130,7 @@ syn_add_start_off(
     static char_u *
 syn_getcurline(void)
 {
-    return ml_get_buf(syn_buf, current_lnum, FALSE);
+    return buf_line(syn_buf, current_lnum, FALSE);
 }
 
 /*
@@ -3138,7 +3139,7 @@ syn_getcurline(void)
     static colnr_T
 syn_getcurline_len(void)
 {
-    return ml_get_buf_len(syn_buf, current_lnum);
+    return buf_line_len(syn_buf, current_lnum);
 }
 
 /*

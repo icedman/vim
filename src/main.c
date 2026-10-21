@@ -791,7 +791,7 @@ vim_main2(void)
 
     // Ex starts at last line of the file
     if (exmode_active)
-	curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	curwin->w_cursor.lnum = buf_line_count(curbuf);
 
     apply_autocmds(EVENT_BUFENTER, NULL, NULL, FALSE, curbuf);
     TIME_MSG("BufEnter autocommands");
@@ -1361,7 +1361,7 @@ may_trigger_deferred_events(void)
     {
 	if (conceal_old_cursor_line != conceal_new_cursor_line
 		&& conceal_old_cursor_line != 0
-		&& conceal_old_cursor_line <= curbuf->b_ml.ml_line_count)
+		&& conceal_old_cursor_line <= buf_line_count(curbuf))
 	    redrawWinline(curwin, conceal_old_cursor_line);
 	redrawWinline(curwin, conceal_new_cursor_line);
 	curwin->w_valid &= ~VALID_CROW;
@@ -1773,7 +1773,7 @@ getout(int exitval)
 
 	// Trigger BufUnload for buffers that are loaded
 	FOR_ALL_BUFFERS(buf)
-	    if (buf->b_ml.ml_mfp != NULL)
+	    if (buf_is_loaded(buf))
 	    {
 		bufref_T bufref;
 
@@ -3055,7 +3055,7 @@ create_windows(mparm_T *parmp UNUSED)
     {
 	msg_scroll = TRUE;		// scroll message up
 	ml_recover(TRUE);
-	if (curbuf->b_ml.ml_mfp == NULL) // failed
+	if (!buf_is_loaded(curbuf)) // failed
 	    getout(1);
 	do_modelines(0);		// do modelines
     }
@@ -3095,7 +3095,7 @@ create_windows(mparm_T *parmp UNUSED)
 	    }
 	    dorewind = FALSE;
 	    curbuf = curwin->w_buffer;
-	    if (curbuf->b_ml.ml_mfp == NULL)
+	    if (!buf_is_loaded(curbuf))
 	    {
 # ifdef FEAT_FOLDING
 		// Set 'foldlevel' to 'foldlevelstart' if it's not negative.

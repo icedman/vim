@@ -43,12 +43,8 @@
 /*
  * LINEEMPTY() - return TRUE if the line is empty
  */
-#define LINEEMPTY(p) (*ml_get(p) == NUL)
+#define LINEEMPTY(p) (*buf_line(curbuf, (p), FALSE) == NUL)
 
-/*
- * BUFEMPTY() - return TRUE if the current buffer is empty
- */
-#define BUFEMPTY() (curbuf->b_ml.ml_line_count == 1 && *ml_get((linenr_T)1) == NUL)
 
 // The is*() and to*() functions declared in <ctype.h> have
 // undefined behavior for values other than EOF outside the range of

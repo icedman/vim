@@ -623,7 +623,7 @@ new_file_message(void)
  * file.  But when "forceit" is TRUE, we risk losing it.
  *
  * When "reset_changed" is TRUE and "append" == FALSE and "start" == 1 and
- * "end" == curbuf->b_ml.ml_line_count, reset curbuf->b_changed.
+ * "end" == buf_line_count(curbuf), reset curbuf->b_changed.
  *
  * This function must NOT use NameBuff (because it's called by autowrite()).
  *
@@ -677,8 +677,8 @@ buf_write(
     int		    made_writable = FALSE;  // 'w' bit has been set
 #endif
 					// writing everything
-    int		    whole = (start == 1 && end == buf->b_ml.ml_line_count);
-    linenr_T	    old_line_count = buf->b_ml.ml_line_count;
+    int		    whole = (start == 1 && end == buf_line_count(buf));
+    linenr_T	    old_line_count = buf_line_count(buf);
     int		    attr;
     int		    fileformat;
     int		    write_bin;
@@ -702,7 +702,7 @@ buf_write(
 
     if (fname == NULL || *fname == NUL)	// safety check
 	return FAIL;
-    if (buf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(buf))
     {
 	// This can happen during startup when there is a stray "w" in the
 	// vimrc file.
@@ -793,7 +793,7 @@ buf_write(
 	int		buf_fname_s = FALSE;
 	int		did_cmd = FALSE;
 	int		nofile_err = FALSE;
-	int		empty_memline = (buf->b_ml.ml_mfp == NULL);
+	int		empty_memline = (!buf_is_loaded(buf));
 	bufref_T	bufref;
 
 	// Apply PRE autocommands.
@@ -884,7 +884,7 @@ buf_write(
 	// 3. If one of the "Cmd" autocommands was executed.
 	if (!bufref_valid(&bufref))
 	    buf = NULL;
-	if (buf == NULL || (buf->b_ml.ml_mfp == NULL && !empty_memline)
+	if (buf == NULL || (!buf_is_loaded(buf) && !empty_memline)
 				       || did_cmd || nofile_err
 #ifdef FEAT_EVAL
 				       || aborting()
@@ -945,15 +945,15 @@ buf_write(
 	// When writing the whole file, adjust the end.
 	// When writing part of the file, assume that the autocommands only
 	// changed the number of lines that are to be written (tricky!).
-	if (buf->b_ml.ml_line_count != old_line_count)
+	if (buf_line_count(buf) != old_line_count)
 	{
 	    if (whole)						// write all
-		end = buf->b_ml.ml_line_count;
-	    else if (buf->b_ml.ml_line_count > old_line_count)	// more lines
-		end += buf->b_ml.ml_line_count - old_line_count;
+		end = buf_line_count(buf);
+	    else if (buf_line_count(buf) > old_line_count)	// more lines
+		end += buf_line_count(buf) - old_line_count;
 	    else						// less lines
 	    {
-		end -= old_line_count - buf->b_ml.ml_line_count;
+		end -= old_line_count - buf_line_count(buf);
 		if (end < start)
 		{
 		    --no_wait_return;
@@ -1659,9 +1659,9 @@ buf_write(
 	status_redraw_all();	    // redraw status lines later
     }
 
-    if (end > buf->b_ml.ml_line_count)
-	end = buf->b_ml.ml_line_count;
-    if (buf->b_ml.ml_flags & ML_EMPTY)
+    if (end > buf_line_count(buf))
+	end = buf_line_count(buf);
+    if (buf_has_empty_flag(buf))
 	start = end + 1;
 
     // If the original file is being overwritten, there is a small chance that
@@ -2045,7 +2045,7 @@ restore_backup:
 	{
 	    // The next while loop is done once for each character written.
 	    // Keep it fast!
-	    ptr = ml_get_buf(buf, lnum, FALSE) - 1;
+	    ptr = buf_line(buf, lnum, FALSE) - 1;
 #ifdef FEAT_PERSISTENT_UNDO
 	    if (write_undo_file)
 		sha256_update(&sha_ctx, ptr + 1,
@@ -2084,7 +2084,7 @@ restore_backup:
 		    || (lnum == end
 			&& (write_bin || !buf->b_p_fixeol)
 			&& ((write_bin && lnum == buf->b_no_eol_lnum)
-			    || (lnum == buf->b_ml.ml_line_count
+			    || (lnum == buf_line_count(buf)
 							   && !buf->b_p_eol))))
 	    {
 		++lnum;			// written the line, count it

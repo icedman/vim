@@ -797,7 +797,7 @@ luaV_addlstring(luaL_Buffer *b, const char *s, size_t l, int toline)
     static void
 luaV_pushline(lua_State *L, buf_T *buf, linenr_T n)
 {
-    const char *s = (const char *) ml_get_buf(buf, n, FALSE);
+    const char *s = (const char *) buf_line(buf, n, FALSE);
     luaL_Buffer b;
     luaL_buffinit(L, &b);
     luaV_addlstring(&b, s, strlen(s), 0);
@@ -1428,7 +1428,7 @@ luaV_type_tostring(buffer, LUAVIM_BUFFER)
 luaV_buffer_len(lua_State *L)
 {
     buf_T *b = (buf_T *) luaV_checkvalid(L, luaV_Buffer, 1);
-    lua_pushinteger(L, b->b_ml.ml_line_count);
+    lua_pushinteger(L, buf_line_count(b));
     return 1;
 }
 
@@ -1446,7 +1446,7 @@ luaV_buffer_index(lua_State *L)
 {
     buf_T *b = (buf_T *) luaV_checkvalid(L, luaV_Buffer, 1);
     linenr_T n = (linenr_T) lua_tointeger(L, 2);
-    if (n > 0 && n <= b->b_ml.ml_line_count)
+    if (n > 0 && n <= buf_line_count(b))
 	luaV_pushline(L, b, n);
     else if (lua_isstring(L, 2))
     {
@@ -1484,7 +1484,7 @@ luaV_buffer_newindex(lua_State *L)
 # ifdef HAVE_SANDBOX
     luaV_checksandbox(L);
 # endif
-    if (n < 1 || n > b->b_ml.ml_line_count)
+    if (n < 1 || n > buf_line_count(b))
 	luaL_error(L, "invalid line number");
     if (lua_isnil(L, 3)) // delete line
     {
@@ -1495,7 +1495,7 @@ luaV_buffer_newindex(lua_State *L)
 	    curbuf = buf;
 	    luaL_error(L, "cannot save undo information");
 	}
-	else if (ml_delete(n) == FAIL)
+	else if (buf_delete_line(curbuf, n, 0) == FAIL)
 	{
 	    curbuf = buf;
 	    luaL_error(L, "cannot delete line");
@@ -1530,7 +1530,8 @@ luaV_buffer_newindex(lua_State *L)
 	    curbuf = buf;
 	    luaL_error(L, "cannot save undo information");
 	}
-	else if (ml_replace(n, luaV_toline(L, 3), TRUE) == FAIL)
+	else if (buf_replace_line(curbuf, n, luaV_toline(L, 3),
+						      -1, FALSE, TRUE) == FAIL)
 	{
 	    curbuf = buf;
 	    luaL_error(L, "cannot replace line");
@@ -1551,7 +1552,7 @@ luaV_buffer_insert(lua_State *L)
 {
     luaV_Buffer *lb = luaV_checkudata(L, 1, LUAVIM_BUFFER);
     buf_T *b = (buf_T *) luaV_checkcache(L, (void *) *lb);
-    linenr_T last = b->b_ml.ml_line_count;
+    linenr_T last = buf_line_count(b);
     linenr_T n = (linenr_T) luaL_optinteger(L, 3, last);
     buf_T *buf;
     luaL_checktype(L, 2, LUA_TSTRING);
@@ -1569,7 +1570,7 @@ luaV_buffer_insert(lua_State *L)
 	curbuf = buf;
 	luaL_error(L, "cannot save undo information");
     }
-    else if (ml_append(n, luaV_toline(L, 2), 0, FALSE) == FAIL)
+    else if (buf_append_line(curbuf, n, luaV_toline(L, 2), 0, FALSE) == FAIL)
     {
 	curbuf = buf;
 	luaL_error(L, "cannot insert line");
@@ -1676,7 +1677,7 @@ luaV_window_newindex(lua_State *L)
 # ifdef HAVE_SANDBOX
 	luaV_checksandbox(L);
 # endif
-	if (v < 1 || v > w->w_buffer->b_ml.ml_line_count)
+	if (v < 1 || v > buf_line_count(w->w_buffer))
 	    luaL_error(L, "line out of range");
 	w->w_cursor.lnum = v;
 	update_screen(UPD_VALID);
@@ -2696,7 +2697,7 @@ ex_luado(exarg_T *eap)
     for (l = eap->line1; l <= eap->line2; l++)
     {
 	// Check the line number, the command may have deleted lines.
-	if (l > curbuf->b_ml.ml_line_count)
+	if (l > buf_line_count(curbuf))
 	    break;
 
 	lua_pushvalue(L, -1); // function
@@ -2710,7 +2711,7 @@ ex_luado(exarg_T *eap)
 
 	// Catch the command switching to another buffer.
 	// Check the line number, the command may have deleted lines.
-	if (curbuf != was_curbuf || l > curbuf->b_ml.ml_line_count)
+	if (curbuf != was_curbuf || l > buf_line_count(curbuf))
 	    break;
 
 	if (lua_isstring(L, -1)) // update line?
@@ -2718,7 +2719,7 @@ ex_luado(exarg_T *eap)
 # ifdef HAVE_SANDBOX
 	    luaV_checksandbox(L);
 # endif
-	    ml_replace(l, luaV_toline(L, -1), TRUE);
+	    buf_replace_line(curbuf, l, luaV_toline(L, -1), -1, FALSE, TRUE);
 	    changed_bytes(l, 0);
 	    lua_pop(L, 1); // result from luaV_toline
 	}

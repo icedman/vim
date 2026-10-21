@@ -4046,7 +4046,8 @@ setcursor(void)
     int
 cursor_screen_cells(void)
 {
-    return has_mbyte && (*mb_ptr2cells)(ml_get_cursor()) == 2
+    return has_mbyte && (*mb_ptr2cells)(buf_line_at(curbuf,
+					    &curwin->w_cursor)) == 2
 				  && vim_isprintc(gchar_cursor()) ? 2 : 1;
 }
 #endif
@@ -5523,7 +5524,7 @@ number_width(win_T *wp)
 	lnum = wp->w_height;
     else
 	// cursor line shows absolute line number
-	lnum = wp->w_buffer->b_ml.ml_line_count;
+	lnum = buf_line_count(wp->w_buffer);
 
     if (lnum == wp->w_nrwidth_line_count && wp->w_nuw_cached == wp->w_p_nuw)
 	return wp->w_nrwidth_width;

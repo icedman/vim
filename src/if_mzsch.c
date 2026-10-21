@@ -2356,7 +2356,7 @@ get_buffer_size(void *data, int argc, Scheme_Object **argv)
     Vim_Prim	    *prim = (Vim_Prim *)data;
     vim_mz_buffer   *buf = get_buffer_arg(prim->name, 0, argc, argv);
 
-    return scheme_make_integer(buf->buf->b_ml.ml_line_count);
+    return scheme_make_integer(buf_line_count(buf->buf));
 }
 
 /*
@@ -2376,7 +2376,7 @@ get_buffer_line(void *data, int argc, Scheme_Object **argv)
 
     buf = get_buffer_arg(prim->name, 1, argc, argv);
     linenr = SCHEME_INT_VAL(GUARANTEE_INTEGER(prim->name, 0));
-    line = ml_get_buf(buf->buf, (linenr_T)linenr, FALSE);
+    line = buf_line(buf->buf, (linenr_T)linenr, FALSE);
 
     raise_if_error();
     return scheme_make_byte_string((char *)line);
@@ -2423,7 +2423,7 @@ get_buffer_line_list(void *data, int argc, Scheme_Object **argv)
     for (i = n; i >= 0; --i)
     {
 	Scheme_Object *str = scheme_make_byte_string(
-		       (char *)ml_get_buf(buf->buf, (linenr_T)(lo+i), FALSE));
+		       (char *)buf_line(buf->buf, (linenr_T)(lo+i), FALSE));
 	raise_if_error();
 
 	// Set the list item
@@ -2486,7 +2486,7 @@ set_buffer_line(void *data, int argc, Scheme_Object **argv)
 	    curbuf = savebuf;
 	    raise_vim_exn(_("cannot save undo information"));
 	}
-	else if (ml_delete((linenr_T)n) == FAIL)
+	else if (buf_delete_line(curbuf, (linenr_T)n, 0) == FAIL)
 	{
 	    curbuf = savebuf;
 	    raise_vim_exn(_("cannot delete line"));
@@ -2516,7 +2516,8 @@ set_buffer_line(void *data, int argc, Scheme_Object **argv)
 	    vim_free(save);
 	    raise_vim_exn(_("cannot save undo information"));
 	}
-	else if (ml_replace((linenr_T)n, (char_u *)save, TRUE) == FAIL)
+	else if (buf_replace_line(curbuf, (linenr_T)n, (char_u *)save,
+						      -1, FALSE, TRUE) == FAIL)
 	{
 	    curbuf = savebuf;
 	    vim_free(save);
@@ -2615,7 +2616,7 @@ set_buffer_line_list(void *data, int argc, Scheme_Object **argv)
 	else
 	{
 	    for (i = 0; i < old_len; i++)
-		if (ml_delete((linenr_T)lo) == FAIL)
+		if (buf_delete_line(curbuf, (linenr_T)lo, 0) == FAIL)
 		{
 		    curbuf = savebuf;
 		    raise_vim_exn(_("cannot delete line"));
@@ -2683,7 +2684,7 @@ set_buffer_line_list(void *data, int argc, Scheme_Object **argv)
 	     */
 	    for (i = 0; i < old_len - new_len; ++i)
 	    {
-		if (ml_delete((linenr_T)lo) == FAIL)
+		if (buf_delete_line(curbuf, (linenr_T)lo, 0) == FAIL)
 		{
 		    curbuf = savebuf;
 		    free_array(array);
@@ -2698,7 +2699,8 @@ set_buffer_line_list(void *data, int argc, Scheme_Object **argv)
 	     * less memory allocation and freeing.
 	     */
 	    for (i = 0; i < old_len && i < new_len; i++)
-		if (ml_replace((linenr_T)(lo+i), (char_u *)array[i], TRUE) == FAIL)
+		if (buf_replace_line(curbuf, (linenr_T)(lo+i),
+				  (char_u *)array[i], -1, FALSE, TRUE) == FAIL)
 		{
 		    curbuf = savebuf;
 		    free_array(array);
@@ -2712,7 +2714,7 @@ set_buffer_line_list(void *data, int argc, Scheme_Object **argv)
 	     */
 	    while (i < new_len)
 	    {
-		if (ml_append((linenr_T)(lo + i - 1),
+		if (buf_append_line(curbuf, (linenr_T)(lo + i - 1),
 			    (char_u *)array[i], 0, FALSE) == FAIL)
 		{
 		    curbuf = savebuf;
@@ -2797,7 +2799,8 @@ insert_buffer_line_list(void *data, int argc, Scheme_Object **argv)
 	    vim_free(str);
 	    raise_vim_exn(_("cannot save undo information"));
 	}
-	else if (ml_append((linenr_T)n, (char_u *)str, 0, FALSE) == FAIL)
+	else if (buf_append_line(curbuf, (linenr_T)n, (char_u *)str, 0, FALSE)
+								      == FAIL)
 	{
 	    curbuf = savebuf;
 	    vim_free(str);
@@ -2856,8 +2859,8 @@ insert_buffer_line_list(void *data, int argc, Scheme_Object **argv)
 	else
 	{
 	    for (i = 0; i < size; ++i)
-		if (ml_append((linenr_T)(n + i), (char_u *)array[i],
-			    0, FALSE) == FAIL)
+		if (buf_append_line(curbuf, (linenr_T)(n + i),
+			    (char_u *)array[i], 0, FALSE) == FAIL)
 		{
 		    curbuf = savebuf;
 		    free_array(array);
@@ -3690,7 +3693,7 @@ mzthreads_allowed(void)
     static int
 line_in_range(linenr_T lnum, buf_T *buf)
 {
-    return (lnum > 0 && lnum <= buf->b_ml.ml_line_count);
+    return (lnum > 0 && lnum <= buf_line_count(buf));
 }
 
     static void

@@ -1579,7 +1579,7 @@ msg_start(void)
 
 	    // start a new line
 	    curbuf = wp->w_buffer;
-	    ml_append(wp->w_buffer->b_ml.ml_line_count,
+	    buf_append_line(curbuf, buf_line_count(wp->w_buffer),
 					      (char_u *)"", (colnr_T)0, FALSE);
 	    curbuf = curwin->w_buffer;
 	}
@@ -2417,7 +2417,7 @@ put_msg_win(win_T *wp, int where, char_u *t_s, char_u *end, linenr_T lnum)
 	}
 	else
 	    p = t_s;
-	ml_append_buf(wp->w_buffer, lnum, p, (colnr_T)0, FALSE);
+	buf_append_line(wp->w_buffer, lnum, p, (colnr_T)0, FALSE);
 	if (p != t_s)
 	    vim_free(p);
     }
@@ -2428,11 +2428,11 @@ put_msg_win(win_T *wp, int where, char_u *t_s, char_u *end, linenr_T lnum)
 	curbuf = wp->w_buffer;
 	if (where == PUT_APPEND)
 	{
-	    newp = concat_str(ml_get(lnum), t_s);
+	    newp = concat_str(buf_line(curbuf, lnum, FALSE), t_s);
 	    if (newp == NULL)
 		return;
 	    if (*end != NUL)
-		newp[STRLEN(ml_get(lnum)) + (end - t_s)] = NUL;
+		newp[STRLEN(buf_line(curbuf, lnum, FALSE)) + (end - t_s)] = NUL;
 	}
 	else
 	{
@@ -2440,7 +2440,7 @@ put_msg_win(win_T *wp, int where, char_u *t_s, char_u *end, linenr_T lnum)
 	    if (newp == NULL)
 		return;
 	}
-	ml_replace(lnum, newp, FALSE);
+	buf_replace_line(curbuf, lnum, newp, -1, FALSE, FALSE);
 	curbuf = curwin->w_buffer;
     }
     redraw_win_later(wp, UPD_NOT_VALID);
@@ -2493,14 +2493,14 @@ msg_puts_display(
 		{
 		    // currently hidden, make it empty
 		    curbuf = msg_win->w_buffer;
-		    while ((curbuf->b_ml.ml_flags & ML_EMPTY) == 0)
-			ml_delete(1);
+		    while (!buf_has_empty_flag(curbuf))
+			buf_delete_line(curbuf, 1, 0);
 		    curbuf = curwin->w_buffer;
 		}
 	    }
 	    else
 	    {
-		lnum = msg_win->w_buffer->b_ml.ml_line_count;
+		lnum = buf_line_count(msg_win->w_buffer);
 		if (msg_col == 0)
 		    where = PUT_TRUNC;
 	    }
@@ -2682,7 +2682,7 @@ msg_puts_display(
 	    {
 		// Ignore a NL when the buffer is empty, it is used to scroll
 		// up the text.
-		if ((msg_win->w_buffer->b_ml.ml_flags & ML_EMPTY) == 0)
+		if (!buf_has_empty_flag(msg_win->w_buffer))
 		{
 		    put_msg_win(msg_win, PUT_BELOW, t_s, t_s, lnum);
 		    ++lnum;

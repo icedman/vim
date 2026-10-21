@@ -1356,7 +1356,7 @@ set_init_3(void)
     }
 #endif
 
-    if (BUFEMPTY())
+    if (buf_is_empty(curbuf))
     {
 	int idx_ffs = findoption((char_u *)"ffs");
 
@@ -4990,7 +4990,7 @@ did_set_undofile(optset_T *args)
 	if ((curbuf == save_curbuf
 		    || (args->os_flags & OPT_GLOBAL)
 		    || args->os_flags == 0)
-		&& !curbufIsChanged() && curbuf->b_ml.ml_mfp != NULL)
+		&& !curbufIsChanged() && buf_is_loaded(curbuf))
 	{
 # ifdef FEAT_CRYPT
 	    if (crypt_method_is_sodium(crypt_get_method_nr(curbuf)))

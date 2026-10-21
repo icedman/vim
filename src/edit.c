@@ -232,7 +232,7 @@ edit(
 #ifdef FEAT_EVAL
 		&& *get_vim_var_str(VV_CHAR) == NUL
 #endif
-		&& save_cursor.lnum <= curbuf->b_ml.ml_line_count)
+		&& save_cursor.lnum <= buf_line_count(curbuf))
 	{
 	    int save_state = State;
 
@@ -261,7 +261,8 @@ edit(
 	if (startln)
 	    Insstart.col = 0;
     }
-    Insstart_textlen = (colnr_T)linetabsize_str(ml_get_curline());
+    Insstart_textlen = (colnr_T)linetabsize_str(buf_line(curbuf,
+						curwin->w_cursor.lnum, FALSE));
     Insstart_blank_vcol = MAXCOL;
     if (!did_ai)
 	ai_col = 0;
@@ -297,7 +298,7 @@ edit(
     {
 	State = MODE_VREPLACE;
 	replaceState = MODE_VREPLACE;
-	orig_line_count = curbuf->b_ml.ml_line_count;
+	orig_line_count = buf_line_count(curbuf);
 	vr_lines_changed = 1;
     }
     else
@@ -385,7 +386,8 @@ edit(
 	update_curswant();
 	if (((ins_at_eol && curwin->w_cursor.lnum == o_lnum)
 		    || curwin->w_curswant > curwin->w_virtcol)
-		&& *(ptr = ml_get_curline() + curwin->w_cursor.col) != NUL)
+		&& *(ptr = buf_line(curbuf, curwin->w_cursor.lnum, FALSE)
+					    + curwin->w_cursor.col) != NUL)
 	{
 	    if (ptr[1] == NUL)
 		++curwin->w_cursor.col;
@@ -1931,7 +1933,7 @@ display_dollar(colnr_T col_arg)
 	char_u *p;
 
 	// If on the last byte of a multi-byte move to the first byte.
-	p = ml_get_curline();
+	p = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 	curwin->w_cursor.col -= (*mb_head_off)(p, p + col);
     }
     curs_columns(FALSE);	    // recompute w_wrow and w_wcol
@@ -2013,13 +2015,14 @@ del_char_after_col(int limit_col UNUSED)
 	mb_adjust_cursor();
 	while (curwin->w_cursor.col < (colnr_T)limit_col)
 	{
-	    int l = utf_ptr2len(ml_get_cursor());
+	    int l = utf_ptr2len(buf_line_at(curbuf, &curwin->w_cursor));
 
 	    if (l == 0)  // end of line
 		break;
 	    curwin->w_cursor.col += l;
 	}
-	if (*ml_get_cursor() == NUL || curwin->w_cursor.col == ecol)
+	if (*buf_line_at(curbuf, &curwin->w_cursor) == NUL
+		|| curwin->w_cursor.col == ecol)
 	    return FALSE;
 	del_bytes((long)((int)ecol - curwin->w_cursor.col), FALSE, TRUE);
     }
@@ -2266,7 +2269,7 @@ insertchar(
 		|| (!VIM_ISWHITE(c)
 		    && !((State & REPLACE_FLAG)
 			&& !(State & VREPLACE_FLAG)
-			&& *ml_get_cursor() != NUL)
+			&& *buf_line_at(curbuf, &curwin->w_cursor) != NUL)
 		    && (curwin->w_cursor.lnum != Insstart.lnum
 			|| ((!has_format_option(FO_INS_LONG)
 				|| Insstart_textlen <= (colnr_T)textwidth)
@@ -2309,7 +2312,8 @@ insertchar(
 	 * Need to remove existing (middle) comment leader and insert end
 	 * comment leader.  First, check what comment leader we can find.
 	 */
-	i = get_leader_len(line = ml_get_curline(), &p, FALSE, TRUE);
+	i = get_leader_len(line = buf_line(curbuf,
+			   curwin->w_cursor.lnum, FALSE), &p, FALSE, TRUE);
 	if (i > 0 && vim_strchr(p, COM_MIDDLE) != NULL)	// Just checking
 	{
 	    // Skip middle-comment string
@@ -2555,7 +2559,8 @@ stop_arrow(void)
 	    // Don't update the original insert position when moved to the
 	    // right, except when nothing was inserted yet.
 	    update_Insstart_orig = FALSE;
-	Insstart_textlen = (colnr_T)linetabsize_str(ml_get_curline());
+	Insstart_textlen = (colnr_T)linetabsize_str(buf_line(curbuf,
+						curwin->w_cursor.lnum, FALSE));
 
 	if (u_save_cursor() == OK)
 	{
@@ -2566,7 +2571,7 @@ stop_arrow(void)
 	ai_col = 0;
 	if (State & VREPLACE_FLAG)
 	{
-	    orig_line_count = curbuf->b_ml.ml_line_count;
+	    orig_line_count = buf_line_count(curbuf);
 	    vr_lines_changed = 1;
 	}
 	ResetRedobuff();
@@ -2585,7 +2590,8 @@ stop_arrow(void)
 	    if (LT_POS(curwin->w_cursor, Insstart))
 	    {
 		Insstart = curwin->w_cursor;
-		Insstart_textlen = (colnr_T)linetabsize_str(ml_get_curline());
+		Insstart_textlen = (colnr_T)linetabsize_str(buf_line(curbuf,
+						curwin->w_cursor.lnum, FALSE));
 	    }
 	    ins_need_undo = FALSE;
 	}
@@ -2679,7 +2685,7 @@ stop_insert(
 	// got changed unexpectedly.
 	if (!nomove && did_ai && (esc || (vim_strchr(p_cpo, CPO_INDENT) == NULL
 			&& curwin->w_cursor.lnum != end_insert_pos->lnum))
-		&& end_insert_pos->lnum <= curbuf->b_ml.ml_line_count)
+		&& end_insert_pos->lnum <= buf_line_count(curbuf))
 	{
 	    pos_T	tpos = curwin->w_cursor;
 	    colnr_T	prev_col = end_insert_pos->col;
@@ -2695,7 +2701,8 @@ stop_insert(
 
 	    // Don't strip if non-whitespace follows: setline() from a <Cmd>
 	    // mapping or CursorHoldI autocmd may have inserted content.
-	    if (*skipwhite(ml_get_curline() + strip_col) == NUL)
+	    if (*skipwhite(buf_line(curbuf, curwin->w_cursor.lnum, FALSE)
+							+ strip_col) == NUL)
 	    {
 		curwin->w_cursor.col = strip_col;
 		for (;;)
@@ -2838,7 +2845,8 @@ beginline(int flags)
 	{
 	    char_u  *ptr;
 
-	    for (ptr = ml_get_curline(); VIM_ISWHITE(*ptr)
+	    for (ptr = buf_line(curbuf,
+			       curwin->w_cursor.lnum, FALSE); VIM_ISWHITE(*ptr)
 			       && !((flags & BL_FIX) && ptr[1] == NUL); ++ptr)
 		++curwin->w_cursor.col;
 	}
@@ -2866,7 +2874,7 @@ oneright(void)
 	pos_T	prevpos = curwin->w_cursor;
 
 	// Adjust for multi-wide char (excluding TAB)
-	ptr = ml_get_cursor();
+	ptr = buf_line_at(curbuf, &curwin->w_cursor);
 	coladvance(getviscol() + ((*ptr != TAB
 					  && vim_isprintc((*mb_ptr2char)(ptr)))
 		    ? ptr2cells(ptr) : 1));
@@ -2876,7 +2884,7 @@ oneright(void)
 		    || prevpos.coladd != curwin->w_cursor.coladd) ? OK : FAIL;
     }
 
-    ptr = ml_get_cursor();
+    ptr = buf_line_at(curbuf, &curwin->w_cursor);
     if (*ptr == NUL)
 	return FAIL;	    // already at the very end
 
@@ -2932,7 +2940,7 @@ oneleft(void)
 	    char_u *ptr;
 
 	    // Adjust for multi-wide char (not a TAB)
-	    ptr = ml_get_cursor();
+	    ptr = buf_line_at(curbuf, &curwin->w_cursor);
 	    if (*ptr != TAB && vim_isprintc((*mb_ptr2char)(ptr))
 							 && ptr2cells(ptr) > 1)
 		curwin->w_cursor.coladd = 0;
@@ -3030,7 +3038,7 @@ cursor_up(
 cursor_down_inner(win_T *wp, long n)
 {
     linenr_T	lnum = wp->w_cursor.lnum;
-    linenr_T	line_count = wp->w_buffer->b_ml.ml_line_count;
+    linenr_T	line_count = buf_line_count(wp->w_buffer);
 
     if (lnum + n >= line_count)
 	lnum = line_count;
@@ -3069,7 +3077,7 @@ cursor_down(
     int		upd_topline)	    // When TRUE: update topline
 {
     linenr_T	lnum = curwin->w_cursor.lnum;
-    linenr_T	line_count = curwin->w_buffer->b_ml.ml_line_count;
+    linenr_T	line_count = buf_line_count(curwin->w_buffer);
     // This fails if the cursor is already in the last (folded) line, or would
     // move beyond the last line and '-' is in 'cpoptions'.
 #ifdef FEAT_FOLDING
@@ -3226,7 +3234,8 @@ echeck_abbr(int c)
     if (p_paste || no_abbr || arrow_used)
 	return FALSE;
 
-    return check_abbr(c, ml_get_curline(), curwin->w_cursor.col,
+    return check_abbr(c, buf_line(curbuf, curwin->w_cursor.lnum, FALSE),
+		curwin->w_cursor.col,
 		curwin->w_cursor.lnum == Insstart.lnum ? Insstart.col : 0);
 }
 
@@ -3448,7 +3457,7 @@ replace_do_bs(int limit_col)
 	{
 	    // Do not adjust text properties for individual delete and insert
 	    // operations, do it afterwards on the resulting text.
-	    len_before = ml_get_curline_len();
+	    len_before = buf_line_len(curbuf, curwin->w_cursor.lnum);
 	    ++text_prop_frozen;
 	}
 #endif
@@ -3457,28 +3466,29 @@ replace_do_bs(int limit_col)
 	    // Get the number of screen cells used by the character we are
 	    // going to delete.
 	    getvcol(curwin, &curwin->w_cursor, NULL, &start_vcol, NULL, 0);
-	    orig_vcols = chartabsize(ml_get_cursor(), start_vcol);
+	    orig_vcols = chartabsize(buf_line_at(curbuf, &curwin->w_cursor),
+				     start_vcol);
 	}
 	if (has_mbyte)
 	{
 	    (void)del_char_after_col(limit_col);
 	    if (State & VREPLACE_FLAG)
-		orig_len = ml_get_cursor_len();
+		orig_len = buf_line_at_len(curbuf, &curwin->w_cursor);
 	    replace_push(cc);
 	}
 	else
 	{
 	    pchar_cursor(cc);
 	    if (State & VREPLACE_FLAG)
-		orig_len = ml_get_cursor_len() - 1;
+		orig_len = buf_line_at_len(curbuf, &curwin->w_cursor) - 1;
 	}
 	replace_pop_ins();
 
 	if (State & VREPLACE_FLAG)
 	{
 	    // Get the number of screen cells used by the inserted characters
-	    p = ml_get_cursor();
-	    ins_len = ml_get_cursor_len() - orig_len;
+	    p = buf_line_at(curbuf, &curwin->w_cursor);
+	    ins_len = buf_line_at_len(curbuf, &curwin->w_cursor) - orig_len;
 	    vcol = start_vcol;
 	    for (i = 0; i < ins_len; ++i)
 	    {
@@ -3504,7 +3514,7 @@ replace_do_bs(int limit_col)
 #ifdef FEAT_PROP_POPUP
 	if (curbuf->b_has_textprop)
 	{
-	    size_t len_now = ml_get_curline_len();
+	    size_t len_now = buf_line_len(curbuf, curwin->w_cursor.lnum);
 
 	    --text_prop_frozen;
 	    adjust_prop_columns(curwin->w_cursor.lnum, curwin->w_cursor.col,
@@ -4139,7 +4149,8 @@ ins_shift(int c, int lastc)
     else
 	change_indent(c == Ctrl_D ? INDENT_DEC : INDENT_INC, 0, TRUE, 0, TRUE);
 
-    if (did_ai && *skipwhite(ml_get_curline()) != NUL)
+    if (did_ai && *skipwhite(buf_line(curbuf,
+				      curwin->w_cursor.lnum, FALSE)) != NUL)
 	did_ai = FALSE;
     did_si = FALSE;
     can_si = FALSE;
@@ -4167,8 +4178,8 @@ ins_del(void)
 	    // have been added. That makes sure, that open_line() later
 	    // can access all buffer lines correctly
 	    if (State & VREPLACE_FLAG &&
-		    orig_line_count > curbuf->b_ml.ml_line_count)
-		orig_line_count = curbuf->b_ml.ml_line_count;
+		    orig_line_count > buf_line_count(curbuf))
+		orig_line_count = buf_line_count(curbuf);
 	}
     }
     else if (del_char(FALSE) == FAIL)  // delete char under cursor
@@ -4226,7 +4237,7 @@ ins_bs(
      * can't backup past starting point unless 'backspace' > 1
      * can backup to a previous line if 'backspace' == 0
      */
-    if (       BUFEMPTY()
+    if (       buf_is_empty(curbuf)
 	    || (
 #ifdef FEAT_RIGHTLEFT
 		!revins_on &&
@@ -4293,7 +4304,7 @@ ins_bs(
 			       (linenr_T)(curwin->w_cursor.lnum + 1)) == FAIL)
 		return FALSE;
 	    --Insstart.lnum;
-	    Insstart.col = ml_get_len(Insstart.lnum);
+	    Insstart.col = buf_line_len(curbuf, Insstart.lnum);
 	}
 	/*
 	 * In replace mode:
@@ -4325,29 +4336,25 @@ ins_bs(
 		if (has_format_option(FO_AUTO)
 					   && has_format_option(FO_WHITE_PAR))
 		{
-		    char_u  *ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum,
+		    char_u  *ptr = buf_line(curbuf, curwin->w_cursor.lnum,
 									FALSE);
-		    int	    len = ml_get_curline_len();
+		    int	    len = buf_line_len(curbuf, curwin->w_cursor.lnum);
 
 		    if (len > 0 && ptr[len - 1] == ' ')
 		    {
-			char_u *newp = alloc(curbuf->b_ml.ml_line_len - 1);
+			colnr_T full_len = buf_line_full_len(curbuf);
+			char_u *newp = alloc(full_len - 1);
 
 			if (newp != NULL)
 			{
 			    mch_memmove(newp, ptr, len - 1);
 			    newp[len - 1] = NUL;
-			    if (curbuf->b_ml.ml_line_len > len + 1)
+			    if (full_len > len + 1)
 				mch_memmove(newp + len, ptr + len + 1,
-					   curbuf->b_ml.ml_line_len - len - 1);
+						full_len - len - 1);
 
-			    if (curbuf->b_ml.ml_flags
-					      & (ML_LINE_DIRTY | ML_ALLOCATED))
-				vim_free(curbuf->b_ml.ml_line_ptr);
-			    curbuf->b_ml.ml_line_ptr = newp;
-			    curbuf->b_ml.ml_line_len--;
-			    curbuf->b_ml.ml_line_textlen--;
-			    curbuf->b_ml.ml_flags |= ML_LINE_DIRTY;
+			    buf_replace_cached_line(curbuf, newp,
+				 full_len - 1, -1, FALSE, FALSE);
 			}
 		    }
 		}
@@ -4431,8 +4438,9 @@ ins_bs(
 #endif
 			)
 			&& curwin->w_cursor.col > 0
-			&& (*(ml_get_cursor() - 1) == TAB
-			    || (*(ml_get_cursor() - 1) == ' '
+			&& (*(buf_line_at(curbuf, &curwin->w_cursor) - 1) == TAB
+			    || (*(buf_line_at(curbuf,
+					      &curwin->w_cursor) - 1) == ' '
 				&& (!*inserted_space_p
 				    || arrow_used))))))
 	{
@@ -4448,7 +4456,8 @@ ins_bs(
 
 	    *inserted_space_p = FALSE;
 
-	    space_ptr = ptr = line = ml_get_curline();
+	    space_ptr = ptr = line = buf_line(curbuf,
+					      curwin->w_cursor.lnum, FALSE);
 	    cursor_ptr = line + curwin->w_cursor.col;
 
 	    // Compute virtual column of cursor position, and find the last
@@ -4524,7 +4533,7 @@ ins_bs(
 	    int cclass = 0, prev_cclass = 0;
 
 	    if (has_mbyte)
-		cclass = mb_get_class(ml_get_cursor());
+		cclass = mb_get_class(buf_line_at(curbuf, &curwin->w_cursor));
 	    do
 	    {
 #ifdef FEAT_RIGHTLEFT
@@ -4537,7 +4546,8 @@ ins_bs(
 		if (has_mbyte)
 		{
 		    prev_cclass = cclass;
-		    cclass = mb_get_class(ml_get_cursor());
+		    cclass = mb_get_class(buf_line_at(curbuf,
+						      &curwin->w_cursor));
 		}
 
 		// start of word?
@@ -4566,7 +4576,8 @@ ins_bs(
 		else
 		{
 		    if (enc_utf8 && p_deco)
-			(void)utfc_ptr2char(ml_get_cursor(), cpc);
+			(void)utfc_ptr2char(
+				buf_line_at(curbuf, &curwin->w_cursor), cpc);
 		    (void)del_char(FALSE);
 		    /*
 		     * If there are combining characters and 'delcombine' is set
@@ -4880,7 +4891,7 @@ ins_end(int c)
     undisplay_dollar();
     tpos = curwin->w_cursor;
     if (c == K_C_END)
-	curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	curwin->w_cursor.lnum = buf_line_count(curbuf);
     coladvance((colnr_T)MAXCOL);
     curwin->w_curswant = MAXCOL;
 
@@ -4930,7 +4941,8 @@ ins_right(void)
 	else
 	{
 	    if (has_mbyte)
-		curwin->w_cursor.col += (*mb_ptr2len)(ml_get_cursor());
+		curwin->w_cursor.col +=
+			(*mb_ptr2len)(buf_line_at(curbuf, &curwin->w_cursor));
 	    else
 		++curwin->w_cursor.col;
 	}
@@ -4944,7 +4956,7 @@ ins_right(void)
     // if 'whichwrap' set for cursor in insert mode, may move the
     // cursor to the next line
     else if (vim_strchr(p_ww, ']') != NULL
-	    && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+	    && curwin->w_cursor.lnum < buf_line_count(curbuf))
     {
 	start_arrow(&curwin->w_cursor);
 	curwin->w_set_curswant = true;
@@ -4965,7 +4977,7 @@ ins_s_right(void)
 	foldOpenCursor();
 #endif
     undisplay_dollar();
-    if (curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count
+    if (curwin->w_cursor.lnum < buf_line_count(curbuf)
 	    || gchar_cursor() != NUL)
     {
 	start_arrow_with_change(&curwin->w_cursor, end_change);
@@ -5221,14 +5233,16 @@ ins_tab(void)
 	{
 	    pos = curwin->w_cursor;
 	    cursor = &pos;
-	    saved_line = vim_strnsave(ml_get_curline(), ml_get_curline_len());
+	    saved_line = vim_strnsave(
+		    buf_line(curbuf, curwin->w_cursor.lnum, FALSE),
+		    buf_line_len(curbuf, curwin->w_cursor.lnum));
 	    if (saved_line == NULL)
 		return FALSE;
 	    ptr = saved_line + pos.col;
 	}
 	else
 	{
-	    ptr = ml_get_cursor();
+	    ptr = buf_line_at(curbuf, &curwin->w_cursor);
 	    cursor = &curwin->w_cursor;
 	}
 
@@ -5318,23 +5332,21 @@ ins_tab(void)
 		    char_u  *newp;
 		    int	    col;
 
-		    newp = alloc(curbuf->b_ml.ml_line_len - i);
+		    colnr_T full_len = buf_line_full_len(curbuf);
+		    char_u *line = buf_line(curbuf, fpos.lnum, FALSE);
+
+		    newp = alloc(full_len - i);
 		    if (newp == NULL)
 			return FALSE;
 
-		    col = ptr - curbuf->b_ml.ml_line_ptr;
+		    col = ptr - line;
 		    if (col > 0)
 			mch_memmove(newp, ptr - col, col);
 		    mch_memmove(newp + col, ptr + i,
-					   curbuf->b_ml.ml_line_len - col - i);
+						full_len - col - i);
 
-		    if (curbuf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
-			vim_free(curbuf->b_ml.ml_line_ptr);
-		    curbuf->b_ml.ml_line_ptr = newp;
-		    curbuf->b_ml.ml_line_len -= i;
-		    curbuf->b_ml.ml_line_textlen = 0;
-		    curbuf->b_ml.ml_flags =
-			   (curbuf->b_ml.ml_flags | ML_LINE_DIRTY) & ~ML_EMPTY;
+		    buf_replace_cached_line(curbuf, newp, full_len - i,
+						  0, TRUE, TRUE);
 		}
 		else
 #endif
@@ -5418,7 +5430,7 @@ ins_eol(int c)
     // NL in reverse insert will always start in the end of
     // current line.
     if (revins_on)
-	curwin->w_cursor.col += ml_get_cursor_len();
+	curwin->w_cursor.col += buf_line_at_len(curbuf, &curwin->w_cursor);
 #endif
 
     AppendToRedobuff(NL_STR);
@@ -5531,7 +5543,7 @@ ins_copychar(linenr_T lnum)
     char_u	    *line;
     chartabsize_T   cts;
 
-    if (lnum < 1 || lnum > curbuf->b_ml.ml_line_count)
+    if (lnum < 1 || lnum > buf_line_count(curbuf))
     {
 	vim_beep(BO_COPY);
 	return NUL;
@@ -5539,7 +5551,7 @@ ins_copychar(linenr_T lnum)
 
     // try to advance to the cursor column
     validate_virtcol();
-    line = ml_get(lnum);
+    line = buf_line(curbuf, lnum, FALSE);
     prev_ptr = line;
     init_chartabsize_arg(&cts, curwin, lnum, 0, line, line);
     while (cts.cts_vcol < curwin->w_virtcol && *cts.cts_ptr != NUL)
@@ -5612,8 +5624,8 @@ get_nolist_virtcol(void)
 {
     // check validity of cursor in current buffer
     if (curwin->w_buffer == NULL
-	|| curwin->w_buffer->b_ml.ml_mfp == NULL
-	|| curwin->w_cursor.lnum > curwin->w_buffer->b_ml.ml_line_count)
+	|| !buf_is_loaded(curwin->w_buffer)
+	|| curwin->w_cursor.lnum > buf_line_count(curwin->w_buffer))
 	return 0;
     if (curwin->w_p_list && vim_strchr(p_cpo, CPO_LISTWM) == NULL)
 	return getvcol_nolist(&curwin->w_cursor);

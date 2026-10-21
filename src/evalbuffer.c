@@ -206,7 +206,7 @@ set_buffer_lines(
     // setline() is used on startup.  For other buffers the buffer must be
     // loaded.
     int is_curbuf = buf == curbuf;
-    if (buf == NULL || (!is_curbuf && buf->b_ml.ml_mfp == NULL) || lnum < 1)
+    if (buf == NULL || (!is_curbuf && !buf_is_loaded(buf)) || lnum < 1)
     {
 	rettv->vval.v_number = 1;	// FAIL
 	if (in_vim9script() && lnum < 1)
@@ -226,7 +226,7 @@ set_buffer_lines(
     else
 	// setbufline() uses the line number above which we insert, we only
 	// append if it's below the last line
-	append_lnum = curbuf->b_ml.ml_line_count;
+	append_lnum = buf_line_count(curbuf);
 
     if (lines->v_type == VAR_LIST)
     {
@@ -256,7 +256,7 @@ set_buffer_lines(
 	}
 
 	rettv->vval.v_number = 1;	// FAIL
-	if (line == NULL || lnum > curbuf->b_ml.ml_line_count + 1)
+	if (line == NULL || lnum > buf_line_count(curbuf) + 1)
 	    break;
 
 	// When coming here from Insert mode, sync undo, so that this can be
@@ -267,11 +267,11 @@ set_buffer_lines(
 	    u_sync(TRUE);
 	}
 
-	if (!append && lnum <= curbuf->b_ml.ml_line_count)
+	if (!append && lnum <= buf_line_count(curbuf))
 	{
 	    // Existing line, replace it.
 	    // Removes any existing text properties.
-	    if (u_savesub(lnum) == OK && ml_replace_len(
+	    if (u_savesub(lnum) == OK && buf_replace_line(curbuf,
 		      lnum, line, (colnr_T)STRLEN(line) + 1, TRUE, TRUE) == OK)
 	    {
 		changed_bytes(lnum, 0);
@@ -284,7 +284,8 @@ set_buffer_lines(
 	{
 	    // append the line
 	    ++added;
-	    if (ml_append(lnum - 1, line, (colnr_T)0, FALSE) == OK)
+	    if (buf_append_line(curbuf, lnum - 1, line, (colnr_T)0, FALSE)
+									== OK)
 		rettv->vval.v_number = 0;	// OK
 	}
 
@@ -445,7 +446,7 @@ f_bufloaded(typval_T *argvars, typval_T *rettv)
 	return;
 
     buf = find_buffer(&argvars[0]);
-    rettv->vval.v_number = (buf != NULL && buf->b_ml.ml_mfp != NULL);
+    rettv->vval.v_number = (buf != NULL && buf_is_loaded(buf));
 }
 
 /*
@@ -581,8 +582,8 @@ f_deletebufline(typval_T *argvars, typval_T *rettv)
     else
 	last = first;
 
-    if (buf->b_ml.ml_mfp == NULL || first < 1
-			   || first > buf->b_ml.ml_line_count || last < first)
+    if (!buf_is_loaded(buf) || first < 1
+			   || first > buf_line_count(buf) || last < first)
 	return;
 
     // After this don't use "return", goto "cleanup"!
@@ -592,8 +593,8 @@ f_deletebufline(typval_T *argvars, typval_T *rettv)
 	// set "curbuf" to "buf" and find a window for this buffer
 	change_other_buffer_prepare(&cob, buf);
 
-    if (last > curbuf->b_ml.ml_line_count)
-	last = curbuf->b_ml.ml_line_count;
+    if (last > buf_line_count(curbuf))
+	last = buf_line_count(curbuf);
     count = last - first + 1;
 
     // When coming here from Insert mode, sync undo, so that this can be
@@ -608,7 +609,7 @@ f_deletebufline(typval_T *argvars, typval_T *rettv)
 	goto cleanup;
 
     for (lnum = first; lnum <= last; ++lnum)
-	ml_delete_flags(first, ML_DEL_MESSAGE);
+	buf_delete_line(curbuf, first, ML_DEL_MESSAGE);
 
     FOR_ALL_TAB_WINDOWS(tp, wp)
 	if (wp->w_buffer == buf)
@@ -617,8 +618,8 @@ f_deletebufline(typval_T *argvars, typval_T *rettv)
 		wp->w_cursor.lnum -= count;
 	    else if (wp->w_cursor.lnum > first)
 		wp->w_cursor.lnum = first;
-	    if (wp->w_cursor.lnum > wp->w_buffer->b_ml.ml_line_count)
-		wp->w_cursor.lnum = wp->w_buffer->b_ml.ml_line_count;
+	    if (wp->w_cursor.lnum > buf_line_count(wp->w_buffer))
+		wp->w_cursor.lnum = buf_line_count(wp->w_buffer);
 	    wp->w_valid = 0;
 	    if (wp->w_cursor.lnum <= wp->w_topline)
 		wp->w_topline = 1;
@@ -651,13 +652,13 @@ get_buffer_info(buf_T *buf)
     dict_add_string(dict, "name", buf->b_ffname);
     dict_add_number(dict, "lnum", buf == curbuf ? curwin->w_cursor.lnum
 						     : buflist_findlnum(buf));
-    dict_add_number(dict, "linecount", buf->b_ml.ml_line_count);
-    dict_add_number(dict, "loaded", buf->b_ml.ml_mfp != NULL);
+    dict_add_number(dict, "linecount", buf_line_count(buf));
+    dict_add_number(dict, "loaded", buf_is_loaded(buf));
     dict_add_number(dict, "listed", buf->b_p_bl);
     dict_add_number(dict, "changed", bufIsChanged(buf));
     dict_add_number(dict, "changedtick", CHANGEDTICK(buf));
     dict_add_number(dict, "hidden",
-			    buf->b_ml.ml_mfp != NULL && buf->b_nwindows == 0);
+			    buf_is_loaded(buf) && buf->b_nwindows == 0);
     dict_add_number(dict, "command", buf == cmdwin_buf);
 
     // Get a reference to buffer variables
@@ -758,7 +759,7 @@ f_getbufinfo(typval_T *argvars, typval_T *rettv)
     {
 	if (argbuf != NULL && argbuf != buf)
 	    continue;
-	if (filtered && ((sel_bufloaded && buf->b_ml.ml_mfp == NULL)
+	if (filtered && ((sel_bufloaded && !buf_is_loaded(buf))
 			|| (sel_buflisted && !buf->b_p_bl)
 			|| (sel_bufmodified && !buf->b_changed)))
 	    continue;
@@ -796,15 +797,15 @@ get_buffer_lines(
 	rettv->vval.v_string = NULL;
     }
 
-    if (buf == NULL || buf->b_ml.ml_mfp == NULL || start < 0)
+    if (buf == NULL || !buf_is_loaded(buf) || start < 0)
 	return;
 
     if (!retlist)
     {
-	if (start >= 1 && start <= buf->b_ml.ml_line_count)
+	if (start >= 1 && start <= buf_line_count(buf))
 	    rettv->vval.v_string =
-		vim_strnsave(ml_get_buf(buf, start, FALSE),
-		    ml_get_buf_len(buf, start));
+		vim_strnsave(buf_line(buf, start, FALSE),
+		    buf_line_len(buf, start));
 	else
 	    rettv->vval.v_string = vim_strnsave((char_u *)"", 0);
     }
@@ -815,13 +816,13 @@ get_buffer_lines(
 
 	if (start < 1)
 	    start = 1;
-	if (end > buf->b_ml.ml_line_count)
-	    end = buf->b_ml.ml_line_count;
+	if (end > buf_line_count(buf))
+	    end = buf_line_count(buf);
 	while (start <= end)
 	{
 	    if (list_append_string(rettv->vval.v_list,
-		ml_get_buf(buf, start, FALSE),
-		(int)ml_get_buf_len(buf, start)) == FAIL)
+		buf_line(buf, start, FALSE),
+		(int)buf_line_len(buf, start)) == FAIL)
 		break;
 	    ++start;
 	}

@@ -1601,7 +1601,7 @@ prepend_startcol_text(string_T *dest, string_T *src, int startcol)
 	return FAIL;
     }
 
-    char_u	*line = ml_get(curwin->w_cursor.lnum);
+    char_u	*line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 
     mch_memmove(dest->string, line + startcol, prepend_len);
     mch_memmove(dest->string + prepend_len, src->string, src->length);
@@ -2578,7 +2578,7 @@ ins_compl_bs(void)
     if (ins_compl_preinsert_effect())
 	ins_compl_delete();
 
-    line = ml_get_curline();
+    line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     p = line + curwin->w_cursor.col;
     MB_PTR_BACK(line, p);
 
@@ -2792,7 +2792,8 @@ ins_compl_addleader(int c)
     {
 	VIM_CLEAR_STRING(compl_leader);
 	compl_leader.length = (size_t)(curwin->w_cursor.col - compl_col);
-	compl_leader.string = vim_strnsave(ml_get_curline() + compl_col,
+	compl_leader.string = vim_strnsave(buf_line(curbuf,
+				curwin->w_cursor.lnum, FALSE) + compl_col,
 		compl_leader.length);
 	if (compl_leader.string == NULL)
 	{
@@ -3117,7 +3118,8 @@ ins_compl_stop(int c, int prev_mode, int retval)
 	if (!arrow_used && !ins_need_undo_get() && c != Ctrl_E)
 	    insertchar(NUL, 0, -1);
 	if (prev_col > 0
-		&& ml_get_curline()[curwin->w_cursor.col] != NUL)
+		&& buf_line(curbuf, curwin->w_cursor.lnum,
+			    FALSE)[curwin->w_cursor.col] != NUL)
 	    inc_cursor();
     }
 
@@ -3426,7 +3428,7 @@ ins_compl_next_buf(buf_T *buf, int flag)
 		skip_buffer = buf->b_p_bl;
 	    else
 		skip_buffer = !buf->b_p_bl ||
-		    (buf->b_ml.ml_mfp == NULL) != (flag == 'u');
+		    (!buf_is_loaded(buf)) != (flag == 'u');
 
 	    // Break if we found a buffer that matches our criteria
 	    if (!skip_buffer && !buf->b_scanned)
@@ -4014,7 +4016,8 @@ set_completion(colnr_T startcol, list_T *list)
     compl_lnum = curwin->w_cursor.lnum;
     compl_length = (int)curwin->w_cursor.col - (int)startcol;
     // compl_pattern doesn't need to be set
-    compl_orig_text.string = vim_strnsave(ml_get_curline() + compl_col,
+    compl_orig_text.string = vim_strnsave(buf_line(curbuf,
+				    curwin->w_cursor.lnum, FALSE) + compl_col,
 							(size_t)compl_length);
     if (p_ic)
 	flags |= CP_ICASE;
@@ -4269,7 +4272,7 @@ get_complete_info(list_T *what_list, dict_T *retdict)
 
     if (ret == OK && (what_flag & CI_WHAT_PREINSERTED_TEXT))
     {
-	char_u	*line = ml_get_curline();
+	char_u	*line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 	int	len = compl_ins_end_col - curwin->w_cursor.col;
 
 	ret = dict_add_string_len(retdict, "preinserted_text",
@@ -4481,8 +4484,9 @@ process_next_cpt_value(
 	    // Move the cursor to after the last character in the
 	    // buffer, so that word at start of buffer is found
 	    // correctly.
-	    st->first_match_pos.lnum = st->ins_buf->b_ml.ml_line_count;
-	    st->first_match_pos.col = ml_get_len(st->first_match_pos.lnum);
+	    st->first_match_pos.lnum = buf_line_count(st->ins_buf);
+	    st->first_match_pos.col = buf_line_len(curbuf,
+						    st->first_match_pos.lnum);
 	}
 	st->last_match_pos = st->first_match_pos;
 	compl_type = 0;
@@ -4497,11 +4501,11 @@ process_next_cpt_value(
 					   st->ins_buf, *st->e_cpt)) != curbuf)
     {
 	// Scan a buffer, but not the current one.
-	if (st->ins_buf->b_ml.ml_mfp != NULL)   // loaded buffer
+	if (buf_is_loaded(st->ins_buf))   // loaded buffer
 	{
 	    compl_started = TRUE;
 	    st->first_match_pos.col = st->last_match_pos.col = 0;
-	    st->first_match_pos.lnum = st->ins_buf->b_ml.ml_line_count + 1;
+	    st->first_match_pos.lnum = buf_line_count(st->ins_buf) + 1;
 	    st->last_match_pos.lnum = 0;
 	    compl_type = 0;
 	}
@@ -5025,17 +5029,17 @@ ins_compl_get_next_word_or_line(
     int		len;
 
     *match_len = 0;
-    ptr = ml_get_buf(ins_buf, cur_match_pos->lnum, FALSE) +
+    ptr = buf_line(ins_buf, cur_match_pos->lnum, FALSE) +
 	cur_match_pos->col;
-    len = (int)ml_get_buf_len(ins_buf, cur_match_pos->lnum) - cur_match_pos->col;
+    len = (int)buf_line_len(ins_buf, cur_match_pos->lnum) - cur_match_pos->col;
     if (ctrl_x_mode_line_or_eval())
     {
 	if (compl_status_adding())
 	{
-	    if (cur_match_pos->lnum >= ins_buf->b_ml.ml_line_count)
+	    if (cur_match_pos->lnum >= buf_line_count(ins_buf))
 		return NULL;
-	    ptr = ml_get_buf(ins_buf, cur_match_pos->lnum + 1, FALSE);
-	    len = ml_get_buf_len(ins_buf, cur_match_pos->lnum + 1);
+	    ptr = buf_line(ins_buf, cur_match_pos->lnum + 1, FALSE);
+	    len = buf_line_len(ins_buf, cur_match_pos->lnum + 1);
 	    if (!p_paste)
 	    {
 		char_u	*tmp_ptr = ptr;
@@ -5064,7 +5068,7 @@ ins_compl_get_next_word_or_line(
 
 	if (compl_status_adding() && len == compl_length)
 	{
-	    if (cur_match_pos->lnum < ins_buf->b_ml.ml_line_count)
+	    if (cur_match_pos->lnum < buf_line_count(ins_buf))
 	    {
 		// Try next line, if any. the new word will be
 		// "join" as if the normal command "J" was used.
@@ -5072,7 +5076,7 @@ ins_compl_get_next_word_or_line(
 		// compl_length, so the next STRNCPY always
 		// works -- Acevedo
 		STRNCPY(IObuff, ptr, len);
-		ptr = ml_get_buf(ins_buf, cur_match_pos->lnum + 1, FALSE);
+		ptr = buf_line(ins_buf, cur_match_pos->lnum + 1, FALSE);
 		tmp_ptr = ptr = skipwhite(ptr);
 		// Find start of next word.
 		tmp_ptr = find_word_start(tmp_ptr);
@@ -5853,17 +5857,17 @@ ins_compl_delete(void)
 
     if (curwin->w_cursor.lnum > compl_lnum)
     {
-	if (curwin->w_cursor.col < ml_get_curline_len())
+	if (curwin->w_cursor.col < buf_line_len(curbuf, curwin->w_cursor.lnum))
 	{
-	    char_u *line = ml_get_cursor();
-	    remaining.length = ml_get_cursor_len();
+	    char_u *line = buf_line_at(curbuf, &curwin->w_cursor);
+	    remaining.length = buf_line_at_len(curbuf, &curwin->w_cursor);
 	    remaining.string = vim_strnsave(line, remaining.length);
 	    if (remaining.string == NULL)
 		return;
 	}
 	while (curwin->w_cursor.lnum > compl_lnum)
 	{
-	    if (ml_delete(curwin->w_cursor.lnum) == FAIL)
+	    if (buf_delete_line(curbuf, curwin->w_cursor.lnum, 0) == FAIL)
 	    {
 		if (remaining.string)
 		    vim_free(remaining.string);
@@ -5873,7 +5877,7 @@ ins_compl_delete(void)
 	    curwin->w_cursor.lnum--;
 	}
 	// move cursor to end of line
-	curwin->w_cursor.col = ml_get_curline_len();
+	curwin->w_cursor.col = buf_line_len(curbuf, curwin->w_cursor.lnum);
     }
 
     if ((int)curwin->w_cursor.col > col)
@@ -6033,7 +6037,7 @@ find_common_prefix(size_t *prefix_len, int curbuf_only)
 	// after the cursor.
 	if (len == (int)STRLEN(first))
 	{
-	    char_u *line = ml_get_curline();
+	    char_u *line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 	    char_u *p = line + curwin->w_cursor.col;
 	    if (p && !IS_WHITE_OR_NUL(*p))
 	    {
@@ -6905,7 +6909,7 @@ set_compl_globals(
 	    startcol = curs_col;
 
 	// Re-obtain line in case it has changed
-	char_u	*line = ml_get(curwin->w_cursor.lnum);
+	char_u	*line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 	int	len = curs_col - startcol;
 
 	compl_pattern.string = vim_strnsave(line + startcol, (size_t)len);
@@ -7050,7 +7054,7 @@ get_spell_compl_info(int startcol UNUSED, colnr_T curs_col UNUSED)
 	compl_length = (int)curs_col - compl_col;
     }
     // Need to obtain "line" again, it may have become invalid.
-    line = ml_get(curwin->w_cursor.lnum);
+    line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     compl_pattern.string = vim_strnsave(line + compl_col, (size_t)compl_length);
     if (compl_pattern.string == NULL)
     {
@@ -7205,7 +7209,7 @@ ins_compl_start(void)
 	return FAIL;
     }
 
-    line = ml_get(curwin->w_cursor.lnum);
+    line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     curs_col = curwin->w_cursor.col;
     compl_pending = 0;
     compl_lnum = curwin->w_cursor.lnum;
@@ -7241,7 +7245,7 @@ ins_compl_start(void)
     }
     // If "line" was changed while getting completion info get it again.
     if (line_invalid)
-	line = ml_get(curwin->w_cursor.lnum);
+	line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 
     if (compl_status_adding())
     {

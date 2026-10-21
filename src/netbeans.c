@@ -952,8 +952,8 @@ nb_partialremove(linenr_T lnum, colnr_T first, colnr_T last)
     int oldlen;
     int lastbyte = last;
 
-    oldtext = ml_get(lnum);
-    oldlen = ml_get_len(lnum);
+    oldtext = buf_line(curbuf, lnum, FALSE);
+    oldlen = buf_line_len(curbuf, lnum);
     if (first >= (colnr_T)oldlen || oldlen == 0)  // just in case
 	return;
     if (lastbyte >= oldlen)
@@ -965,7 +965,7 @@ nb_partialremove(linenr_T lnum, colnr_T first, colnr_T last)
     mch_memmove(newtext, oldtext, first);
     STRMOVE(newtext + first, oldtext + lastbyte + 1);
     nbdebug(("    NEW LINE %ld: %s\n", lnum, newtext));
-    ml_replace(lnum, newtext, FALSE);
+    buf_replace_line(curbuf, lnum, newtext, -1, FALSE, FALSE);
 }
 
 /*
@@ -978,15 +978,15 @@ nb_joinlines(linenr_T first, linenr_T other)
     int len_first, len_other;
     char_u *p;
 
-    len_first = ml_get_len(first);
-    len_other = ml_get_len(other);
+    len_first = buf_line_len(curbuf, first);
+    len_other = buf_line_len(curbuf, other);
     p = alloc(len_first + len_other + 1);
     if (p == NULL)
 	return;
 
-    mch_memmove(p, ml_get(first), len_first);
-    mch_memmove(p + len_first, ml_get(other), len_other + 1);
-    ml_replace(first, p, FALSE);
+    mch_memmove(p, buf_line(curbuf, first, FALSE), len_first);
+    mch_memmove(p + len_first, buf_line(curbuf, other, FALSE), len_other + 1);
+    buf_replace_line(curbuf, first, p, -1, FALSE, FALSE);
 }
 
 #define SKIP_STOP 2
@@ -1112,7 +1112,7 @@ nb_do_cmd(
 	    else
 	    {
 		len = get_buf_size(buf->bufp);
-		nlines = buf->bufp->b_ml.ml_line_count;
+		nlines = buf_line_count(buf->bufp);
 		text = alloc((len > 0) ? ((len + nlines) * 2) : 4);
 		if (text == NULL)
 		{
@@ -1125,7 +1125,7 @@ nb_do_cmd(
 		    *p++ = '\"';
 		    for (; lno <= nlines ; lno++)
 		    {
-			line = nb_quote(ml_get_buf(buf->bufp, lno, FALSE));
+			line = nb_quote(buf_line(buf->bufp, lno, FALSE));
 			if (line != NULL)
 			{
 			    STRCPY(p, line);
@@ -1332,7 +1332,7 @@ nb_do_cmd(
 	    args = to_free = (char_u *)nb_unquote(args, NULL);
 	    /*
 	    nbdebug(("    CHUNK[%d]: %d bytes at offset %d\n",
-		    buf->bufp->b_ml.ml_line_count, STRLEN(args), off));
+		    buf_line_count(buf->bufp), STRLEN(args), off));
 	    */
 
 	    if (buf == NULL || buf->bufp == NULL)
@@ -1344,7 +1344,7 @@ nb_do_cmd(
 	    else if (args != NULL)
 	    {
 		int	ff_detected = EOL_UNKNOWN;
-		int	buf_was_empty = (buf->bufp->b_ml.ml_flags & ML_EMPTY);
+		int	buf_was_empty = buf_has_empty_flag(buf->bufp);
 		size_t	len = 0;
 		int	added = 0;
 		int	oldFire = netbeansFireChanges;
@@ -1378,7 +1378,7 @@ nb_do_cmd(
 		    if (buf_was_empty)
 			lnum_start = 1;	    // above empty line
 		    else
-			lnum_start = curbuf->b_ml.ml_line_count + 1;
+			lnum_start = buf_line_count(curbuf) + 1;
 		}
 
 		// "lnum" is the line where we insert: either append to it or
@@ -1418,26 +1418,27 @@ nb_do_cmd(
 			    && ((pos != NULL && pos->col > 0)
 				|| (lnum == 1 && buf_was_empty)))
 		    {
-			char_u	*oldline = ml_get(lnum);
+			char_u	*oldline = buf_line(curbuf, lnum, FALSE);
 			char_u	*newline;
 			int	col = pos == NULL ? 0 : pos->col;
 
 			// Insert halfway a line.
-			newline = alloc(ml_get_len(lnum) + len + 1);
+			newline = alloc(buf_line_len(curbuf, lnum) + len + 1);
 			if (newline != NULL)
 			{
 			    mch_memmove(newline, oldline, (size_t)col);
 			    newline[col] = NUL;
 			    STRCAT(newline, args);
 			    STRCAT(newline, oldline + col);
-			    ml_replace(lnum, newline, FALSE);
+			    buf_replace_line(curbuf, lnum, newline, -1,
+								 FALSE, FALSE);
 			}
 		    }
 		    else
 		    {
 			// Append a new line.  Not that we always do this,
 			// also when the text doesn't end in a "\n".
-			ml_append((linenr_T)(lnum - 1), args,
+			buf_append_line(curbuf, (linenr_T)(lnum - 1), args,
 						   (colnr_T)(len + 1), FALSE);
 			++added;
 		    }
@@ -3380,16 +3381,16 @@ get_buf_size(buf_T *bufp)
     int		eol_size;
     long	last_check = 100000L;
 
-    if (bufp->b_ml.ml_flags & ML_EMPTY)
+    if (buf_has_empty_flag(bufp))
 	return 0;
 
     if (get_fileformat(bufp) == EOL_DOS)
 	eol_size = 2;
     else
 	eol_size = 1;
-    for (lnum = 1; lnum <= bufp->b_ml.ml_line_count; ++lnum)
+    for (lnum = 1; lnum <= buf_line_count(bufp); ++lnum)
     {
-	char_count += ml_get_buf_len(bufp, lnum) + eol_size;
+	char_count += buf_line_len(bufp, lnum) + eol_size;
 	// Check for a CTRL-C every 100000 characters
 	if (char_count > last_check)
 	{
@@ -3419,7 +3420,7 @@ off2pos(buf_T *buf, long offset)
     pos.col = 0;
     pos.coladd = 0;
 
-    if (!(buf->b_ml.ml_flags & ML_EMPTY))
+    if (!buf_has_empty_flag(buf))
     {
 	if ((lnum = ml_find_line_or_offset(buf, (linenr_T)0, &offset)) < 0)
 	    return NULL;
@@ -3464,7 +3465,7 @@ pos2off(buf_T *buf, pos_T *pos)
 {
     long	 offset = 0;
 
-    if (buf->b_ml.ml_flags & ML_EMPTY)
+    if (buf_has_empty_flag(buf))
 	return 0;
 
     if ((offset = ml_find_line_or_offset(buf, pos->lnum, 0)) < 0)
@@ -3483,7 +3484,7 @@ pos2off(buf_T *buf, pos_T *pos)
     static void
 print_read_msg(nbbuf_T *buf)
 {
-    int	    lnum = buf->bufp->b_ml.ml_line_count;
+    int	    lnum = buf_line_count(buf->bufp);
     off_T   nchars = buf->bufp->b_orig_size;
     char_u  c;
 
@@ -3528,7 +3529,7 @@ print_save_msg(nbbuf_T *buf, off_T nchars)
 	msg_add_fname(buf->bufp, buf->bufp->b_ffname);
 	c = FALSE;
 
-	msg_add_lines(c, buf->bufp->b_ml.ml_line_count,
+	msg_add_lines(c, buf_line_count(buf->bufp),
 						buf->bufp->b_orig_size);
 
 	VIM_CLEAR(keep_msg);

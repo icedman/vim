@@ -511,8 +511,10 @@ spell_suggest(int count)
 	++badlen;
 	end_visual_mode();
 	// make sure we don't include the NUL at the end of the line
-	if (badlen > ml_get_curline_len() - (int)curwin->w_cursor.col)
-	    badlen = ml_get_curline_len() - (int)curwin->w_cursor.col;
+	if (badlen > buf_line_len(curbuf, curwin->w_cursor.lnum)
+					    - (int)curwin->w_cursor.col)
+	    badlen = buf_line_len(curbuf, curwin->w_cursor.lnum)
+					    - (int)curwin->w_cursor.col;
     }
     // Find the start of the badly spelled word.
     else if (spell_move_to(curwin, FORWARD, SMT_ALL, TRUE, NULL) == 0
@@ -521,7 +523,7 @@ spell_suggest(int count)
 	// No bad word or it starts after the cursor: use the word under the
 	// cursor.
 	curwin->w_cursor = prev_cursor;
-	char_u *curline = ml_get_curline();
+	char_u *curline = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 	p = curline + curwin->w_cursor.col;
 	// Backup to before start of word.
 	while (p > curline && spell_iswordp_nmw(p, curwin))
@@ -545,7 +547,8 @@ spell_suggest(int count)
 							curwin->w_cursor.col);
 
     // Make a copy of current line since autocommands may free the line.
-    line = vim_strnsave(ml_get_curline(), ml_get_curline_len());
+    line = vim_strnsave(buf_line(curbuf, curwin->w_cursor.lnum, FALSE),
+			    buf_line_len(curbuf, curwin->w_cursor.lnum));
     if (line == NULL)
 	goto skip;
 
@@ -702,7 +705,8 @@ spell_suggest(int count)
 	    AppendCharToRedobuff(ESC);
 
 	    // "p" may be freed here
-	    ml_replace(curwin->w_cursor.lnum, p, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum, p, -1,
+								 FALSE, FALSE);
 	    curwin->w_cursor.col = c;
 
 	    changed_bytes(curwin->w_cursor.lnum, c);
@@ -3264,7 +3268,7 @@ add_sound_suggest(
     }
 
     // go over the list of good words that produce this soundfold word
-    nrline = ml_get_buf(slang->sl_sugbuf, (linenr_T)(sfwordnr + 1), FALSE);
+    nrline = buf_line(slang->sl_sugbuf, (linenr_T)(sfwordnr + 1), FALSE);
     orgnr = 0;
     while (*nrline != NUL)
     {

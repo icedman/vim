@@ -98,7 +98,7 @@ coladvance(colnr_T wantcol)
 
     if (wantcol == MAXCOL || rc == FAIL)
 	curwin->w_valid &= ~VALID_VIRTCOL;
-    else if (*ml_get_cursor() != TAB)
+    else if (*buf_line_at(curbuf, &curwin->w_cursor) != TAB)
 	// Virtcol is valid when not on a TAB
 	set_valid_virtcol(curwin, wantcol);
     return rc;
@@ -137,8 +137,8 @@ coladvance2(
 		    || restart_edit != NUL
 		    || (VIsual_active && *p_sel != 'o')
 		    || ((get_ve_flags() & VE_ONEMORE) && wcol < MAXCOL);
-    line = ml_get_buf(curbuf, pos->lnum, FALSE);
-    linelen = ml_get_buf_len(curbuf, pos->lnum);
+    line = buf_line(curbuf, pos->lnum, FALSE);
+    linelen = buf_line_len(curbuf, pos->lnum);
 
     if (wcol >= MAXCOL)
     {
@@ -244,7 +244,7 @@ coladvance2(
 
 		newline[idx + correct] = NUL;
 
-		ml_replace(pos->lnum, newline, FALSE);
+		buf_replace_line(curbuf, pos->lnum, newline, -1, FALSE, FALSE);
 		changed_bytes(pos->lnum, (colnr_T)idx);
 		idx += correct;
 		col = wcol;
@@ -275,7 +275,7 @@ coladvance2(
 
 		newline[linelen + csize - 1] = NUL;
 
-		ml_replace(pos->lnum, newline, FALSE);
+		buf_replace_line(curbuf, pos->lnum, newline, -1, FALSE, FALSE);
 		changed_bytes(pos->lnum, idx);
 		idx += (csize - 1 + correct);
 		col += correct;
@@ -348,7 +348,7 @@ inc(pos_T *lp)
     // when searching position may be set to end of a line
     if (lp->col != MAXCOL)
     {
-	p = ml_get_pos(lp);
+	p = buf_line_at(curbuf, lp);
 	if (*p != NUL)	// still within line, move to next char (may be NUL)
 	{
 	    if (has_mbyte)
@@ -363,7 +363,7 @@ inc(pos_T *lp)
 	    return ((p[1] != NUL) ? 0 : 2);
 	}
     }
-    if (lp->lnum != curbuf->b_ml.ml_line_count)     // there is a next line
+    if (lp->lnum != buf_line_count(curbuf))     // there is a next line
     {
 	lp->col = 0;
 	lp->lnum++;
@@ -407,8 +407,8 @@ dec(pos_T *lp)
     if (lp->col == MAXCOL)
     {
 	// past end of line
-	p = ml_get(lp->lnum);
-	lp->col = ml_get_len(lp->lnum);
+	p = buf_line(curbuf, lp->lnum, FALSE);
+	lp->col = buf_line_len(curbuf, lp->lnum);
 	if (has_mbyte)
 	    lp->col -= (*mb_head_off)(p, p + lp->col);
 	return 0;
@@ -420,7 +420,7 @@ dec(pos_T *lp)
 	lp->col--;
 	if (has_mbyte)
 	{
-	    p = ml_get(lp->lnum);
+	    p = buf_line(curbuf, lp->lnum, FALSE);
 	    lp->col -= (*mb_head_off)(p, p + lp->col);
 	}
 	return 0;
@@ -430,8 +430,8 @@ dec(pos_T *lp)
     {
 	// there is a prior line
 	lp->lnum--;
-	p = ml_get(lp->lnum);
-	lp->col = ml_get_len(lp->lnum);
+	p = buf_line(curbuf, lp->lnum, FALSE);
+	lp->col = buf_line_len(curbuf, lp->lnum);
 	if (has_mbyte)
 	    lp->col -= (*mb_head_off)(p, p + lp->col);
 	return 1;
@@ -513,12 +513,12 @@ check_pos(buf_T *buf, pos_T *pos)
 {
     colnr_T len;
 
-    if (pos->lnum > buf->b_ml.ml_line_count)
-	pos->lnum = buf->b_ml.ml_line_count;
+    if (pos->lnum > buf_line_count(buf))
+	pos->lnum = buf_line_count(buf);
 
     if (pos->col > 0)
     {
-	len = ml_get_buf_len(buf, pos->lnum);
+	len = buf_line_len(buf, pos->lnum);
 	if (pos->col > len)
 	    pos->col = len;
     }
@@ -530,15 +530,15 @@ check_pos(buf_T *buf, pos_T *pos)
     void
 check_cursor_lnum(void)
 {
-    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
+    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
     {
 #ifdef FEAT_FOLDING
 	// If there is a closed fold at the end of the file, put the cursor in
 	// its first line.  Otherwise in the last line.
-	if (!hasFolding(curbuf->b_ml.ml_line_count,
+	if (!hasFolding(buf_line_count(curbuf),
 						&curwin->w_cursor.lnum, NULL))
 #endif
-	    curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	    curwin->w_cursor.lnum = buf_line_count(curbuf);
     }
     if (curwin->w_cursor.lnum <= 0)
 	curwin->w_cursor.lnum = 1;
@@ -564,7 +564,7 @@ check_cursor_col_win(win_T *win)
     colnr_T      oldcoladd = win->w_cursor.col + win->w_cursor.coladd;
     unsigned int cur_ve_flags = get_ve_flags();
 
-    len = ml_get_buf_len(win->w_buffer, win->w_cursor.lnum);
+    len = buf_line_len(win->w_buffer, win->w_cursor.lnum);
     if (len == 0)
 	win->w_cursor.col = 0;
     else if (win->w_cursor.col >= len)
@@ -635,15 +635,15 @@ check_cursor(void)
     void
 check_visual_pos(void)
 {
-    if (VIsual.lnum > curbuf->b_ml.ml_line_count)
+    if (VIsual.lnum > buf_line_count(curbuf))
     {
-	VIsual.lnum = curbuf->b_ml.ml_line_count;
+	VIsual.lnum = buf_line_count(curbuf);
 	VIsual.col = 0;
 	VIsual.coladd = 0;
     }
     else
     {
-	int len = ml_get_len(VIsual.lnum);
+	int len = buf_line_len(curbuf, VIsual.lnum);
 
 	if (VIsual.col > len)
 	{

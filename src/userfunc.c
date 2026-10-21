@@ -6508,7 +6508,7 @@ ex_call_inner(
 
 	if (eap->addr_count > 0)
 	{
-	    if (lnum > curbuf->b_ml.ml_line_count)
+	    if (lnum > buf_line_count(curbuf))
 	    {
 		// If the function deleted lines or switched to another buffer
 		// the line number may become invalid.

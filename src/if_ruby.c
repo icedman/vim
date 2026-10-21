@@ -890,9 +890,9 @@ ex_rubydo(exarg_T *eap)
     {
 	VALUE line;
 
-	if (i > curbuf->b_ml.ml_line_count)
+	if (i > buf_line_count(curbuf))
 	    break;
-	line = vim_str2rb_enc_str((char *)ml_get(i));
+	line = vim_str2rb_enc_str((char *)buf_line(curbuf, i, FALSE));
 	rb_lastline_set(line);
 	eval_enc_string_protect((char *) eap->arg, &state);
 	if (state)
@@ -900,7 +900,7 @@ ex_rubydo(exarg_T *eap)
 	    error_print(state);
 	    break;
 	}
-	if (was_curbuf != curbuf || i > curbuf->b_ml.ml_line_count)
+	if (was_curbuf != curbuf || i > buf_line_count(curbuf))
 	    break;
 	line = rb_lastline_get();
 	if (!NIL_P(line))
@@ -910,7 +910,8 @@ ex_rubydo(exarg_T *eap)
 		emsg(_(e_dollar_must_be_an_instance_of_string));
 		return;
 	    }
-	    ml_replace(i, (char_u *) StringValuePtr(line), 1);
+	    buf_replace_line(curbuf, i, (char_u *) StringValuePtr(line),
+								 -1, FALSE, 1);
 	    changed();
 #ifdef SYNTAX_HL
 	    syn_changed(i); // recompute syntax hl. for this line
@@ -1358,15 +1359,15 @@ buffer_count(VALUE self)
 {
     buf_T *buf = get_buf(self);
 
-    return INT2NUM(buf->b_ml.ml_line_count);
+    return INT2NUM(buf_line_count(buf));
 }
 
     static VALUE
 get_buffer_line(buf_T *buf, linenr_T n)
 {
-    if (n <= 0 || n > buf->b_ml.ml_line_count)
+    if (n <= 0 || n > buf_line_count(buf))
 	rb_raise(rb_eIndexError, "line number %ld out of range", (long)n);
-    return vim_str2rb_enc_str((char *)ml_get_buf(buf, n, FALSE));
+    return vim_str2rb_enc_str((char *)buf_line(buf, n, FALSE));
 }
 
     static VALUE
@@ -1385,7 +1386,7 @@ set_buffer_line(buf_T *buf, linenr_T n, VALUE str)
     char	*line = StringValuePtr(str);
     aco_save_T	aco;
 
-    if (n > 0 && n <= buf->b_ml.ml_line_count && line != NULL)
+    if (n > 0 && n <= buf_line_count(buf) && line != NULL)
     {
 	// Set curwin/curbuf for "buf" and save some things.
 	aucmd_prepbuf(&aco, buf);
@@ -1394,7 +1395,7 @@ set_buffer_line(buf_T *buf, linenr_T n, VALUE str)
 	    // Only when it worked to set "curbuf".
 	    if (u_savesub(n) == OK)
 	    {
-		ml_replace(n, (char_u *)line, TRUE);
+		buf_replace_line(curbuf, n, (char_u *)line, -1, FALSE, TRUE);
 		changed();
 #ifdef SYNTAX_HL
 		syn_changed(n); // recompute syntax hl. for this line
@@ -1432,7 +1433,7 @@ buffer_delete(VALUE self, VALUE num)
     long	n = NUM2LONG(num);
     aco_save_T	aco;
 
-    if (n > 0 && n <= buf->b_ml.ml_line_count)
+    if (n > 0 && n <= buf_line_count(buf))
     {
 	// Set curwin/curbuf for "buf" and save some things.
 	aucmd_prepbuf(&aco, buf);
@@ -1441,7 +1442,7 @@ buffer_delete(VALUE self, VALUE num)
 	    // Only when it worked to set "curbuf".
 	    if (u_savedel(n, 1) == OK)
 	    {
-		ml_delete(n);
+		buf_delete_line(curbuf, n, 0);
 
 		// Changes to non-active buffers should properly refresh
 		//   SegPhault - 01/09/05
@@ -1476,7 +1477,7 @@ buffer_append(VALUE self, VALUE num, VALUE str)
     {
 	rb_raise(rb_eIndexError, "NULL line");
     }
-    else if (n >= 0 && n <= buf->b_ml.ml_line_count)
+    else if (n >= 0 && n <= buf_line_count(buf))
     {
 	// set curwin/curbuf for "buf" and save some things
 	aucmd_prepbuf(&aco, buf);
@@ -1485,7 +1486,7 @@ buffer_append(VALUE self, VALUE num, VALUE str)
 	    // Only when it worked to set "curbuf".
 	    if (u_inssub(n + 1) == OK)
 	    {
-		ml_append(n, (char_u *) line, (colnr_T) 0, FALSE);
+		buf_append_line(curbuf, n, (char_u *) line, (colnr_T) 0, FALSE);
 
 		//  Changes to non-active buffers should properly refresh screen
 		//    SegPhault - 12/20/04

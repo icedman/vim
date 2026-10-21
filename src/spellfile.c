@@ -772,7 +772,7 @@ someerror:
 		    if (c == NUL)
 			break;
 		}
-		if (ml_append_buf(slang->sl_sugbuf, (linenr_T)wordnr,
+		if (buf_append_line(slang->sl_sugbuf, (linenr_T)wordnr,
 					 ga.ga_data, ga.ga_len, TRUE) == FAIL)
 		    goto someerror;
 	    }
@@ -5629,7 +5629,7 @@ spell_make_sugfile(spellinfo_T *spin, char_u *wfname)
 	goto theend;
 
     smsg(_("Number of words after soundfolding: %ld"),
-				 (long)spin->si_spellbuf->b_ml.ml_line_count);
+				 (long)buf_line_count(spin->si_spellbuf));
 
     /*
      * Compress the soundfold trie.
@@ -5835,7 +5835,7 @@ sug_filltable(
 	    // add the NUL byte
 	    ((char_u *)gap->ga_data)[gap->ga_len++] = NUL;
 
-	    if (ml_append_buf(spin->si_spellbuf, (linenr_T)wordnr,
+	    if (buf_append_line(spin->si_spellbuf, (linenr_T)wordnr,
 				     gap->ga_data, gap->ga_len, TRUE) == FAIL)
 		return -1;
 	    ++wordnr;
@@ -5968,14 +5968,14 @@ sug_write(spellinfo_T *spin, char_u *fname)
     /*
      * <SUGTABLE>: <sugwcount> <sugline> ...
      */
-    wcount = spin->si_spellbuf->b_ml.ml_line_count;
+    wcount = buf_line_count(spin->si_spellbuf);
     put_bytes(fd, (long_u)wcount, 4);	// <sugwcount>
 
     for (lnum = 1; lnum <= (linenr_T)wcount; ++lnum)
     {
 	// <sugline>: <sugnr> ... NUL
-	line = ml_get_buf(spin->si_spellbuf, lnum, FALSE);
-	len = ml_get_buf_len(spin->si_spellbuf, lnum) + 1;
+	line = buf_line(spin->si_spellbuf, lnum, FALSE);
+	len = buf_line_len(spin->si_spellbuf, lnum) + 1;
 	if (fwrite(line, (size_t)len, (size_t)1, fd) == 0)
 	{
 	    emsg(_(e_error_while_writing));
@@ -6364,7 +6364,7 @@ spell_add_word(
 
 	// Check that the user isn't editing the .add file somewhere.
 	buf = buflist_findname_exp(fnamebuf);
-	if (buf != NULL && buf->b_ml.ml_mfp == NULL)
+	if (buf != NULL && !buf_is_loaded(buf))
 	    buf = NULL;
 	if (buf != NULL && bufIsChanged(buf))
 	{

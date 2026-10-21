@@ -3505,7 +3505,7 @@ regmatch(
 		long_u	    vcol;
 
 		if (REG_MULTI && (lnum <= 0
-				   || lnum > wp->w_buffer->b_ml.ml_line_count))
+				   || lnum > buf_line_count(wp->w_buffer)))
 		    lnum = 1;
 		vcol = (long_u)win_linetabsize(wp, lnum, rex.line,
 					      (colnr_T)(rex.input - rex.line));

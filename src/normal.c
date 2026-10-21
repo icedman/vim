@@ -1319,7 +1319,7 @@ find_ident_at_pos(
 
     // if i == 0: try to find an identifier
     // if i == 1: try to find any non-white text
-    ptr = ml_get_buf(wp->w_buffer, lnum, FALSE);
+    ptr = buf_line(wp->w_buffer, lnum, FALSE);
     for (i = (find_type & FIND_IDENT) ? 0 : 1;	i < 2; ++i)
     {
 	/*
@@ -1672,13 +1672,13 @@ clear_showcmd(void)
 
 	    if (cursor_bot)
 	    {
-		s = ml_get_pos(&VIsual);
-		e = ml_get_cursor();
+		s = buf_line_at(curbuf, &VIsual);
+		e = buf_line_at(curbuf, &curwin->w_cursor);
 	    }
 	    else
 	    {
-		s = ml_get_cursor();
-		e = ml_get_pos(&VIsual);
+		s = buf_line_at(curbuf, &curwin->w_cursor);
+		e = buf_line_at(curbuf, &VIsual);
 	    }
 	    while ((*p_sel != 'e') ? s <= e : s < e)
 	    {
@@ -1990,8 +1990,8 @@ check_scrollbind(linenr_T topline_diff, long leftcol_diff)
 	    {
 		curwin->w_scbind_pos += topline_diff;
 		topline = curwin->w_scbind_pos;
-		if (topline > curbuf->b_ml.ml_line_count)
-		    topline = curbuf->b_ml.ml_line_count;
+		if (topline > buf_line_count(curbuf))
+		    topline = buf_line_count(curbuf);
 		if (topline < 1)
 		    topline = 1;
 
@@ -2232,7 +2232,8 @@ find_decl(
     else
     {
 	par_pos = curwin->w_cursor;
-	while (curwin->w_cursor.lnum > 1 && *skipwhite(ml_get_curline()) != NUL)
+	while (curwin->w_cursor.lnum > 1 && *skipwhite(buf_line(curbuf,
+				    curwin->w_cursor.lnum, FALSE)) != NUL)
 	    --curwin->w_cursor.lnum;
     }
     curwin->w_cursor.col = 0;
@@ -2273,14 +2274,16 @@ find_decl(
 	    }
 	    break;
 	}
-	if (get_leader_len(ml_get_curline(), NULL, FALSE, TRUE) > 0)
+	if (get_leader_len(buf_line(curbuf, curwin->w_cursor.lnum, FALSE),
+						       NULL, FALSE, TRUE) > 0)
 	{
 	    // Ignore this line, continue at start of next line.
 	    ++curwin->w_cursor.lnum;
 	    curwin->w_cursor.col = 0;
 	    continue;
 	}
-	valid = is_ident(ml_get_curline(), curwin->w_cursor.col);
+	valid = is_ident(buf_line(curbuf, curwin->w_cursor.lnum, FALSE),
+							 curwin->w_cursor.col);
 
 	// If the current position is not a valid identifier and a previous
 	// match is present, favor that one instead.
@@ -2437,7 +2440,7 @@ nv_screengo(oparg_T *oap, int dir, long dist)
 	    {
 		// to next line
 		if (curwin->w_cursor.lnum
-				       >= curwin->w_buffer->b_ml.ml_line_count)
+				       >= buf_line_count(curwin->w_buffer))
 		{
 		    retval = FAIL;
 		    break;
@@ -2477,7 +2480,7 @@ nv_screengo(oparg_T *oap, int dir, long dist)
 	    virtcol -= vim_strsize(get_showbreak_value(curwin));
 #endif
 
-	c = (*mb_ptr2char)(ml_get_cursor());
+	c = (*mb_ptr2char)(buf_line_at(curbuf, &curwin->w_cursor));
 	if (dir == FORWARD && virtcol < curwin->w_curswant
 		&& (curwin->w_curswant <= (colnr_T)width1)
 		&& !vim_isprintc(c) && c > 255)
@@ -2623,7 +2626,7 @@ nv_zg_zw(cmdarg_T *cap, int nchar)
 	len = spell_move_to(curwin, FORWARD, SMT_ALL, TRUE, NULL);
 	emsg_off--;
 	if (len != 0 && curwin->w_cursor.col <= pos.col)
-	    ptr = ml_get_pos(&curwin->w_cursor);
+	    ptr = buf_line_at(curbuf, &curwin->w_cursor);
 	curwin->w_cursor = pos;
     }
 
@@ -2676,8 +2679,8 @@ nv_zet(cmdarg_T *cap)
 	    && cap->count0 != curwin->w_cursor.lnum)
     {
 	setpcmark();
-	if (cap->count0 > curbuf->b_ml.ml_line_count)
-	    curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	if (cap->count0 > buf_line_count(curbuf))
+	    curwin->w_cursor.lnum = buf_line_count(curbuf);
 	else
 	    curwin->w_cursor.lnum = cap->count0;
 	check_cursor_col();
@@ -2691,8 +2694,8 @@ nv_zet(cmdarg_T *cap)
 		{
 		    // No count given: put cursor at the line below screen
 		    validate_botline();	// make sure w_botline is valid
-		    if (curwin->w_botline > curbuf->b_ml.ml_line_count)
-			curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+		    if (curwin->w_botline > buf_line_count(curbuf))
+			curwin->w_cursor.lnum = buf_line_count(curbuf);
 		    else
 			curwin->w_cursor.lnum = curwin->w_botline;
 		}
@@ -2857,7 +2860,7 @@ nv_zet(cmdarg_T *cap)
 		    changed_window_setting();
 		}
 		else if (foldmethodIsMarker(curwin))
-		    deleteFold((linenr_T)1, curbuf->b_ml.ml_line_count,
+		    deleteFold((linenr_T)1, buf_line_count(curbuf),
 								 TRUE, FALSE);
 		else
 		    emsg(_(e_cannot_erase_folds_with_current_foldmethod));
@@ -3205,8 +3208,9 @@ nv_colon(cmdarg_T *cap)
 	// The Ex command failed, do not execute the operator.
 	clearop(cap->oap);
     else if (cap->oap->op_type != OP_NOP
-	    && (cap->oap->start.lnum > curbuf->b_ml.ml_line_count
-		|| cap->oap->start.col > ml_get_len(cap->oap->start.lnum)
+	    && (cap->oap->start.lnum > buf_line_count(curbuf)
+		|| cap->oap->start.col
+				> buf_line_len(curbuf, cap->oap->start.lnum)
 		|| did_emsg
 	       ))
 	// The start of the operator has become invalid by the Ex command.
@@ -3507,7 +3511,8 @@ nv_ident(cmdarg_T *cap)
 	    // Call setpcmark() first, so "*``" puts the cursor back where
 	    // it was.
 	    setpcmark();
-	    curwin->w_cursor.col = (colnr_T) (ptr - ml_get_curline());
+	    curwin->w_cursor.col = (colnr_T) (ptr - buf_line(curbuf,
+						 curwin->w_cursor.lnum, FALSE));
 
 	    if (!g_cmd && vim_iswordp(ptr))
 	    {
@@ -3638,7 +3643,8 @@ nv_ident(cmdarg_T *cap)
     if (cmdchar == '*' || cmdchar == '#')
     {
 	if (!g_cmd && (has_mbyte
-		    ? vim_iswordp(mb_prevptr(ml_get_curline(), ptr))
+		    ? vim_iswordp(mb_prevptr(buf_line(curbuf,
+					 curwin->w_cursor.lnum, FALSE), ptr))
 		    : vim_iswordc(ptr[-1])))
 	{
 	    STRCPY(buf + buflen, "\\>");
@@ -3681,19 +3687,19 @@ get_visual_text(
     }
     if (VIsual_mode == 'V')
     {
-	*pp = ml_get_curline();
-	*lenp = (int)ml_get_curline_len();
+	*pp = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
+	*lenp = (int)buf_line_len(curbuf, curwin->w_cursor.lnum);
     }
     else
     {
 	if (LT_POS(curwin->w_cursor, VIsual))
 	{
-	    *pp = ml_get_pos(&curwin->w_cursor);
+	    *pp = buf_line_at(curbuf, &curwin->w_cursor);
 	    *lenp = VIsual.col - curwin->w_cursor.col + 1;
 	}
 	else
 	{
-	    *pp = ml_get_pos(&VIsual);
+	    *pp = buf_line_at(curbuf, &VIsual);
 	    *lenp = curwin->w_cursor.col - VIsual.col + 1;
 	}
 	if (**pp == NUL)
@@ -3776,7 +3782,7 @@ nv_scroll(cmdarg_T *cap)
 #endif
 	    validate_botline();	    // make sure w_empty_rows is valid
 	    half = (curwin->w_height - curwin->w_empty_rows + 1) / 2;
-	    for (n = 0; curwin->w_topline + n < curbuf->b_ml.ml_line_count; ++n)
+	    for (n = 0; curwin->w_topline + n < buf_line_count(curbuf); ++n)
 	    {
 #ifdef FEAT_DIFF
 		// Count half he number of filler lines to be "below this
@@ -3817,8 +3823,8 @@ nv_scroll(cmdarg_T *cap)
 #endif
 	}
 	curwin->w_cursor.lnum = curwin->w_topline + n;
-	if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
-	    curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	if (curwin->w_cursor.lnum > buf_line_count(curbuf))
+	    curwin->w_cursor.lnum = buf_line_count(curbuf);
     }
 
     // Correct for 'so', except when an operator is pending.
@@ -3857,7 +3863,7 @@ nv_right(cmdarg_T *cap)
     for (n = cap->count1; n > 0; --n)
     {
 	if ((!past_line && oneright() == FAIL)
-		|| (past_line && *ml_get_cursor() == NUL)
+		|| (past_line && *buf_line_at(curbuf, &curwin->w_cursor) == NUL)
 		)
 	{
 	    //	  <Space> wraps to next line if 'whichwrap' has 's'.
@@ -3869,7 +3875,7 @@ nv_right(cmdarg_T *cap)
 			    && vim_strchr(p_ww, 'l') != NULL)
 			|| (cap->cmdchar == K_RIGHT
 			    && vim_strchr(p_ww, '>') != NULL))
-		    && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+		    && curwin->w_cursor.lnum < buf_line_count(curbuf))
 	    {
 		// When deleting we also count the NL as a character.
 		// Set cap->oap->inclusive when last char in the line is
@@ -3909,7 +3915,8 @@ nv_right(cmdarg_T *cap)
 	    else
 	    {
 		if (has_mbyte)
-		    curwin->w_cursor.col += (*mb_ptr2len)(ml_get_cursor());
+		    curwin->w_cursor.col += (*mb_ptr2len)(buf_line_at(curbuf,
+							  &curwin->w_cursor));
 		else
 		    ++curwin->w_cursor.col;
 	    }
@@ -3971,7 +3978,7 @@ nv_left(cmdarg_T *cap)
 			    || cap->oap->op_type == OP_CHANGE)
 			&& !LINEEMPTY(curwin->w_cursor.lnum))
 		{
-		    char_u *cp = ml_get_cursor();
+		    char_u *cp = buf_line_at(curbuf, &curwin->w_cursor);
 
 		    if (*cp != NUL)
 		    {
@@ -4046,7 +4053,7 @@ nv_down(cmdarg_T *cap)
 #ifdef FEAT_JOB_CHANNEL
 	// In a prompt buffer a <CR> in the last line invokes the callback.
 	if (bt_prompt(curbuf) && cap->cmdchar == CAR
-		       && curwin->w_cursor.lnum == curbuf->b_ml.ml_line_count)
+		       && curwin->w_cursor.lnum == buf_line_count(curbuf))
 	{
 	    invoke_prompt_callback();
 	    if (restart_edit == 0)
@@ -4674,16 +4681,16 @@ nv_percent(cmdarg_T *cap)
 	    // Beyond 21474836 lines, (ml_line_count * 100 + 99) would
 	    // overflow on 32-bits, so use a formula with less accuracy
 	    // to avoid overflows.
-	    if (curbuf->b_ml.ml_line_count >= 21474836)
-		curwin->w_cursor.lnum = (curbuf->b_ml.ml_line_count + 99L)
+	    if (buf_line_count(curbuf) >= 21474836)
+		curwin->w_cursor.lnum = (buf_line_count(curbuf) + 99L)
 							 / 100L * cap->count0;
 	    else
-		curwin->w_cursor.lnum = (curbuf->b_ml.ml_line_count *
+		curwin->w_cursor.lnum = (buf_line_count(curbuf) *
 						    cap->count0 + 99L) / 100L;
 	    if (curwin->w_cursor.lnum < 1)
 		curwin->w_cursor.lnum = 1;
-	    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
-		curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
+		curwin->w_cursor.lnum = buf_line_count(curbuf);
 	    beginline(BL_SOL | BL_FIX);
 	}
     }
@@ -4696,7 +4703,8 @@ nv_percent(cmdarg_T *cap)
 	// cursor sits in a line comment (so a match there can still be found).
 	if (vim_strchr(p_cpo, CPO_MATCH) == NULL && buf_has_cstyle_comments())
 	{
-	    int	comment_col = check_linecomment(ml_get_curline());
+	    int	comment_col = check_linecomment(buf_line(curbuf,
+						curwin->w_cursor.lnum, FALSE));
 
 	    if (comment_col == MAXCOL
 			   || curwin->w_cursor.col < (colnr_T)comment_col)
@@ -4899,8 +4907,10 @@ nv_replace(cmdarg_T *cap)
     }
 
     // Abort if not enough characters to replace.
-    if ((size_t)ml_get_cursor_len() < (unsigned)cap->count1
-	    || (has_mbyte && mb_charlen(ml_get_cursor()) < cap->count1))
+    if ((size_t)buf_line_at_len(curbuf, &curwin->w_cursor)
+						     < (unsigned)cap->count1
+	    || (has_mbyte && mb_charlen(buf_line_at(curbuf, &curwin->w_cursor))
+							       < cap->count1))
     {
 	clearopbeep(cap->oap);
 	return;
@@ -4993,13 +5003,13 @@ nv_replace(cmdarg_T *cap)
 		  int c = ins_copychar(curwin->w_cursor.lnum
 					   + (cap->nchar == Ctrl_Y ? -1 : 1));
 
-		  ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE);
+		  ptr = buf_line(curbuf, curwin->w_cursor.lnum, TRUE);
 		  if (c != NUL)
 		    ptr[curwin->w_cursor.col] = c;
 		}
 		else
 		{
-		    ptr = ml_get_buf(curbuf, curwin->w_cursor.lnum, TRUE);
+		    ptr = buf_line(curbuf, curwin->w_cursor.lnum, TRUE);
 		    ptr[curwin->w_cursor.col] = cap->nchar;
 		}
 		if (p_sm && msg_silent == 0)
@@ -5010,7 +5020,7 @@ nv_replace(cmdarg_T *cap)
 	    if (netbeans_active())
 	    {
 		colnr_T  start = (colnr_T)(curwin->w_cursor.col - cap->count1);
-		ptr = ml_get_curline();
+		ptr = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 
 		netbeans_removed(curbuf, curwin->w_cursor.lnum, start,
 							   cap->count1);
@@ -5188,19 +5198,19 @@ n_swapchar(cmdarg_T *cap)
 	if (gchar_cursor() == NUL)
 	{
 	    if (vim_strchr(p_ww, '~') != NULL
-		    && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+		    && curwin->w_cursor.lnum < buf_line_count(curbuf))
 	    {
 #ifdef FEAT_NETBEANS_INTG
 		if (netbeans_active())
 		{
 		    if (did_change)
 		    {
-			ptr = ml_get(pos.lnum);
-			count = (int)ml_get_len(pos.lnum) - pos.col;
+			ptr = buf_line(curbuf, pos.lnum, FALSE);
+			count = (int)buf_line_len(curbuf, pos.lnum) - pos.col;
 			netbeans_removed(curbuf, pos.lnum, pos.col,
 								 (long)count);
 			// line may have been flushed, get it again
-			ptr = ml_get(pos.lnum);
+			ptr = buf_line(curbuf, pos.lnum, FALSE);
 			netbeans_inserted(curbuf, pos.lnum, pos.col,
 							&ptr[pos.col], count);
 		    }
@@ -5224,7 +5234,7 @@ n_swapchar(cmdarg_T *cap)
 #ifdef FEAT_NETBEANS_INTG
     if (did_change && netbeans_active())
     {
-	ptr = ml_get(pos.lnum);
+	ptr = buf_line(curbuf, pos.lnum, FALSE);
 	count = curwin->w_cursor.col - pos.col;
 	netbeans_removed(curbuf, pos.lnum, pos.col, (long)count);
 	netbeans_inserted(curbuf, pos.lnum, pos.col, &ptr[pos.col], count);
@@ -5737,7 +5747,7 @@ nv_gv_cmd(cmdarg_T *cap)
     int		i;
 
     if (curbuf->b_visual.vi_start.lnum == 0
-	    || curbuf->b_visual.vi_start.lnum > curbuf->b_ml.ml_line_count
+	    || curbuf->b_visual.vi_start.lnum > buf_line_count(curbuf)
 	    || curbuf->b_visual.vi_end.lnum == 0)
     {
 	beep_flush();
@@ -5889,7 +5899,7 @@ nv_g_underscore_cmd(cmdarg_T *cap)
 	return;
     }
 
-    ptr = ml_get_curline();
+    ptr = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 
     // In Visual mode we may end up after the line.
     if (curwin->w_cursor.col > 0 && ptr[curwin->w_cursor.col] == NUL)
@@ -5969,7 +5979,7 @@ nv_g_dollar_cmd(cmdarg_T *cap)
 
 	// if the character doesn't fit move one back
 	if (curwin->w_cursor.col > 0
-		&& (*mb_ptr2cells)(ml_get_cursor()) > 1)
+		&& (*mb_ptr2cells)(buf_line_at(curbuf, &curwin->w_cursor)) > 1)
 	{
 	    colnr_T vcol;
 
@@ -6002,7 +6012,7 @@ nv_gi_cmd(cmdarg_T *cap)
     {
 	curwin->w_cursor = curbuf->b_last_insert;
 	check_cursor_lnum();
-	i = (int)ml_get_curline_len();
+	i = (int)buf_line_len(curbuf, curwin->w_cursor.lnum);
 	if (curwin->w_cursor.col > (colnr_T)i)
 	{
 	    if (virtual_active())
@@ -6822,7 +6832,7 @@ unadjust_for_sel_inner(pos_T *pp)
     else if (pp->lnum > 1)
     {
 	--pp->lnum;
-	pp->col = ml_get_len(pp->lnum);
+	pp->col = buf_line_len(curbuf, pp->lnum);
 	return TRUE;
     }
 
@@ -6859,7 +6869,7 @@ nv_goto(cmdarg_T *cap)
     linenr_T	lnum;
 
     if (cap->arg)
-	lnum = curbuf->b_ml.ml_line_count;
+	lnum = buf_line_count(curbuf);
     else
 	lnum = 1L;
     cap->oap->motion_type = MLINE;
@@ -6870,8 +6880,8 @@ nv_goto(cmdarg_T *cap)
 	lnum = cap->count0;
     if (lnum < 1L)
 	lnum = 1L;
-    else if (lnum > curbuf->b_ml.ml_line_count)
-	lnum = curbuf->b_ml.ml_line_count;
+    else if (lnum > buf_line_count(curbuf))
+	lnum = buf_line_count(curbuf);
     curwin->w_cursor.lnum = lnum;
     beginline(BL_SOL | BL_FIX);
 #ifdef FEAT_FOLDING
@@ -7018,7 +7028,8 @@ set_cursor_for_append_to_line(void)
 	State = save_State;
     }
     else
-	curwin->w_cursor.col += (colnr_T)STRLEN(ml_get_cursor());
+	curwin->w_cursor.col += (colnr_T)STRLEN(buf_line_at(curbuf,
+							    &curwin->w_cursor));
 }
 
 /*
@@ -7090,7 +7101,7 @@ nv_edit(cmdarg_T *cap)
 	do_pending_operator(cap, 0, FALSE);
 	cap->cmdchar = K_PS;
 
-	if (*ml_get_cursor() != NUL)
+	if (*buf_line_at(curbuf, &curwin->w_cursor) != NUL)
 	{
 	    if (old_visual_mode == 'V')
 	    {
@@ -7104,8 +7115,8 @@ nv_edit(cmdarg_T *cap)
 		{
 		    if (u_save_cursor() == OK)
 		    {
-			ml_append(curwin->w_cursor.lnum, (char_u *)"", 0,
-									FALSE);
+			buf_append_line(curbuf, curwin->w_cursor.lnum,
+						(char_u *)"", 0, FALSE);
 			appended_lines(curwin->w_cursor.lnum++, 1L);
 		    }
 		}
@@ -7147,10 +7158,10 @@ nv_edit(cmdarg_T *cap)
 		// column otherwise, also to append after an unprintable char
 		if (virtual_active()
 			&& (curwin->w_cursor.coladd > 0
-			    || *ml_get_cursor() == NUL
-			    || *ml_get_cursor() == TAB))
+			    || *buf_line_at(curbuf, &curwin->w_cursor) == NUL
+			    || *buf_line_at(curbuf, &curwin->w_cursor) == TAB))
 		    curwin->w_cursor.coladd++;
-		else if (*ml_get_cursor() != NUL)
+		else if (*buf_line_at(curbuf, &curwin->w_cursor) != NUL)
 		    inc_cursor();
 		break;
 	}
@@ -7385,7 +7396,7 @@ nv_join(cmdarg_T *cap)
     if (cap->count0 <= 1)
 	cap->count0 = 2;	    // default for join is two lines!
     if (curwin->w_cursor.lnum + cap->count0 - 1 >
-	    curbuf->b_ml.ml_line_count)
+	    buf_line_count(curbuf))
     {
 	// can't join when on the last line
 	if (cap->count0 <= 2)
@@ -7393,7 +7404,7 @@ nv_join(cmdarg_T *cap)
 	    clearopbeep(cap->oap);
 	    return;
 	}
-	cap->count0 = curbuf->b_ml.ml_line_count
+	cap->count0 = buf_line_count(curbuf)
 	    - curwin->w_cursor.lnum + 1;
     }
 
@@ -7506,7 +7517,7 @@ nv_put_opt(cmdarg_T *cap, int fix_indent)
 	++msg_silent;
 	nv_operator(cap);
 	do_pending_operator(cap, 0, FALSE);
-	empty = (curbuf->b_ml.ml_flags & ML_EMPTY);
+	empty = buf_has_empty_flag(curbuf);
 	--msg_silent;
 
 	// delete PUT_LINE_BACKWARD;
@@ -7563,16 +7574,16 @@ nv_put_opt(cmdarg_T *cap, int fix_indent)
 
     // When all lines were selected and deleted do_put() leaves an empty
     // line that needs to be deleted now.
-    if (empty && *ml_get(curbuf->b_ml.ml_line_count) == NUL)
+    if (empty && *buf_line(curbuf, buf_line_count(curbuf), FALSE) == NUL)
     {
-	ml_delete_flags(curbuf->b_ml.ml_line_count, ML_DEL_MESSAGE);
-	deleted_lines(curbuf->b_ml.ml_line_count + 1, 1);
+	buf_delete_line(curbuf, buf_line_count(curbuf), ML_DEL_MESSAGE);
+	deleted_lines(buf_line_count(curbuf) + 1, 1);
 
 	// If the cursor was in that line, move it to the end of the last
 	// line.
-	if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
+	if (curwin->w_cursor.lnum > buf_line_count(curbuf))
 	{
-	    curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	    curwin->w_cursor.lnum = buf_line_count(curbuf);
 	    coladvance((colnr_T)MAXCOL);
 	}
     }

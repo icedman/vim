@@ -1180,7 +1180,7 @@ check_row(int row)
     long
 scroll_line_len(linenr_T lnum)
 {
-    char_u	*p = ml_get(lnum);
+    char_u	*p = buf_line(curbuf, lnum, FALSE);
     colnr_T	col = 0;
 
     if (*p != NUL)
@@ -1214,7 +1214,7 @@ ui_find_longest_lnum(void)
 #endif
 	    curwin->w_topline <= curwin->w_cursor.lnum
 	    && curwin->w_botline > curwin->w_cursor.lnum
-	    && curwin->w_botline <= curbuf->b_ml.ml_line_count + 1)
+	    && curwin->w_botline <= buf_line_count(curbuf) + 1)
     {
 	linenr_T    lnum;
 	long	    n;

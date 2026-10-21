@@ -2711,34 +2711,6 @@ ml_get(linenr_T lnum)
     return ml_get_buf(curbuf, lnum, FALSE);
 }
 
-/*
- * Return pointer to position "pos".
- */
-    char_u *
-ml_get_pos(pos_T *pos)
-{
-    return (ml_get_buf(curbuf, pos->lnum, FALSE) + pos->col);
-}
-
-/*
- * Return pointer to cursor line.
- */
-    char_u *
-ml_get_curline(void)
-{
-    return ml_get_buf(curbuf, curwin->w_cursor.lnum, FALSE);
-}
-
-/*
- * Return pointer to cursor position.
- */
-    char_u *
-ml_get_cursor(void)
-{
-    return (ml_get_buf(curbuf, curwin->w_cursor.lnum, FALSE) +
-							curwin->w_cursor.col);
-}
-
 // return length (excluding the NUL) of the given line
     colnr_T
 ml_get_len(linenr_T lnum)
@@ -2746,26 +2718,7 @@ ml_get_len(linenr_T lnum)
     return ml_get_buf_len(curbuf, lnum);
 }
 
-// return length (excluding the NUL) of the text after position "pos"
-    colnr_T
-ml_get_pos_len(pos_T *pos)
-{
-    return ml_get_buf_len(curbuf, pos->lnum) - pos->col;
-}
 
-// return length (excluding the NUL) of the cursor line
-    colnr_T
-ml_get_curline_len(void)
-{
-    return ml_get_buf_len(curbuf, curwin->w_cursor.lnum);
-}
-
-// return length (excluding the NUL) of the cursor position
-    colnr_T
-ml_get_cursor_len(void)
-{
-    return ml_get_buf_len(curbuf, curwin->w_cursor.lnum) - curwin->w_cursor.col;
-}
 
 // return length (excluding the NUL) of the given line in the given buffer
     colnr_T
@@ -3611,8 +3564,6 @@ ml_append_flags(
 }
 
 
-#if defined(FEAT_SPELL) || defined(FEAT_QUICKFIX) || defined(FEAT_PROP_POPUP)
-
 /*
  * Like ml_append() but for an arbitrary buffer.  The buffer must already have
  * a memline.
@@ -3629,7 +3580,6 @@ ml_append_buf(
 	return FAIL;
     return ml_append_flush(buf, lnum, line, len, newfile ? ML_APPEND_NEW : 0);
 }
-#endif
 
 /*
  * Replace line "lnum", with buffering, in current buffer.
@@ -4082,6 +4032,26 @@ theend:
 }
 
 /*
+ * Replace a line for an explicit buffer.  The implementation still relies on
+ * the current-buffer context; callers outside memline use the buffer façade.
+ */
+    int
+ml_replace_buf_len(
+    buf_T	*buf,
+    linenr_T	lnum,
+    char_u	*line,
+    colnr_T	len,
+    int		has_props,
+    int		copy)
+{
+    if (buf != curbuf)
+	return FAIL;
+    if (len < 0)
+	return ml_replace(lnum, line, copy);
+    return ml_replace_len(lnum, line, len, has_props, copy);
+}
+
+/*
  * Delete line "lnum" in the current buffer.
  * When "message" is TRUE may give a "No lines in buffer" message.
  *
@@ -4100,9 +4070,11 @@ ml_delete(linenr_T lnum)
  * Like ml_delete() but using flags (see ml_delete_int()).
  */
     int
-ml_delete_flags(linenr_T lnum, int flags)
+ml_delete_buf_flags(buf_T *buf, linenr_T lnum, int flags)
 {
-    ml_flush_line(curbuf);
+    if (buf != curbuf)
+	return FAIL;
+    ml_flush_line(buf);
     if (lnum < 1 || lnum > curbuf->b_ml.ml_line_count)
 	return FAIL;
 
@@ -4112,7 +4084,13 @@ ml_delete_flags(linenr_T lnum, int flags)
     may_invoke_listeners(curbuf, lnum, lnum + 1, -1);
 #endif
 
-    return ml_delete_int(curbuf, lnum, flags);
+    return ml_delete_int(buf, lnum, flags);
+}
+
+    int
+ml_delete_flags(linenr_T lnum, int flags)
+{
+    return ml_delete_buf_flags(curbuf, lnum, flags);
 }
 
 /*

@@ -4031,7 +4031,7 @@ show_utf8(void)
 
     // Get the byte length of the char under the cursor, including composing
     // characters.
-    line = ml_get_cursor();
+    line = buf_line_at(curbuf, &curwin->w_cursor);
     len = utfc_ptr2len(line);
     if (len == 0)
     {
@@ -4430,7 +4430,7 @@ utf_find_illegal(void)
     curwin->w_cursor.coladd = 0;
     for (;;)
     {
-	p = ml_get_cursor();
+	p = buf_line_at(curbuf, &curwin->w_cursor);
 	if (vimconv.vc_type != CONV_NONE)
 	{
 	    vim_free(tofree);
@@ -4449,13 +4449,15 @@ utf_find_illegal(void)
 				     || utf_char2len(utf_ptr2char(p)) != len))
 	    {
 		if (vimconv.vc_type == CONV_NONE)
-		    curwin->w_cursor.col += (colnr_T)(p - ml_get_cursor());
+		    curwin->w_cursor.col +=
+			(colnr_T)(p - buf_line_at(curbuf, &curwin->w_cursor));
 		else
 		{
 		    int	    l;
 
 		    len = (int)(p - tofree);
-		    for (p = ml_get_cursor(); *p != NUL && len-- > 0; p += l)
+		    for (p = buf_line_at(curbuf, &curwin->w_cursor);
+					    *p != NUL && len-- > 0; p += l)
 		    {
 			l = utf_ptr2len(p);
 			curwin->w_cursor.col += l;
@@ -4466,7 +4468,7 @@ utf_find_illegal(void)
 	    }
 	    p += len;
 	}
-	if (curwin->w_cursor.lnum == curbuf->b_ml.ml_line_count)
+	if (curwin->w_cursor.lnum == buf_line_count(curbuf))
 	    break;
 	++curwin->w_cursor.lnum;
 	curwin->w_cursor.col = 0;
@@ -4551,8 +4553,8 @@ mb_adjustpos(buf_T *buf, pos_T *lp)
 
     if (lp->col > 0 || lp->coladd > 1)
     {
-	p = ml_get_buf(buf, lp->lnum, FALSE);
-	if (*p == NUL || ml_get_buf_len(buf, lp->lnum) < lp->col)
+	p = buf_line(buf, lp->lnum, FALSE);
+	if (*p == NUL || buf_line_len(buf, lp->lnum) < lp->col)
 	    lp->col = 0;
 	else
 	    lp->col -= (*mb_head_off)(p, p + lp->col);

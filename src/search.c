@@ -726,11 +726,11 @@ searchit(
 	    start_char_len = 0;
 	// Watch out for the "col" being MAXCOL - 2, used in a closed fold.
 	else if (has_mbyte
-		    && pos->lnum >= 1 && pos->lnum <= buf->b_ml.ml_line_count
+		    && pos->lnum >= 1 && pos->lnum <= buf_line_count(buf)
 						    && pos->col < MAXCOL - 2)
 	{
-	    ptr = ml_get_buf(buf, pos->lnum, FALSE);
-	    if (ml_get_buf_len(buf, pos->lnum) <= pos->col)
+	    ptr = buf_line(buf, pos->lnum, FALSE);
+	    if (buf_line_len(buf, pos->lnum) <= pos->col)
 		start_char_len = 1;
 	    else
 		start_char_len = (*mb_ptr2len)(ptr + pos->col);
@@ -780,7 +780,7 @@ searchit(
 
 	for (loop = 0; loop <= 1; ++loop)   // loop twice if 'wrapscan' set
 	{
-	    for ( ; lnum > 0 && lnum <= buf->b_ml.ml_line_count;
+	    for ( ; lnum > 0 && lnum <= buf_line_count(buf);
 					   lnum += dir, at_first_line = FALSE)
 	    {
 		// Stop after checking "stop_lnum", if it's set.
@@ -813,10 +813,10 @@ searchit(
 		    submatch = first_submatch(&regmatch);
 #endif
 		    // "lnum" may be past end of buffer for "\n\zs".
-		    if (lnum + matchpos.lnum > buf->b_ml.ml_line_count)
+		    if (lnum + matchpos.lnum > buf_line_count(buf))
 			ptr = (char_u *)"";
 		    else
-			ptr = ml_get_buf(buf, lnum + matchpos.lnum, FALSE);
+			ptr = buf_line(buf, lnum + matchpos.lnum, FALSE);
 
 		    /*
 		     * Forward search in the first line: match should be after
@@ -905,7 +905,7 @@ searchit(
 
 			    // Need to get the line pointer again, a
 			    // multi-line search may have made it invalid.
-			    ptr = ml_get_buf(buf, lnum + matchpos.lnum, FALSE);
+			    ptr = buf_line(buf, lnum + matchpos.lnum, FALSE);
 			}
 			if (!match_ok)
 			    continue;
@@ -1009,7 +1009,7 @@ searchit(
 
 			    // Need to get the line pointer again, a
 			    // multi-line search may have made it invalid.
-			    ptr = ml_get_buf(buf, lnum + matchpos.lnum, FALSE);
+			    ptr = buf_line(buf, lnum + matchpos.lnum, FALSE);
 			}
 
 			/*
@@ -1036,16 +1036,16 @@ searchit(
 			    if (pos->lnum > 1)  // just in case
 			    {
 				--pos->lnum;
-				pos->col = ml_get_buf_len(buf, pos->lnum);
+				pos->col = buf_line_len(buf, pos->lnum);
 			    }
 			}
 			else
 			{
 			    --pos->col;
 			    if (has_mbyte
-				    && pos->lnum <= buf->b_ml.ml_line_count)
+				    && pos->lnum <= buf_line_count(buf))
 			    {
-				ptr = ml_get_buf(buf, pos->lnum, FALSE);
+				ptr = buf_line(buf, pos->lnum, FALSE);
 				pos->col -= (*mb_head_off)(ptr, ptr + pos->col);
 			    }
 			}
@@ -1125,7 +1125,7 @@ searchit(
 	     * written.
 	     */
 	    if (dir == BACKWARD)    // start second loop at the other end
-		lnum = buf->b_ml.ml_line_count;
+		lnum = buf_line_count(buf);
 	    else
 		lnum = 1;
 	    if (!shortmess(SHM_SEARCH)
@@ -1168,10 +1168,10 @@ searchit(
     }
 
     // A pattern like "\n\zs" may go past the last line.
-    if (pos->lnum > buf->b_ml.ml_line_count)
+    if (pos->lnum > buf_line_count(buf))
     {
-	pos->lnum = buf->b_ml.ml_line_count;
-	pos->col = ml_get_buf_len(buf, pos->lnum);
+	pos->lnum = buf_line_count(buf);
+	pos->col = buf_line_len(buf, pos->lnum);
 	if (pos->col > 0)
 	    --pos->col;
     }
@@ -1643,7 +1643,7 @@ do_search(
 			break;
 		if (c)			// at end of buffer
 		{
-		    pos.lnum = curbuf->b_ml.ml_line_count + 1;
+		    pos.lnum = buf_line_count(curbuf) + 1;
 		    pos.col = 0;
 		}
 	    }
@@ -1688,8 +1688,8 @@ do_search(
 		c = pos.lnum + spats[0].off.off;
 		if (c < 1)
 		    pos.lnum = 1;
-		else if (c > curbuf->b_ml.ml_line_count)
-		    pos.lnum = curbuf->b_ml.ml_line_count;
+		else if (c > buf_line_count(curbuf))
+		    pos.lnum = buf_line_count(curbuf);
 		else
 		    pos.lnum = c;
 		pos.col = 0;
@@ -1790,7 +1790,7 @@ search_for_exact_line(
     char_u	*p;
     int		compl_len = ins_compl_len();
 
-    if (buf->b_ml.ml_line_count == 0)
+    if (buf_line_count(buf) == 0)
 	return FAIL;
     for (;;)
     {
@@ -1799,7 +1799,7 @@ search_for_exact_line(
 	{
 	    if (p_ws)
 	    {
-		pos->lnum = buf->b_ml.ml_line_count;
+		pos->lnum = buf_line_count(buf);
 		if (!shortmess(SHM_SEARCH))
 		    give_warning((char_u *)_(top_bot_msg), TRUE);
 	    }
@@ -1809,7 +1809,7 @@ search_for_exact_line(
 		break;
 	    }
 	}
-	else if (pos->lnum > buf->b_ml.ml_line_count)
+	else if (pos->lnum > buf_line_count(buf))
 	{
 	    if (p_ws)
 	    {
@@ -1827,7 +1827,7 @@ search_for_exact_line(
 	    break;
 	if (start == 0)
 	    start = pos->lnum;
-	ptr = ml_get_buf(buf, pos->lnum, FALSE);
+	ptr = buf_line(buf, pos->lnum, FALSE);
 	p = skipwhite(ptr);
 	pos->col = (colnr_T) (p - ptr);
 
@@ -1911,9 +1911,9 @@ searchc(cmdarg_T *cap, int t_cmd)
     else
 	cap->oap->inclusive = TRUE;
 
-    p = ml_get_curline();
+    p = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     col = curwin->w_cursor.col;
-    len = ml_get_curline_len();
+    len = buf_line_len(curbuf, curwin->w_cursor.lnum);
 
     while (count--)
     {
@@ -2034,7 +2034,7 @@ find_rawstring_end(char_u *linep, pos_T *startpos, pos_T *endpos)
 	return FALSE;
     for (lnum = startpos->lnum; lnum <= endpos->lnum; ++lnum)
     {
-	char_u *line = ml_get(lnum);
+	char_u *line = buf_line(curbuf, lnum, FALSE);
 
 	for (p = line + (lnum == startpos->lnum
 					    ? startpos->col + 1 : 0); *p; ++p)
@@ -2207,7 +2207,7 @@ findmatchlimit(
 
     pos = curwin->w_cursor;
     pos.coladd = 0;
-    linep = ml_get(pos.lnum);
+    linep = buf_line(curbuf, pos.lnum, FALSE);
 
     cpo_match = (vim_strchr(p_cpo, CPO_MATCH) != NULL);
     cpo_bsl = (vim_strchr(p_cpo, CPO_MATCHBSL) != NULL);
@@ -2370,13 +2370,13 @@ findmatchlimit(
 	    {
 		if (hash_dir > 0)
 		{
-		    if (pos.lnum == curbuf->b_ml.ml_line_count)
+		    if (pos.lnum == buf_line_count(curbuf))
 			break;
 		}
 		else if (pos.lnum == 1)
 		    break;
 		pos.lnum += hash_dir;
-		linep = ml_get(pos.lnum);
+		linep = buf_line(curbuf, pos.lnum, FALSE);
 		line_breakcheck();	// check for CTRL-C typed
 		ptr = skipwhite(linep);
 		if (*ptr != '#')
@@ -2461,8 +2461,9 @@ findmatchlimit(
 		if (maxtravel > 0 && ++traveled > maxtravel)
 		    break;
 
-		linep = ml_get(pos.lnum);
-		pos.col = ml_get_len(pos.lnum); // pos.col on trailing NUL
+		linep = buf_line(curbuf, pos.lnum, FALSE);
+		// pos.col on trailing NUL
+		pos.col = buf_line_len(curbuf, pos.lnum);
 		do_quotes = -1;
 		line_breakcheck();
 
@@ -2492,7 +2493,7 @@ findmatchlimit(
 		    || (lisp && comment_col != MAXCOL
 					   && pos.col == (colnr_T)comment_col))
 	    {
-		if (pos.lnum == curbuf->b_ml.ml_line_count  // end of file
+		if (pos.lnum == buf_line_count(curbuf)  // end of file
 			// line is exhausted and comment with it,
 			// don't search for match in code
 			 || lispcomm)
@@ -2502,7 +2503,7 @@ findmatchlimit(
 		if (maxtravel && traveled++ > maxtravel)
 		    break;
 
-		linep = ml_get(pos.lnum);
+		linep = buf_line(curbuf, pos.lnum, FALSE);
 		pos.col = 0;
 		do_quotes = -1;
 		line_breakcheck();
@@ -2598,7 +2599,8 @@ findmatchlimit(
 			    match_pos = pos;
 			    match_pos.col--;
 			}
-			linep = ml_get(pos.lnum); // may have been released
+			// may have been released
+			linep = buf_line(curbuf, pos.lnum, FALSE);
 		    }
 		}
 		else if (  linep[pos.col - 1] == '/'
@@ -2674,8 +2676,9 @@ findmatchlimit(
 		}
 		if (pos.lnum > 1)
 		{
-		    ptr = ml_get(pos.lnum - 1);
-		    if (*ptr && *(ptr + ml_get_len(pos.lnum - 1) - 1) == '\\')
+		    ptr = buf_line(curbuf, pos.lnum - 1, FALSE);
+		    if (*ptr && *(ptr + buf_line_len(curbuf, pos.lnum - 1) - 1)
+								      == '\\')
 		    {
 			do_quotes = 1;
 			if (start_in_quotes == MAYBE)
@@ -2689,7 +2692,7 @@ findmatchlimit(
 		    }
 
 		    // ml_get() only keeps one line, need to get linep again
-		    linep = ml_get(pos.lnum);
+		    linep = buf_line(curbuf, pos.lnum, FALSE);
 		}
 	    }
 	}
@@ -3122,8 +3125,9 @@ current_search(
 	    {
 		// try again from end of buffer
 		// searching backwards, so set pos to last line and col
-		pos.lnum = curwin->w_buffer->b_ml.ml_line_count;
-		pos.col  = ml_get_len(curwin->w_buffer->b_ml.ml_line_count);
+		pos.lnum = buf_line_count(curwin->w_buffer);
+		pos.col  = buf_line_len(curbuf,
+					    buf_line_count(curwin->w_buffer));
 	    }
 	}
     }
@@ -3184,7 +3188,7 @@ linewhite(linenr_T lnum)
 {
     char_u  *p;
 
-    p = skipwhite(ml_get(lnum));
+    p = skipwhite(buf_line(curbuf, lnum, FALSE));
     return (*p == NUL);
 }
 
@@ -3409,7 +3413,7 @@ update_search_stat(
     static char_u *
 get_line_and_copy(linenr_T lnum, char_u *buf)
 {
-    char_u *line = ml_get(lnum);
+    char_u *line = buf_line(curbuf, lnum, FALSE);
 
     vim_strncpy(buf, line, LSIZE - 1);
     return buf;
@@ -3516,8 +3520,8 @@ find_pattern_in_path(
     depth = depth_displayed = -1;
 
     lnum = start_lnum;
-    if (end_lnum > curbuf->b_ml.ml_line_count)
-	end_lnum = curbuf->b_ml.ml_line_count;
+    if (end_lnum > buf_line_count(curbuf))
+	end_lnum = buf_line_count(curbuf);
     if (lnum > end_lnum)		// do at least one line
 	lnum = end_lnum;
     line = get_line_and_copy(lnum, file_line);
@@ -4163,10 +4167,10 @@ show_pat_in_path(
 	}
 	else
 	{
-	    if (++*lnum > curbuf->b_ml.ml_line_count)
+	    if (++*lnum > buf_line_count(curbuf))
 		break;
-	    line = ml_get(*lnum);
-	    linelen = ml_get_len(*lnum);
+	    line = buf_line(curbuf, *lnum, FALSE);
+	    linelen = buf_line_len(curbuf, *lnum);
 	}
 	msg_putchar('\n');
     }

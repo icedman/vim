@@ -196,9 +196,9 @@ set_search_match(pos_T *t)
 {
     t->lnum += search_match_lines;
     t->col = search_match_endcol;
-    if (t->lnum > curbuf->b_ml.ml_line_count)
+    if (t->lnum > buf_line_count(curbuf))
     {
-	t->lnum = curbuf->b_ml.ml_line_count;
+	t->lnum = buf_line_count(curbuf);
 	coladvance((colnr_T)MAXCOL);
     }
 }
@@ -468,10 +468,10 @@ may_do_incsearch_highlighting(
     if (search_first_line == 0)
 	// start at the original cursor position
 	curwin->w_cursor = is_state->search_start;
-    else if (search_first_line > curbuf->b_ml.ml_line_count)
+    else if (search_first_line > buf_line_count(curbuf))
     {
 	// start after the last line
-	curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	curwin->w_cursor.lnum = buf_line_count(curbuf);
 	curwin->w_cursor.col = MAXCOL;
     }
     else
@@ -790,11 +790,13 @@ may_add_char_to_search(int firstc, int *c, incsearch_state_T *is_state)
 		*c = '\\';
 	    }
 	    // add any composing characters
-	    if (mb_char2len(*c) != mb_ptr2len(ml_get_cursor()))
+	    if (mb_char2len(*c)
+		    != mb_ptr2len(buf_line_at(curbuf, &curwin->w_cursor)))
 	    {
 		int save_c = *c;
 
-		while (mb_char2len(*c) != mb_ptr2len(ml_get_cursor()))
+		while (mb_char2len(*c)
+			!= mb_ptr2len(buf_line_at(curbuf, &curwin->w_cursor)))
 		{
 		    curwin->w_cursor.col += mb_char2len(*c);
 		    *c = gchar_cursor();
@@ -4926,7 +4928,8 @@ open_cmdwin(void)
 		if (++i == get_hislen())
 		    i = 0;
 		if (get_histentry(histtype)[i].hisstr != NULL)
-		    ml_append(lnum++, get_histentry(histtype)[i].hisstr,
+		    buf_append_line(curbuf, lnum++,
+					     get_histentry(histtype)[i].hisstr,
 							   (colnr_T)0, FALSE);
 	    }
 	    while (i != *get_hisidx(histtype));
@@ -4935,8 +4938,9 @@ open_cmdwin(void)
 
     // Replace the empty last line with the current command-line and put the
     // cursor there.
-    ml_replace(curbuf->b_ml.ml_line_count, ccline.cmdbuff, TRUE);
-    curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+    buf_replace_line(curbuf, buf_line_count(curbuf), ccline.cmdbuff, -1,
+								  FALSE, TRUE);
+    curwin->w_cursor.lnum = buf_line_count(curbuf);
     curwin->w_cursor.col = ccline.cmdpos;
     changed_line_abv_curs();
     invalidate_botline();
@@ -5038,9 +5042,10 @@ open_cmdwin(void)
 	}
 	else
 	{
-	    ccline.cmdlen = ml_get_curline_len();
+	    ccline.cmdlen = buf_line_len(curbuf, curwin->w_cursor.lnum);
 	    ccline.cmdbufflen = ccline.cmdlen + 1;
-	    ccline.cmdbuff = vim_strnsave(ml_get_curline(), ccline.cmdlen);
+	    ccline.cmdbuff = vim_strnsave(buf_line(curbuf,
+				curwin->w_cursor.lnum, FALSE), ccline.cmdlen);
 	}
 
 	if (ccline.cmdbuff == NULL)

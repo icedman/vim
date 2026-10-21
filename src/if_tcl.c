@@ -599,7 +599,7 @@ bufselfcmd(
 		err = TCL_ERROR;
 		break;
 	    }
-	    val1 = (int)buf->b_ml.ml_line_count;
+	    val1 = (int)buf_line_count(buf);
 	    if (opt)
 		val1 = row2tcl(val1);
 
@@ -644,7 +644,7 @@ bufselfcmd(
 
 		for (n = val1; n <= val2 && err == TCL_OK; n++)
 		{
-		    line = (char *)ml_get_buf(buf, (linenr_T)n, FALSE);
+		    line = (char *)buf_line(buf, (linenr_T)n, FALSE);
 		    if (line)
 			Tcl_AppendElement(interp, line);
 		    else
@@ -653,7 +653,7 @@ bufselfcmd(
 	    }
 	    else
 	    {  // objc == 3
-		line = (char *)ml_get_buf(buf, (linenr_T)val1, FALSE);
+		line = (char *)buf_line(buf, (linenr_T)val1, FALSE);
 		Tcl_SetResult(interp, line, TCL_VOLATILE);
 	    }
 	    break;
@@ -681,7 +681,8 @@ bufselfcmd(
 		    err = TCL_ERROR;
 		}
 		else
-		if (ml_replace((linenr_T)val1, (char_u *)line, TRUE) != OK)
+		if (buf_replace_line(curbuf, (linenr_T)val1, (char_u *)line,
+							-1, FALSE, TRUE) != OK)
 		{
 		    Tcl_SetResult(interp, _("cannot replace line"), TCL_STATIC);
 		    err = TCL_ERROR;
@@ -732,7 +733,8 @@ bufselfcmd(
 		for (i = 0; i < lc && n <= val2; i++)
 		{
 		    line = Tcl_GetStringFromObj(lv[i], NULL);
-		    if (ml_replace((linenr_T)n, (char_u *)line, TRUE) != OK)
+		    if (buf_replace_line(curbuf, (linenr_T)n, (char_u *)line,
+							-1, FALSE, TRUE) != OK)
 			goto setListError;
 		    ++n;
 		}
@@ -742,7 +744,7 @@ bufselfcmd(
 		    do
 		    {
 			line = Tcl_GetStringFromObj(lv[i], NULL);
-			if (ml_append((linenr_T)(n - 1),
+			if (buf_append_line(curbuf, (linenr_T)(n - 1),
 					      (char_u *)line, 0, FALSE) != OK)
 			    goto setListError;
 			++n;
@@ -755,7 +757,7 @@ bufselfcmd(
 		    i = n;
 		    do
 		    {
-			if (ml_delete((linenr_T)i) != OK)
+			if (buf_delete_line(curbuf, (linenr_T)i, 0) != OK)
 			    goto setListError;
 			++n;
 		    } while (n <= val2);
@@ -803,7 +805,7 @@ bufselfcmd(
 	    }
 	    for (i = 0; i < n; i++)
 	    {
-		ml_delete((linenr_T)val1);
+		buf_delete_line(curbuf, (linenr_T)val1, 0);
 		err = vimerror(interp);
 		if (err != TCL_OK)
 		    break;
@@ -873,7 +875,8 @@ bufselfcmd(
 	    }
 
 	    line = Tcl_GetStringFromObj(objv[3], NULL);
-	    if (ml_append((linenr_T)val1, (char_u *)line, 0, FALSE) != OK)
+	    if (buf_append_line(curbuf, (linenr_T)val1, (char_u *)line,
+							       0, FALSE) != OK)
 	    {
 		Tcl_SetResult(interp, _("cannot insert/append line"),
 								  TCL_STATIC);
@@ -1196,7 +1199,7 @@ tclgetlinenum(
 	    case LN_BOTTOM:
 	    case LN_END:
 	    case LN_LAST:
-		*valueP = buf->b_ml.ml_line_count;
+		*valueP = buf_line_count(buf);
 		break;
 	}
 	return TCL_OK;
@@ -1207,7 +1210,7 @@ tclgetlinenum(
     if (err != TCL_OK)
 	return err;
     i = row2vim(i);
-    if (i < 1  ||  i > buf->b_ml.ml_line_count)
+    if (i < 1  ||  i > buf_line_count(buf))
     {
 	Tcl_SetResult(interp, _("line number out of range"), TCL_STATIC);
 	return TCL_ERROR;
@@ -1995,9 +1998,9 @@ ex_tcldo(exarg_T *eap)
     }
     while (err == TCL_OK  &&  rs <= re)
     {
-	if ((linenr_T)rs > curbuf->b_ml.ml_line_count)
+	if ((linenr_T)rs > buf_line_count(curbuf))
 	    break;
-	line = (char *)ml_get_buf(curbuf, (linenr_T)rs, FALSE);
+	line = (char *)buf_line(curbuf, (linenr_T)rs, FALSE);
 	if (!line)
 	{
 	    Tcl_SetResult(tclinfo.interp, _("cannot get line"), TCL_STATIC);
@@ -2013,12 +2016,13 @@ ex_tcldo(exarg_T *eap)
 	    || Tcl_LimitExceeded(tclinfo.interp)
 #endif
 	    || curbuf != was_curbuf
-	    || (linenr_T)rs > curbuf->b_ml.ml_line_count)
+	    || (linenr_T)rs > buf_line_count(curbuf))
 	    break;
 	line = (char *)Tcl_GetVar(tclinfo.interp, var_line, 0);
 	if (line)
 	{
-	    if (ml_replace((linenr_T)rs, (char_u *)line, TRUE) != OK)
+	    if (buf_replace_line(curbuf, (linenr_T)rs, (char_u *)line,
+							-1, FALSE, TRUE) != OK)
 	    {
 		Tcl_SetResult(tclinfo.interp, _("cannot replace line"), TCL_STATIC);
 		err = TCL_ERROR;

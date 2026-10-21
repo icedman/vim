@@ -1362,7 +1362,7 @@ job_start(
 	    buf = buflist_find_by_name(opt.jo_io_name[PART_IN], FALSE);
 	if (buf == NULL)
 	    goto theend;
-	if (buf->b_ml.ml_mfp == NULL)
+	if (!buf_is_loaded(buf))
 	{
 	    char_u	numbuf[NUMBUFLEN];
 	    char_u	*s;
@@ -1564,18 +1564,18 @@ invoke_prompt_callback(void)
     typval_T	argv[2];
     char_u	*text;
     char_u	*prompt;
-    linenr_T	lnum = curbuf->b_ml.ml_line_count;
+    linenr_T	lnum = buf_line_count(curbuf);
 
     // Add a new line for the prompt before invoking the callback, so that
     // text can always be inserted above the last line.
-    ml_append(lnum, (char_u  *)"", 0, FALSE);
+    buf_append_line(curbuf, lnum, (char_u  *)"", 0, FALSE);
     curwin->w_cursor.lnum = lnum + 1;
     curwin->w_cursor.col = 0;
 
     if (curbuf->b_prompt_callback.cb_name == NULL
 	    || *curbuf->b_prompt_callback.cb_name == NUL)
 	return;
-    text = ml_get(lnum);
+    text = buf_line(curbuf, lnum, FALSE);
     prompt = prompt_text();
     if (STRLEN(text) >= STRLEN(prompt))
 	text += STRLEN(prompt);
@@ -1640,18 +1640,19 @@ init_prompt(int cmdchar_todo)
     char_u *prompt = prompt_text();
     char_u *text;
 
-    curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
-    text = ml_get_curline();
+    curwin->w_cursor.lnum = buf_line_count(curbuf);
+    text = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
     if (STRNCMP(text, prompt, STRLEN(prompt)) != 0)
     {
 	// prompt is missing, insert it or append a line with it
 	if (*text == NUL)
-	    ml_replace(curbuf->b_ml.ml_line_count, prompt, TRUE);
+	    buf_replace_line(curbuf, buf_line_count(curbuf), prompt, -1,
+								 FALSE, TRUE);
 	else
-	    ml_append(curbuf->b_ml.ml_line_count, prompt, 0, FALSE);
-	curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	    buf_append_line(curbuf, buf_line_count(curbuf), prompt, 0, FALSE);
+	curwin->w_cursor.lnum = buf_line_count(curbuf);
 	coladvance((colnr_T)MAXCOL);
-	changed_bytes(curbuf->b_ml.ml_line_count, 0);
+	changed_bytes(buf_line_count(curbuf), 0);
     }
 
     // Insert always starts after the prompt, allow editing text after it.
@@ -1673,7 +1674,7 @@ init_prompt(int cmdchar_todo)
     int
 prompt_curpos_editable(void)
 {
-    return curwin->w_cursor.lnum == curbuf->b_ml.ml_line_count
+    return curwin->w_cursor.lnum == buf_line_count(curbuf)
 	&& curwin->w_cursor.col >= (int)STRLEN(prompt_text());
 }
 

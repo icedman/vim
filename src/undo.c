@@ -241,7 +241,7 @@ u_save_cursor(void)
 
 /*
  * Save the lines between "top" and "bot" for both the "u" and "U" command.
- * "top" may be 0 and "bot" may be curbuf->b_ml.ml_line_count + 1.
+ * "top" may be 0 and "bot" may be buf_line_count(curbuf) + 1.
  * Careful: may trigger autocommands that reload the buffer.
  * Returns FAIL when lines could not be saved, OK otherwise.
  */
@@ -251,7 +251,7 @@ u_save(linenr_T top, linenr_T bot)
     if (undo_off)
 	return OK;
 
-    if (top >= bot || bot > curbuf->b_ml.ml_line_count + 1)
+    if (top >= bot || bot > buf_line_count(curbuf) + 1)
 	return FAIL;	// rely on caller to give an error message
 
     if (top + 2 == bot)
@@ -304,7 +304,7 @@ u_savedel(linenr_T lnum, long nlines)
 	return OK;
 
     return (u_savecommon(lnum - 1, lnum + nlines,
-		     nlines == curbuf->b_ml.ml_line_count ? 2 : lnum, FALSE));
+		     nlines == buf_line_count(curbuf) ? 2 : lnum, FALSE));
 }
 
 /*
@@ -359,10 +359,10 @@ get_undolevel(void)
     static int
 u_save_line(undoline_T *ul, linenr_T lnum)
 {
-    char_u *line = ml_get(lnum);
+    char_u *line = buf_line(curbuf, lnum, FALSE);
 
-    ul->ul_textlen = ml_get_len(lnum);
-    if (curbuf->b_ml.ml_line_len == 0)
+    ul->ul_textlen = buf_line_len(curbuf, lnum);
+    if (buf_line_full_len(curbuf) == 0)
     {
 	ul->ul_len = 1;
 	ul->ul_line = vim_strsave((char_u *)"");
@@ -371,7 +371,7 @@ u_save_line(undoline_T *ul, linenr_T lnum)
     {
 	// This uses the length in the memline, thus text properties are
 	// included.
-	ul->ul_len = curbuf->b_ml.ml_line_len;
+	ul->ul_len = buf_line_full_len(curbuf);
 	ul->ul_line = vim_memsave(line, ul->ul_len);
     }
     return ul->ul_line == NULL ? FAIL : OK;
@@ -462,7 +462,7 @@ u_savecommon(
 	 * (e.g., obtained from a source control system).
 	 */
 	change_warning(0);
-	if (bot > curbuf->b_ml.ml_line_count + 1)
+	if (bot > buf_line_count(curbuf) + 1)
 	{
 	    // This happens when the FileChangedRO autocommand changes the
 	    // file in a way it becomes shorter.
@@ -482,7 +482,7 @@ u_savecommon(
     {
 	if (top > 0 && has_prop_w_flags(top + 1, TP_FLAG_CONT_PREV))
 	    --top;
-	if (bot <= curbuf->b_ml.ml_line_count
+	if (bot <= buf_line_count(curbuf)
 			       && has_prop_w_flags(bot - 1, TP_FLAG_CONT_NEXT))
 	{
 	    ++bot;
@@ -597,7 +597,7 @@ u_savecommon(
 
 	// save changed and buffer empty flag for undo
 	uhp->uh_flags = (curbuf->b_changed ? UH_CHANGED : 0) +
-		       ((curbuf->b_ml.ml_flags & ML_EMPTY) ? UH_EMPTYBUF : 0);
+		       (buf_has_empty_flag(curbuf) ? UH_EMPTYBUF : 0);
 
 	// save named marks and Visual marks for undo
 	mch_memmove(uhp->uh_namedm, curbuf->b_namedm, sizeof(pos_T) * NMARKS);
@@ -636,9 +636,9 @@ u_savecommon(
 		if ((curbuf->b_u_newhead->uh_getbot_entry != uep
 			    ? (uep->ue_top + uep->ue_size + 1
 				!= (uep->ue_bot == 0
-				    ? curbuf->b_ml.ml_line_count + 1
+				    ? buf_line_count(curbuf) + 1
 				    : uep->ue_bot))
-			    : uep->ue_lcount != curbuf->b_ml.ml_line_count)
+			    : uep->ue_lcount != buf_line_count(curbuf))
 			|| (uep->ue_size > 1
 			    && top >= uep->ue_top
 			    && top + 2 <= uep->ue_top + uep->ue_size + 1))
@@ -669,11 +669,11 @@ u_savecommon(
 		    // The executed command may change the line count.
 		    if (newbot != 0)
 			uep->ue_bot = newbot;
-		    else if (bot > curbuf->b_ml.ml_line_count)
+		    else if (bot > buf_line_count(curbuf))
 			uep->ue_bot = 0;
 		    else
 		    {
-			uep->ue_lcount = curbuf->b_ml.ml_line_count;
+			uep->ue_lcount = buf_line_count(curbuf);
 			curbuf->b_u_newhead->uh_getbot_entry = uep;
 		    }
 		    return OK;
@@ -706,11 +706,11 @@ u_savecommon(
      * Use 0 for ue_bot if bot is below last line.
      * Otherwise we have to compute ue_bot later.
      */
-    else if (bot > curbuf->b_ml.ml_line_count)
+    else if (bot > buf_line_count(curbuf))
 	uep->ue_bot = 0;
     else
     {
-	uep->ue_lcount = curbuf->b_ml.ml_line_count;
+	uep->ue_lcount = buf_line_count(curbuf);
 	curbuf->b_u_newhead->uh_getbot_entry = uep;
     }
 
@@ -787,8 +787,9 @@ u_compute_hash(char_u *hash)
     linenr_T		lnum;
 
     sha256_start(&ctx);
-    for (lnum = 1; lnum <= curbuf->b_ml.ml_line_count; ++lnum)
-	sha256_update(&ctx, ml_get(lnum), (UINT32_T)(ml_get_len(lnum) + 1));
+    for (lnum = 1; lnum <= buf_line_count(curbuf); ++lnum)
+	sha256_update(&ctx, buf_line(curbuf, lnum, FALSE),
+			      (UINT32_T)(buf_line_len(curbuf, lnum) + 1));
     sha256_finish(&ctx, hash);
 }
 
@@ -1239,7 +1240,7 @@ serialize_header(bufinfo_T *bi, char_u *hash)
 	return FAIL;
 
     // buffer-specific data
-    undo_write_bytes(bi, (long_u)buf->b_ml.ml_line_count, 4);
+    undo_write_bytes(bi, (long_u)buf_line_count(buf), 4);
     undo_write_bytes(bi, (long_u)buf->b_u_line_ptr.ul_textlen, 4);
     if (buf->b_u_line_ptr.ul_textlen > 0 && fwrite_crypt(bi, buf->b_u_line_ptr.ul_line,
 			(size_t)buf->b_u_line_ptr.ul_textlen) == FAIL)
@@ -1998,7 +1999,7 @@ u_read_undo(char_u *name, char_u *hash, char_u *orig_name UNUSED)
     }
     line_count = (linenr_T)undo_read_4c(&bi);
     if (memcmp(hash, read_hash, UNDO_HASH_SIZE) != 0
-				  || line_count != curbuf->b_ml.ml_line_count)
+				  || line_count != buf_line_count(curbuf))
     {
 	if (p_verbose > 0 || name != NULL)
 	{
@@ -2270,7 +2271,7 @@ u_doit(int startcount)
 
     u_newcount = 0;
     u_oldcount = 0;
-    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+    if (buf_has_empty_flag(curbuf))
 	u_oldcount = -1;
     while (count--)
     {
@@ -2373,7 +2374,7 @@ undo_time(
 
     u_newcount = 0;
     u_oldcount = 0;
-    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+    if (buf_has_empty_flag(curbuf))
 	u_oldcount = -1;
 
     // "target" is the node below which we want to be.
@@ -2730,7 +2731,7 @@ u_undoredo(int undo)
 #endif
     old_flags = curhead->uh_flags;
     new_flags = (curbuf->b_changed ? UH_CHANGED : 0) +
-	       ((curbuf->b_ml.ml_flags & ML_EMPTY) ? UH_EMPTYBUF : 0);
+	       (buf_has_empty_flag(curbuf) ? UH_EMPTYBUF : 0);
     setpcmark();
 
     /*
@@ -2738,7 +2739,7 @@ u_undoredo(int undo)
      */
     mch_memmove(namedm, curbuf->b_namedm, sizeof(pos_T) * NMARKS);
     visualinfo = curbuf->b_visual;
-    curbuf->b_op_start.lnum = curbuf->b_ml.ml_line_count;
+    curbuf->b_op_start.lnum = buf_line_count(curbuf);
     curbuf->b_op_start.col = 0;
     curbuf->b_op_end.lnum = 0;
     curbuf->b_op_end.col = 0;
@@ -2748,9 +2749,9 @@ u_undoredo(int undo)
 	top = uep->ue_top;
 	bot = uep->ue_bot;
 	if (bot == 0)
-	    bot = curbuf->b_ml.ml_line_count + 1;
-	if (top > curbuf->b_ml.ml_line_count || top >= bot
-				      || bot > curbuf->b_ml.ml_line_count + 1)
+	    bot = buf_line_count(curbuf) + 1;
+	if (top > buf_line_count(curbuf) || top >= bot
+				      || bot > buf_line_count(curbuf) + 1)
 	{
 	    unblock_autocmds();
 	    iemsg(e_u_undo_line_numbers_wrong);
@@ -2783,11 +2784,11 @@ u_undoredo(int undo)
 		// line.
 		for (i = 0; i < newsize && i < oldsize; ++i)
 		{
-		    char_u *p = ml_get(top + 1 + i);
+		    char_u *p = buf_line(curbuf, top + 1 + i, FALSE);
 
-		    if (curbuf->b_ml.ml_line_len != uep->ue_array[i].ul_len
+		    if (buf_line_full_len(curbuf) != uep->ue_array[i].ul_len
 			    || memcmp(uep->ue_array[i].ul_line, p,
-						curbuf->b_ml.ml_line_len) != 0)
+						buf_line_full_len(curbuf)) != 0)
 			break;
 		}
 		if (i == newsize && newlnum == MAXLNUM && uep->ue_next == NULL)
@@ -2832,9 +2833,9 @@ u_undoredo(int undo)
 		    do_outofmem_msg((long_u)0);
 		// remember we deleted the last line in the buffer, and a
 		// dummy empty line will be inserted
-		if (curbuf->b_ml.ml_line_count == 1)
+		if (buf_line_count(curbuf) == 1)
 		    empty_buffer = TRUE;
-		ml_delete_flags(lnum, ML_DEL_UNDO);
+		buf_delete_line(curbuf, lnum, ML_DEL_UNDO);
 	    }
 	}
 	else
@@ -2853,10 +2854,11 @@ u_undoredo(int undo)
 		// If the file is empty, there is an empty line 1 that we
 		// should get rid of, by replacing it with the new line.
 		if (empty_buffer && lnum == 0)
-		    ml_replace_len((linenr_T)1, uep->ue_array[i].ul_line,
+		    buf_replace_line(curbuf, (linenr_T)1,
+					  uep->ue_array[i].ul_line,
 					  uep->ue_array[i].ul_len, TRUE, TRUE);
 		else
-		    ml_append_flags(lnum, uep->ue_array[i].ul_line,
+		    buf_append_line(curbuf, lnum, uep->ue_array[i].ul_line,
 			     (colnr_T)uep->ue_array[i].ul_len, ML_APPEND_UNDO);
 		vim_free(uep->ue_array[i].ul_line);
 	    }
@@ -2880,7 +2882,7 @@ u_undoredo(int undo)
 	    // When text has been changed, possibly the start of the next line
 	    // may have SpellCap that should be removed or it needs to be
 	    // displayed.  Schedule the next line for redrawing just in case.
-	    if (spell_check_window(curwin) && bot <= curbuf->b_ml.ml_line_count)
+	    if (spell_check_window(curwin) && bot <= buf_line_count(curbuf))
 		redrawWinline(curwin, bot);
 #endif
 	}
@@ -2909,10 +2911,10 @@ u_undoredo(int undo)
     }
 
     // Ensure the '[ and '] marks are within bounds.
-    if (curbuf->b_op_start.lnum > curbuf->b_ml.ml_line_count)
-	 curbuf->b_op_start.lnum = curbuf->b_ml.ml_line_count;
-    if (curbuf->b_op_end.lnum > curbuf->b_ml.ml_line_count)
-	 curbuf->b_op_end.lnum = curbuf->b_ml.ml_line_count;
+    if (curbuf->b_op_start.lnum > buf_line_count(curbuf))
+	 curbuf->b_op_start.lnum = buf_line_count(curbuf);
+    if (curbuf->b_op_end.lnum > buf_line_count(curbuf))
+	 curbuf->b_op_end.lnum = buf_line_count(curbuf);
 
     // Set the cursor to the desired position.  Check that the line is valid.
     curwin->w_cursor = new_curpos;
@@ -2920,8 +2922,8 @@ u_undoredo(int undo)
 
     curhead->uh_entry = newlist;
     curhead->uh_flags = new_flags;
-    if ((old_flags & UH_EMPTYBUF) && BUFEMPTY())
-	curbuf->b_ml.ml_flags |= ML_EMPTY;
+    if ((old_flags & UH_EMPTYBUF) && buf_is_empty(curbuf))
+	buf_set_empty_flag(curbuf, TRUE);
     if (old_flags & UH_CHANGED)
 	changed();
     else
@@ -2957,7 +2959,7 @@ u_undoredo(int undo)
     if (curhead->uh_cursor.lnum + 1 == curwin->w_cursor.lnum
 						 && curwin->w_cursor.lnum > 1)
 	--curwin->w_cursor.lnum;
-    if (curwin->w_cursor.lnum <= curbuf->b_ml.ml_line_count)
+    if (curwin->w_cursor.lnum <= buf_line_count(curbuf))
     {
 	if (curhead->uh_cursor.lnum == curwin->w_cursor.lnum)
 	{
@@ -3038,7 +3040,7 @@ u_undo_end(
 	    || shortmess(SHM_UNDO))
 	return;
 
-    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+    if (buf_has_empty_flag(curbuf))
 	--u_newcount;
 
     u_oldcount -= u_newcount;
@@ -3287,12 +3289,12 @@ u_find_first_changed(void)
     if (uep->ue_top != 0 || uep->ue_bot != 0)
 	return;
 
-    for (lnum = 1; lnum < curbuf->b_ml.ml_line_count
+    for (lnum = 1; lnum < buf_line_count(curbuf)
 					      && lnum <= uep->ue_size; ++lnum)
     {
-	char_u *p = ml_get_buf(curbuf, lnum, FALSE);
+	char_u *p = buf_line(curbuf, lnum, FALSE);
 
-	if (uep->ue_array[lnum - 1].ul_len != curbuf->b_ml.ml_line_len
+	if (uep->ue_array[lnum - 1].ul_len != buf_line_full_len(curbuf)
 		|| memcmp(p, uep->ue_array[lnum - 1].ul_line, uep->ue_array[lnum - 1].ul_len) != 0)
 	{
 	    CLEAR_POS(&(uhp->uh_cursor));
@@ -3300,7 +3302,7 @@ u_find_first_changed(void)
 	    return;
 	}
     }
-    if (curbuf->b_ml.ml_line_count != uep->ue_size)
+    if (buf_line_count(curbuf) != uep->ue_size)
     {
 	// lines added or deleted at the end, put the cursor there
 	CLEAR_POS(&(uhp->uh_cursor));
@@ -3378,9 +3380,9 @@ u_getbot(void)
 	 * inserted (0 - deleted) since calling u_save. This is equal to the
 	 * old line count subtracted from the current line count.
 	 */
-	extra = curbuf->b_ml.ml_line_count - uep->ue_lcount;
+	extra = buf_line_count(curbuf) - uep->ue_lcount;
 	uep->ue_bot = uep->ue_top + uep->ue_size + 1 + extra;
-	if (uep->ue_bot < 1 || uep->ue_bot > curbuf->b_ml.ml_line_count)
+	if (uep->ue_bot < 1 || uep->ue_bot > buf_line_count(curbuf))
 	{
 	    iemsg(e_undo_line_missing);
 	    uep->ue_bot = uep->ue_top + 1;  // assume all lines deleted, will
@@ -3559,7 +3561,7 @@ u_saveline(linenr_T lnum)
 {
     if (lnum == curbuf->b_u_line_lnum)	    // line is already saved
 	return;
-    if (lnum < 1 || lnum > curbuf->b_ml.ml_line_count) // should never happen
+    if (lnum < 1 || lnum > buf_line_count(curbuf)) // should never happen
 	return;
     u_clearline();
     curbuf->b_u_line_lnum = lnum;
@@ -3603,7 +3605,7 @@ u_undoline(void)
 	return;
 
     if (curbuf->b_u_line_ptr.ul_line == NULL
-			|| curbuf->b_u_line_lnum > curbuf->b_ml.ml_line_count)
+			|| curbuf->b_u_line_lnum > buf_line_count(curbuf))
     {
 	beep_flush();
 	return;
@@ -3618,7 +3620,8 @@ u_undoline(void)
 	do_outofmem_msg((long_u)0);
 	return;
     }
-    ml_replace_len(curbuf->b_u_line_lnum, curbuf->b_u_line_ptr.ul_line,
+    buf_replace_line(curbuf, curbuf->b_u_line_lnum,
+				     curbuf->b_u_line_ptr.ul_line,
 				     curbuf->b_u_line_ptr.ul_len, TRUE, FALSE);
     changed_bytes(curbuf->b_u_line_lnum, 0);
     curbuf->b_u_line_ptr = oldp;

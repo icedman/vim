@@ -280,8 +280,8 @@ mf_close_file(
     {
 	// get all blocks in memory by accessing all lines (clumsy!)
 	mf_dont_release = TRUE;
-	for (lnum = 1; lnum <= buf->b_ml.ml_line_count; ++lnum)
-	    (void)ml_get_buf(buf, lnum, FALSE);
+	for (lnum = 1; lnum <= buf_line_count(buf); ++lnum)
+	    (void)buf_line(buf, lnum, FALSE);
 	mf_dont_release = FALSE;
 	// TODO: should check if all blocks are really in core
     }

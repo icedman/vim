@@ -139,13 +139,13 @@ read_buffer(
     {
 	// Delete the binary lines.
 	while (--line_count >= 0)
-	    ml_delete((linenr_T)1);
+	    buf_delete_line(curbuf, (linenr_T)1, 0);
     }
     else
     {
 	// Delete the converted lines.
 	while (curbuf->b_ml.ml_line_count > line_count)
-	    ml_delete(line_count);
+	    buf_delete_line(curbuf, line_count, 0);
     }
     // Put the cursor on the first line.
     curwin->w_cursor.lnum = 1;
@@ -155,7 +155,7 @@ read_buffer(
     {
 	// Set or reset 'modified' before executing autocommands, so that
 	// it can be changed there.
-	if (!readonlymode && !BUFEMPTY())
+	if (!readonlymode && !buf_is_empty(curbuf))
 	    changed();
 	else if (retval == OK)
 	    unchanged(curbuf, FALSE, TRUE);
@@ -2142,7 +2142,7 @@ curbuf_reusable(void)
     return (curbuf != NULL
 	&& curbuf->b_ffname == NULL
 	&& curbuf->b_nwindows <= 1
-	&& (curbuf->b_ml.ml_mfp == NULL || BUFEMPTY())
+	&& (curbuf->b_ml.ml_mfp == NULL || buf_is_empty(curbuf))
 	&& !bt_quickfix(curbuf)
 	&& !curbufIsChanged());
 }
@@ -2609,7 +2609,7 @@ buflist_getfile(
 	// If 'switchbuf' contains "split", "vsplit" or "newtab" and the
 	// current buffer isn't empty: open new tab or window
 	if (wp == NULL && (swb_flags & (SWB_VSPLIT | SWB_SPLIT | SWB_NEWTAB))
-							       && !BUFEMPTY())
+						      && !buf_is_empty(curbuf))
 	{
 	    if (swb_flags & SWB_NEWTAB)
 		tabpage_new();
@@ -6489,6 +6489,211 @@ buf_get_fname(buf_T *buf)
     if (buf->b_fname == NULL)
 	return (char_u *)_("[No Name]");
     return buf->b_fname;
+}
+
+/*
+ * Return a line from "buf".
+ *
+ * The returned pointer is only valid until the next line access.  When
+ * "will_change" is TRUE the line is prepared for modification.
+ */
+    char_u *
+buf_line(
+    buf_T	*buf,
+    linenr_T	lnum,
+    int		will_change)
+{
+    return ml_get_buf(buf, lnum, will_change);
+}
+
+// Return the length of a line in "buf", excluding the NUL byte.
+    colnr_T
+buf_line_len(buf_T *buf, linenr_T lnum)
+{
+    return ml_get_buf_len(buf, lnum);
+}
+
+/*
+ * Return the text of "buf" starting at position "pos".
+ * The returned pointer is only valid until the next line access.
+ */
+    char_u *
+buf_line_at(buf_T *buf, pos_T *pos)
+{
+    return buf_line(buf, pos->lnum, FALSE) + pos->col;
+}
+
+// Return the number of bytes from "pos" to the end of its line in "buf".
+    colnr_T
+buf_line_at_len(buf_T *buf, pos_T *pos)
+{
+    return buf_line_len(buf, pos->lnum) - pos->col;
+}
+
+// Return the cached line size, including NUL and text properties.
+    colnr_T
+buf_line_full_len(buf_T *buf)
+{
+    return buf->b_ml.ml_line_len;
+}
+
+/*
+ * Prepare line "lnum" as the dirty cached line for "buf".
+ */
+    void
+buf_prepare_cached_line(buf_T *buf, linenr_T lnum)
+{
+    if (buf->b_ml.ml_line_lnum != lnum
+				      || !(buf->b_ml.ml_flags & ML_LINE_DIRTY))
+	(void)buf_line(buf, lnum, TRUE);
+}
+
+/*
+ * Replace the cached line with the owned allocation "line".  Adjust the
+ * cached text size by "textlen_adjust", or invalidate it when requested.
+ */
+    void
+buf_replace_cached_line(
+    buf_T	*buf,
+    char_u	*line,
+    colnr_T	line_len,
+    int		textlen_adjust,
+    int		invalidate_textlen,
+    int		clear_empty)
+{
+    if (buf->b_ml.ml_flags & (ML_LINE_DIRTY | ML_ALLOCATED))
+	vim_free(buf->b_ml.ml_line_ptr);
+    buf->b_ml.ml_line_ptr = line;
+    buf->b_ml.ml_line_len = line_len;
+    if (invalidate_textlen)
+	buf->b_ml.ml_line_textlen = 0;
+    else
+	buf->b_ml.ml_line_textlen += textlen_adjust;
+    buf->b_ml.ml_flags |= ML_LINE_DIRTY;
+    if (clear_empty)
+	buf->b_ml.ml_flags &= ~ML_EMPTY;
+}
+
+/*
+ * Update cached lengths after changing the cached line in place.
+ */
+    void
+buf_adjust_cached_line_len(buf_T *buf, int amount, int textlen)
+{
+    buf->b_ml.ml_line_len += amount;
+    buf->b_ml.ml_line_textlen = textlen;
+}
+
+// Return the number of lines in "buf".
+    linenr_T
+buf_line_count(buf_T *buf)
+{
+    return buf->b_ml.ml_line_count;
+}
+
+// Return TRUE when "buf" has an allocated memline.
+    int
+buf_is_loaded(buf_T *buf)
+{
+    return buf->b_ml.ml_mfp != NULL;
+}
+
+// Return TRUE when "buf" contains one empty line.
+    int
+buf_is_empty(buf_T *buf)
+{
+    return buf_line_count(buf) == 1
+	&& *buf_line(buf, (linenr_T)1, FALSE) == NUL;
+}
+
+// Return TRUE when memline marks "buf" as having its initial empty line.
+    int
+buf_has_empty_flag(buf_T *buf)
+{
+    return (buf->b_ml.ml_flags & ML_EMPTY) != 0;
+}
+
+// Set or clear the initial-empty-line state for "buf".
+    void
+buf_set_empty_flag(buf_T *buf, int empty)
+{
+    if (empty)
+	buf->b_ml.ml_flags |= ML_EMPTY;
+    else
+	buf->b_ml.ml_flags &= ~ML_EMPTY;
+}
+
+// Return the swap-file name for "buf", or NULL when there is no swap file.
+    char_u *
+buf_swapfile_name(buf_T *buf)
+{
+    if (!buf_is_loaded(buf))
+	return NULL;
+    return buf->b_ml.ml_mfp->mf_fname;
+}
+
+// Return the swap-file descriptor for "buf", or -1 when there is none.
+    int
+buf_swapfile_fd(buf_T *buf)
+{
+    if (buf_swapfile_name(buf) == NULL)
+	return -1;
+    return buf->b_ml.ml_mfp->mf_fd;
+}
+
+// Allow the swap file for "buf" to be synced after reading has completed.
+    void
+buf_enable_swapfile_sync(buf_T *buf)
+{
+    if (buf_is_loaded(buf)
+			&& buf->b_ml.ml_mfp->mf_dirty == MF_DIRTY_YES_NOSYNC)
+	buf->b_ml.ml_mfp->mf_dirty = MF_DIRTY_YES;
+}
+
+// Make the swap-file name for "buf" absolute.
+    void
+buf_make_swapfile_name_full(buf_T *buf)
+{
+    if (buf_is_loaded(buf))
+	mf_fullname(buf->b_ml.ml_mfp);
+}
+
+/*
+ * Append a line to "buf".  "flags" are ML_APPEND_ values; TRUE is accepted as
+ * ML_APPEND_NEW.  For the current buffer the memline is created when needed,
+ * like ml_append().  For another buffer only ML_APPEND_NEW is supported.
+ */
+    int
+buf_append_line(
+    buf_T	*buf,
+    linenr_T	lnum,
+    char_u	*line,
+    colnr_T	len,
+    int		flags)
+{
+    if (buf == curbuf)
+	return ml_append_flags(lnum, line, len, flags);
+    return ml_append_buf(buf, lnum, line, len, (flags & ML_APPEND_NEW) != 0);
+}
+
+// Replace a line in "buf", preserving the memline ownership contract.
+    int
+buf_replace_line(
+    buf_T	*buf,
+    linenr_T	lnum,
+    char_u	*line,
+    colnr_T	len,
+    int		has_props,
+    int		copy)
+{
+    return ml_replace_buf_len(buf, lnum, line, len, has_props, copy);
+}
+
+// Delete a line from "buf" using the memline deletion flags.
+    int
+buf_delete_line(buf_T *buf, linenr_T lnum, int flags)
+{
+    return ml_delete_buf_flags(buf, lnum, flags);
 }
 
 /*

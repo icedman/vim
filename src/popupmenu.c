@@ -1436,8 +1436,8 @@ pum_set_selected(int n, int repeat UNUSED)
 			&& curbuf->b_p_bh[0] == 'w')
 		{
 		    // Already a "wipeout" buffer, make it empty.
-		    while (!BUFEMPTY())
-			ml_delete((linenr_T)1);
+		    while (!buf_is_empty(curbuf))
+			buf_delete_line(curbuf, (linenr_T)1, 0);
 		}
 		else
 		{
@@ -1471,16 +1471,17 @@ pum_set_selected(int n, int repeat UNUSED)
 			e = vim_strchr(p, '\n');
 			if (e == NULL)
 			{
-			    ml_append(lnum++, p, 0, FALSE);
+			    buf_append_line(curbuf, lnum++, p, 0, FALSE);
 			    break;
 			}
 			*e = NUL;
-			ml_append(lnum++, p, (int)(e - p + 1), FALSE);
+			buf_append_line(curbuf, lnum++, p, (int)(e - p + 1),
+								       FALSE);
 			*e = '\n';
 			p = e + 1;
 		    }
 		    // delete the empty last line
-		    ml_delete(curbuf->b_ml.ml_line_count);
+		    buf_delete_line(curbuf, buf_line_count(curbuf), 0);
 
 		    // Increase the height of the preview window to show the
 		    // text, but no more than 'previewheight' lines.
@@ -1503,8 +1504,8 @@ pum_set_selected(int n, int repeat UNUSED)
 # endif
 			curwin->w_topline = 1;
 		    }
-		    else if (curwin->w_topline > curbuf->b_ml.ml_line_count)
-			curwin->w_topline = curbuf->b_ml.ml_line_count;
+		    else if (curwin->w_topline > buf_line_count(curbuf))
+			curwin->w_topline = buf_line_count(curbuf);
 		    curwin->w_cursor.lnum = curwin->w_topline;
 		    curwin->w_cursor.col = 0;
 # ifdef FEAT_PROP_POPUP

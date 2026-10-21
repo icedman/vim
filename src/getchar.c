@@ -3719,13 +3719,15 @@ vgetorpeek(int advance)
 			    // we are expecting to truncate the trailing
 			    // white-space, so find the last non-white
 			    // character -- webb
-			    if (did_ai && *skipwhite(ml_get_curline()
+			    if (did_ai && *skipwhite(buf_line(curbuf,
+					  curwin->w_cursor.lnum, FALSE)
 						+ curwin->w_cursor.col) == NUL)
 			    {
 				chartabsize_T cts;
 
 				curwin->w_wcol = 0;
-				ptr = ml_get_curline();
+				ptr = buf_line(curbuf,
+					  curwin->w_cursor.lnum, FALSE);
 				init_chartabsize_arg(&cts, curwin,
 					  curwin->w_cursor.lnum, 0, ptr, ptr);
 				while (cts.cts_ptr < ptr + curwin->w_cursor.col)
@@ -3763,7 +3765,8 @@ vgetorpeek(int advance)
 			{
 			    // Correct when the cursor is on the right halve
 			    // of a double-wide character.
-			    ptr = ml_get_curline();
+			    ptr = buf_line(curbuf,
+				      curwin->w_cursor.lnum, FALSE);
 			    col -= (*mb_head_off)(ptr, ptr + col);
 			    if ((*mb_ptr2cells)(ptr + col) > 1)
 				--curwin->w_wcol;

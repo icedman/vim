@@ -1578,7 +1578,7 @@ ex_doautoall(exarg_T *eap)
     FOR_ALL_BUFFERS(buf)
     {
 	// Only do loaded buffers and skip the current buffer, it's done last.
-	if (buf->b_ml.ml_mfp == NULL || buf == curbuf)
+	if (!buf_is_loaded(buf) || buf == curbuf)
 	    continue;
 
 	// Find a window for this buffer and save some values.
@@ -1836,9 +1836,9 @@ win_found:
 	// the buffer contents may have changed
 	VIsual_active = aco->save_VIsual_active;
 	check_cursor();
-	if (curwin->w_topline > curbuf->b_ml.ml_line_count)
+	if (curwin->w_topline > buf_line_count(curbuf))
 	{
-	    curwin->w_topline = curbuf->b_ml.ml_line_count;
+	    curwin->w_topline = buf_line_count(curbuf);
 #ifdef FEAT_DIFF
 	    curwin->w_topfill = 0;
 #endif
@@ -1866,7 +1866,7 @@ win_found:
 	    if (curwin->w_id == aco->new_curwin_id
 		    && curbuf != aco->new_curbuf.br_buf
 		    && bufref_valid(&aco->new_curbuf)
-		    && aco->new_curbuf.br_buf->b_ml.ml_mfp != NULL)
+		    && buf_is_loaded(aco->new_curbuf.br_buf))
 	    {
 #if defined(FEAT_SYN_HL) || defined(FEAT_SPELL)
 		if (curwin->w_s == &curbuf->b_s)

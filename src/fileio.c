@@ -642,11 +642,10 @@ readfile(
 	}
 #ifdef UNIX
 	// Set swap file protection bits after creating it.
-	if (swap_mode > 0 && curbuf->b_ml.ml_mfp != NULL
-			  && curbuf->b_ml.ml_mfp->mf_fname != NULL)
-	{
-	    char_u *swap_fname = curbuf->b_ml.ml_mfp->mf_fname;
+	char_u *swap_fname = buf_swapfile_name(curbuf);
 
+	if (swap_mode > 0 && swap_fname != NULL)
+	{
 	    /*
 	     * If the group-read bit is set but not the world-read bit, then
 	     * the group must be equal to the group of the original file.  If
@@ -661,7 +660,7 @@ readfile(
 		if (mch_stat((char *)swap_fname, &swap_st) >= 0
 			&& st.st_gid != swap_st.st_gid
 # ifdef HAVE_FCHOWN
-			&& fchown(curbuf->b_ml.ml_mfp->mf_fd, -1, st.st_gid)
+			&& fchown(buf_swapfile_fd(curbuf), -1, st.st_gid)
 									  == -1
 # endif
 		   )
@@ -766,7 +765,7 @@ readfile(
     }
 
     // Autocommands may add lines to the file, need to check if it is empty
-    wasempty = (curbuf->b_ml.ml_flags & ML_EMPTY);
+    wasempty = buf_has_empty_flag(curbuf);
 
     if (!recoverymode && !filtering && !(flags & READ_DUMMY))
     {
@@ -813,7 +812,7 @@ readfile(
      * Set linecnt now, before the "retry" caused by a wrong guess for
      * fileformat, and after the autocommands, which may change them.
      */
-    linecnt = curbuf->b_ml.ml_line_count;
+    linecnt = buf_line_count(curbuf);
 
     // "++bad=" argument.
     if (eap != NULL && eap->bad_char != 0)
@@ -930,7 +929,7 @@ retry:
 	}
 	// Delete the previously read lines.
 	while (lnum > from)
-	    ml_delete(lnum--);
+	    buf_delete_line(curbuf, lnum--, 0);
 	file_rewind = FALSE;
 	if (set_options)
 	{
@@ -1265,8 +1264,10 @@ retry:
 			tlen = 0;
 			for (;;)
 			{
-			    p = ml_get(read_buf_lnum) + read_buf_col;
-			    n = ml_get_len(read_buf_lnum) - read_buf_col;
+			    p = buf_line(curbuf, read_buf_lnum, FALSE)
+								+ read_buf_col;
+			    n = buf_line_len(curbuf, read_buf_lnum)
+								- read_buf_col;
 			    if ((int)tlen + n + 1 > size)
 			    {
 				// Filled up to "size", append partial line.
@@ -1479,12 +1480,12 @@ retry:
 			    if (can_retry)
 				goto rewind_retry;
 			    if (conv_error == 0)
-				conv_error = curbuf->b_ml.ml_line_count
+				conv_error = buf_line_count(curbuf)
 								- linecnt + 1;
 			}
 			// Remember the first linenr with an illegal byte
 			else if (illegal_byte == 0)
-			    illegal_byte = curbuf->b_ml.ml_line_count
+			    illegal_byte = buf_line_count(curbuf)
 								- linecnt + 1;
 			if (bad_char_behavior == BAD_DROP)
 			{
@@ -2253,7 +2254,8 @@ rewind_retry:
 		    {
 			*ptr = NUL;	    // end of line
 			len = (colnr_T) (ptr - line_start + 1);
-			if (ml_append(lnum, line_start, len, newfile) == FAIL)
+			if (buf_append_line(curbuf, lnum, line_start, len,
+							      newfile) == FAIL)
 			{
 			    error = TRUE;
 			    break;
@@ -2350,7 +2352,8 @@ rewind_retry:
 			    ff_error = EOL_DOS;
 			}
 		    }
-		    if (ml_append(lnum, line_start, len, newfile) == FAIL)
+		    if (buf_append_line(curbuf, lnum, line_start, len,
+							      newfile) == FAIL)
 		    {
 			error = TRUE;
 			break;
@@ -2411,7 +2414,7 @@ failed:
 	    curbuf->b_p_eol = FALSE;
 	*ptr = NUL;
 	len = (colnr_T)(ptr - line_start + 1);
-	if (ml_append(lnum, line_start, len, newfile) == FAIL)
+	if (buf_append_line(curbuf, lnum, line_start, len, newfile) == FAIL)
 	    error = TRUE;
 	else
 	{
@@ -2485,18 +2488,18 @@ failed:
     if (!recoverymode)
     {
 	// need to delete the last line, which comes from the empty buffer
-	if (newfile && wasempty && !(curbuf->b_ml.ml_flags & ML_EMPTY))
+	if (newfile && wasempty && !buf_has_empty_flag(curbuf))
 	{
 #ifdef FEAT_NETBEANS_INTG
 	    netbeansFireChanges = 0;
 #endif
-	    ml_delete(curbuf->b_ml.ml_line_count);
+	    buf_delete_line(curbuf, buf_line_count(curbuf), 0);
 #ifdef FEAT_NETBEANS_INTG
 	    netbeansFireChanges = 1;
 #endif
 	    --linecnt;
 	}
-	linecnt = curbuf->b_ml.ml_line_count - linecnt;
+	linecnt = buf_line_count(curbuf) - linecnt;
 	if (filesize == 0)
 	    linecnt = 0;
 	if (newfile || read_buffer)
@@ -2798,10 +2801,8 @@ failed:
 	retval = OK;
 
 theend:
-    if (curbuf->b_ml.ml_mfp != NULL
-		       && curbuf->b_ml.ml_mfp->mf_dirty == MF_DIRTY_YES_NOSYNC)
-	// OK to sync the swap file now
-	curbuf->b_ml.ml_mfp->mf_dirty = MF_DIRTY_YES;
+    // OK to sync the swap file now.
+    buf_enable_swapfile_sync(curbuf);
 
     return retval;
 }
@@ -2838,7 +2839,7 @@ readfile_linenr(
     char_u	*s;
     linenr_T	lnum;
 
-    lnum = curbuf->b_ml.ml_line_count - linecnt + 1;
+    lnum = buf_line_count(curbuf) - linecnt + 1;
     for (s = p; s < endp; ++s)
 	if (*s == '\n')
 	    ++lnum;
@@ -3595,7 +3596,7 @@ shorten_fnames(int force)
 
 	// Always make the swap file name a full path, a "nofile" buffer may
 	// also have a swap file.
-	mf_fullname(buf->b_ml.ml_mfp);
+	buf_make_swapfile_name_full(buf);
     }
     status_redraw_all();
     redraw_tabline = TRUE;
@@ -4206,10 +4207,11 @@ move_lines(buf_T *frombuf, buf_T *tobuf)
 
     // Copy the lines in "frombuf" to "tobuf".
     curbuf = tobuf;
-    for (lnum = 1; lnum <= frombuf->b_ml.ml_line_count; ++lnum)
+    for (lnum = 1; lnum <= buf_line_count(frombuf); ++lnum)
     {
-	p = vim_strnsave(ml_get_buf(frombuf, lnum, FALSE), ml_get_buf_len(frombuf, lnum));
-	if (p == NULL || ml_append(lnum - 1, p, 0, FALSE) == FAIL)
+	p = vim_strnsave(buf_line(frombuf, lnum, FALSE),
+						  buf_line_len(frombuf, lnum));
+	if (p == NULL || buf_append_line(curbuf, lnum - 1, p, 0, FALSE) == FAIL)
 	{
 	    vim_free(p);
 	    retval = FAIL;
@@ -4222,8 +4224,8 @@ move_lines(buf_T *frombuf, buf_T *tobuf)
     if (retval != FAIL)
     {
 	curbuf = frombuf;
-	for (lnum = curbuf->b_ml.ml_line_count; lnum > 0; --lnum)
-	    if (ml_delete(lnum) == FAIL)
+	for (lnum = buf_line_count(curbuf); lnum > 0; --lnum)
+	    if (buf_delete_line(curbuf, lnum, 0) == FAIL)
 	    {
 		// Oops!  We could try putting back the saved lines, but that
 		// might fail again...
@@ -4277,7 +4279,7 @@ buf_check_timestamp(
     // set, we are in the middle of a save or being called recursively: ignore
     // this buffer.
     if (buf->b_ffname == NULL
-	    || buf->b_ml.ml_mfp == NULL
+	    || !buf_is_loaded(buf)
 	    || !bt_normal(buf)
 	    || buf->b_saving
 	    || busy
@@ -4621,12 +4623,12 @@ buf_reload(buf_T *buf, int orig_mode, int reload_options)
 	old_cursor = curwin->w_cursor;
 	old_topline = curwin->w_topline;
 
-	if (p_ur < 0 || curbuf->b_ml.ml_line_count <= p_ur)
+	if (p_ur < 0 || buf_line_count(curbuf) <= p_ur)
 	{
 	    // Save all the text, so that the reload can be undone.
 	    // Sync first so that this is a separate undo-able action.
 	    u_sync(FALSE);
-	    saved = u_savecommon(0, curbuf->b_ml.ml_line_count + 1, 0, TRUE);
+	    saved = u_savecommon(0, buf_line_count(curbuf) + 1, 0, TRUE);
 	    flags |= READ_KEEP_UNDO;
 	}
 
@@ -4637,7 +4639,7 @@ buf_reload(buf_T *buf, int orig_mode, int reload_options)
 	 * the old contents.  Can't use memory only, the file might be
 	 * too big.  Use a hidden buffer to move the buffer contents to.
 	 */
-	if (BUFEMPTY() || saved == FAIL)
+	if (buf_is_empty(curbuf) || saved == FAIL)
 	    savebuf = NULL;
 	else
 	{
@@ -4683,8 +4685,9 @@ buf_reload(buf_T *buf, int orig_mode, int reload_options)
 		{
 		    // Put the text back from the save buffer.  First
 		    // delete any lines that readfile() added.
-		    while (!BUFEMPTY())
-			if (ml_delete(buf->b_ml.ml_line_count) == FAIL)
+		    while (!buf_is_empty(curbuf))
+			if (buf_delete_line(curbuf, buf_line_count(buf), 0)
+								      == FAIL)
 			    break;
 		    (void)move_lines(savebuf, buf);
 		}
@@ -4716,8 +4719,8 @@ buf_reload(buf_T *buf, int orig_mode, int reload_options)
 
 	// Restore the topline and cursor position and check it (lines may
 	// have been removed).
-	if (old_topline > curbuf->b_ml.ml_line_count)
-	    curwin->w_topline = curbuf->b_ml.ml_line_count;
+	if (old_topline > buf_line_count(curbuf))
+	    curwin->w_topline = buf_line_count(curbuf);
 	else
 	    curwin->w_topline = old_topline;
 	curwin->w_cursor = old_cursor;

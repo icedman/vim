@@ -568,7 +568,7 @@ do_exmode(
 	if ((prev_line != curwin->w_cursor.lnum
 		   || changedtick != CHANGEDTICK(curbuf)) && !ex_no_reprint)
 	{
-	    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+	    if (buf_has_empty_flag(curbuf))
 		emsg(_(e_empty_buffer));
 	    else
 	    {
@@ -587,7 +587,7 @@ do_exmode(
 	}
 	else if (ex_pressedreturn && !ex_no_reprint)	// must be at EOF
 	{
-	    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+	    if (buf_has_empty_flag(curbuf))
 		emsg(_(e_empty_buffer));
 	    else
 		emsg(_(e_at_end_of_file));
@@ -1684,7 +1684,7 @@ compute_buffer_local_count(int addr_type, int lnum, int offset)
 	buf = nextbuf;
 	if (addr_type == ADDR_LOADED_BUFFERS)
 	    // skip over unloaded buffers
-	    while (buf->b_ml.ml_mfp == NULL)
+	    while (!buf_is_loaded(buf))
 	    {
 		nextbuf = (offset < 0) ? buf->b_prev : buf->b_next;
 		if (nextbuf == NULL)
@@ -1694,7 +1694,7 @@ compute_buffer_local_count(int addr_type, int lnum, int offset)
     }
     // we might have gone too far, last buffer is not loadedd
     if (addr_type == ADDR_LOADED_BUFFERS)
-	while (buf->b_ml.ml_mfp == NULL)
+	while (!buf_is_loaded(buf))
 	{
 	    nextbuf = (offset >= 0) ? buf->b_prev : buf->b_next;
 	    if (nextbuf == NULL)
@@ -2432,8 +2432,8 @@ do_one_cmd(
 	    /*
 	     * Be vi compatible: no error message for out of range.
 	     */
-	    if (ea.line2 > curbuf->b_ml.ml_line_count)
-		ea.line2 = curbuf->b_ml.ml_line_count;
+	    if (ea.line2 > buf_line_count(curbuf))
+		ea.line2 = buf_line_count(curbuf);
 	}
     }
 
@@ -2762,14 +2762,14 @@ ex_range_without_command(exarg_T *eap)
     }
     else if (eap->addr_count != 0)
     {
-	if (eap->line2 > curbuf->b_ml.ml_line_count)
+	if (eap->line2 > buf_line_count(curbuf))
 	{
 	    // With '-' in 'cpoptions' a line number past the file is an
 	    // error, otherwise put it at the end of the file.
 	    if (vim_strchr(p_cpo, CPO_MINUS) != NULL)
 		eap->line2 = -1;
 	    else
-		eap->line2 = curbuf->b_ml.ml_line_count;
+		eap->line2 = buf_line_count(curbuf);
 	}
 
 	if (eap->line2 < 0)
@@ -2961,7 +2961,7 @@ parse_command_modifiers(
 	if (*eap->cmd == NUL && exmode_active
 		   && (getline_equal(eap->ea_getline, eap->cookie, getexmodeline)
 		       || getline_equal(eap->ea_getline, eap->cookie, getexline))
-			&& curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+			&& curwin->w_cursor.lnum < buf_line_count(curbuf))
 	{
 	    use_plus_cmd = TRUE;
 	    if (!skip_only)
@@ -3469,19 +3469,19 @@ parse_cmd_address(exarg_T *eap, char **errormsg, int silent)
 		    case ADDR_LINES:
 		    case ADDR_OTHER:
 			eap->line1 = 1;
-			eap->line2 = curbuf->b_ml.ml_line_count;
+			eap->line2 = buf_line_count(curbuf);
 			break;
 		    case ADDR_LOADED_BUFFERS:
 			{
 			    buf_T	*buf = firstbuf;
 
 			    while (buf->b_next != NULL
-						  && buf->b_ml.ml_mfp == NULL)
+						  && !buf_is_loaded(buf))
 				buf = buf->b_next;
 			    eap->line1 = buf->b_fnum;
 			    buf = lastbuf;
 			    while (buf->b_prev != NULL
-						  && buf->b_ml.ml_mfp == NULL)
+						  && !buf_is_loaded(buf))
 				buf = buf->b_prev;
 			    eap->line2 = buf->b_fnum;
 			    break;
@@ -4392,8 +4392,8 @@ default_address(exarg_T *eap)
 	case ADDR_OTHER:
 	    // Default is the cursor line number.  Avoid using an invalid
 	    // line number though.
-	    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
-		lnum = curbuf->b_ml.ml_line_count;
+	    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
+		lnum = buf_line_count(curbuf);
 	    else
 		lnum = curwin->w_cursor.lnum;
 	    break;
@@ -4514,7 +4514,7 @@ get_address(
 		{
 		    case ADDR_LINES:
 		    case ADDR_OTHER:
-			lnum = curbuf->b_ml.ml_line_count;
+			lnum = buf_line_count(curbuf);
 			break;
 		    case ADDR_WINDOWS:
 			lnum = LAST_WIN_NR;
@@ -4524,7 +4524,7 @@ get_address(
 			break;
 		    case ADDR_LOADED_BUFFERS:
 			buf = lastbuf;
-			while (buf->b_ml.ml_mfp == NULL)
+			while (!buf_is_loaded(buf))
 			{
 			    if (buf->b_prev == NULL)
 				break;
@@ -4622,8 +4622,8 @@ get_address(
 		    // there.
 		    if (lnum > 0 && lnum != MAXLNUM)
 			curwin->w_cursor.lnum =
-				lnum > curbuf->b_ml.ml_line_count
-					   ? curbuf->b_ml.ml_line_count : lnum;
+				lnum > buf_line_count(curbuf)
+					   ? buf_line_count(curbuf) : lnum;
 
 		    // Start a forward search at the end of the line (unless
 		    // before the first line).
@@ -4825,17 +4825,17 @@ address_default_all(exarg_T *eap)
     {
 	case ADDR_LINES:
 	case ADDR_OTHER:
-	    eap->line2 = curbuf->b_ml.ml_line_count;
+	    eap->line2 = buf_line_count(curbuf);
 	    break;
 	case ADDR_LOADED_BUFFERS:
 	    {
 		buf_T *buf = firstbuf;
 
-		while (buf->b_next != NULL && buf->b_ml.ml_mfp == NULL)
+		while (buf->b_next != NULL && !buf_is_loaded(buf))
 		    buf = buf->b_next;
 		eap->line1 = buf->b_fnum;
 		buf = lastbuf;
-		while (buf->b_prev != NULL && buf->b_ml.ml_mfp == NULL)
+		while (buf->b_prev != NULL && !buf_is_loaded(buf))
 		    buf = buf->b_prev;
 		eap->line2 = buf->b_fnum;
 	    }
@@ -4938,7 +4938,7 @@ invalid_range(exarg_T *eap)
 	switch (eap->addr_type)
 	{
 	    case ADDR_LINES:
-		if (eap->line2 > curbuf->b_ml.ml_line_count
+		if (eap->line2 > buf_line_count(curbuf)
 #ifdef FEAT_DIFF
 			    + (eap->cmdidx == CMD_diffget ||
 				eap->cmdidx == CMD_diffput)
@@ -4959,7 +4959,7 @@ invalid_range(exarg_T *eap)
 		break;
 	    case ADDR_LOADED_BUFFERS:
 		buf = firstbuf;
-		while (buf->b_ml.ml_mfp == NULL)
+		while (!buf_is_loaded(buf))
 		{
 		    if (buf->b_next == NULL)
 			return _(e_invalid_range);
@@ -4968,7 +4968,7 @@ invalid_range(exarg_T *eap)
 		if (eap->line1 < buf->b_fnum)
 		    return _(e_invalid_range);
 		buf = lastbuf;
-		while (buf->b_ml.ml_mfp == NULL)
+		while (!buf_is_loaded(buf))
 		{
 		    if (buf->b_prev == NULL)
 			return _(e_invalid_range);
@@ -6858,7 +6858,7 @@ ex_exit(exarg_T *eap)
     static void
 ex_print(exarg_T *eap)
 {
-    if (curbuf->b_ml.ml_flags & ML_EMPTY)
+    if (buf_has_empty_flag(curbuf))
 	emsg(_(e_empty_buffer));
     else
     {
@@ -7668,7 +7668,8 @@ ex_open(exarg_T *eap)
 	{
 	    // make a copy of the line, when searching for a mark it might be
 	    // flushed
-	    char_u *line = vim_strsave(ml_get_curline());
+	    char_u *line = vim_strsave(buf_line(curbuf,
+					    curwin->w_cursor.lnum, FALSE));
 
 	    regmatch.rm_ic = p_ic;
 	    if (vim_regexec(&regmatch, line, (colnr_T)0))
@@ -7919,10 +7920,12 @@ ex_popup(exarg_T *eap)
     static void
 ex_swapname(exarg_T *eap UNUSED)
 {
-    if (curbuf->b_ml.ml_mfp == NULL || curbuf->b_ml.ml_mfp->mf_fname == NULL)
+    char_u *swapname = buf_swapfile_name(curbuf);
+
+    if (swapname == NULL)
 	msg(_("No swap file"));
     else
-	msg((char *)curbuf->b_ml.ml_mfp->mf_fname);
+	msg((char *)swapname);
 }
 
 /*
@@ -7952,7 +7955,7 @@ ex_syncbind(exarg_T *eap UNUSED)
 	{
 	    if (wp->w_p_scb && wp->w_buffer)
 	    {
-		y = wp->w_buffer->b_ml.ml_line_count - get_scrolloff_value();
+		y = buf_line_count(wp->w_buffer) - get_scrolloff_value();
 		if (topline > y)
 		    topline = y;
 	    }
@@ -8007,7 +8010,7 @@ ex_syncbind(exarg_T *eap UNUSED)
 ex_read(exarg_T *eap)
 {
     int		i;
-    int		empty = (curbuf->b_ml.ml_flags & ML_EMPTY);
+    int		empty = buf_has_empty_flag(curbuf);
     linenr_T	lnum;
 
     if (eap->usefilter)			// :r!cmd
@@ -8066,12 +8069,13 @@ ex_read(exarg_T *eap)
 	    // Delete the empty line that remains.  Historically ex does
 	    // this but vi doesn't.
 	    if (eap->line2 == 0)
-		lnum = curbuf->b_ml.ml_line_count;
+		lnum = buf_line_count(curbuf);
 	    else
 		lnum = 1;
-	    if (*ml_get(lnum) == NUL && u_savedel(lnum, 1L) == OK)
+	    if (*buf_line(curbuf, lnum, FALSE) == NUL
+					    && u_savedel(lnum, 1L) == OK)
 	    {
-		ml_delete(lnum);
+		buf_delete_line(curbuf, lnum, 0);
 		if (curwin->w_cursor.lnum > 1
 			&& curwin->w_cursor.lnum >= lnum)
 		    --curwin->w_cursor.lnum;
@@ -8690,7 +8694,7 @@ ex_copymove(exarg_T *eap)
     /*
      * move or copy lines from 'eap->line1'-'eap->line2' to below line 'n'
      */
-    if (n == MAXLNUM || n < 0 || n > curbuf->b_ml.ml_line_count)
+    if (n == MAXLNUM || n < 0 || n > buf_line_count(curbuf))
     {
 	emsg(_(e_invalid_range));
 	return;
@@ -8747,7 +8751,7 @@ ex_join(exarg_T *eap)
     {
 	if (eap->addr_count >= 2)   // :2,2join does nothing
 	    return;
-	if (eap->line2 == curbuf->b_ml.ml_line_count)
+	if (eap->line2 == buf_line_count(curbuf))
 	{
 	    beep_flush();
 	    return;

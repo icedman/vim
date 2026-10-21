@@ -4467,9 +4467,9 @@ gui_update_scrollbars(
 	    continue;
 
 #ifdef SCROLL_PAST_END
-	max = wp->w_buffer->b_ml.ml_line_count - 1;
+	max = buf_line_count(wp->w_buffer) - 1;
 #else
-	max = wp->w_buffer->b_ml.ml_line_count + wp->w_height - 2;
+	max = buf_line_count(wp->w_buffer) + wp->w_height - 2;
 #endif
 	if (max < 0)			// empty buffer
 	    max = 0;
@@ -4766,7 +4766,7 @@ gui_update_horiz_scrollbar(int force)
      * It is possible for the cursor to be invalid if we're in the middle of
      * something (like changing files).  If so, don't do anything for now.
      */
-    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
+    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
     {
 	gui.bottom_sbar.value = -1;
 	return;
@@ -5521,7 +5521,7 @@ gui_do_findrepl(
 	regmatch.rm_ic = 0;
 	if (regmatch.regprog != NULL)
 	{
-	    p = ml_get_cursor();
+	    p = buf_line_at(curbuf, &curwin->w_cursor);
 	    if (vim_regexec_nl(&regmatch, p, (colnr_T)0)
 						   && regmatch.startp[0] == p)
 	    {

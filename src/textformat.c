@@ -16,7 +16,9 @@
 static int	did_add_space = FALSE;	// auto_format() added an extra space
 					// under the cursor
 
-#define WHITECHAR(cc) (VIM_ISWHITE(cc) && (!enc_utf8 || !utf_iscomposing(utf_ptr2char(ml_get_cursor() + 1))))
+#define WHITECHAR(cc) (VIM_ISWHITE(cc) && (!enc_utf8 \
+	    || !utf_iscomposing(utf_ptr2char( \
+				 buf_line_at(curbuf, &curwin->w_cursor) + 1))))
 
 /*
  * Return TRUE if format option 'x' is in effect.
@@ -115,7 +117,7 @@ internal_format(
 	// Don't break until after the comment leader
 	if (do_comments)
 	{
-	    char_u *line = ml_get_curline();
+	    char_u *line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 
 	    leader_len = get_leader_len(line, NULL, FALSE, TRUE);
 	    if (leader_len == 0 && curbuf->b_p_cin)
@@ -369,7 +371,8 @@ internal_format(
 	{
 	    // In MODE_VREPLACE state, we will backspace over the text to be
 	    // wrapped, so save a copy now to put on the next line.
-	    saved_text = vim_strnsave(ml_get_cursor(), ml_get_cursor_len());
+	    saved_text = vim_strnsave(buf_line_at(curbuf, &curwin->w_cursor),
+				 buf_line_at_len(curbuf, &curwin->w_cursor));
 	    curwin->w_cursor.col = orig_col;
 	    if (saved_text == NULL)
 		break;	// Can't do it, out of memory
@@ -457,7 +460,7 @@ internal_format(
 	    // Check if cursor is not past the NUL off the line, cindent
 	    // may have added or removed indent.
 	    curwin->w_cursor.col += startcol;
-	    len = ml_get_curline_len();
+	    len = buf_line_len(curbuf, curwin->w_cursor.lnum);
 	    if (curwin->w_cursor.col > len)
 		curwin->w_cursor.col = len;
 	}
@@ -504,7 +507,7 @@ fmt_check_par(
     char_u	*flags = NULL;	    // init for GCC
     char_u	*ptr;
 
-    ptr = ml_get(lnum);
+    ptr = buf_line(curbuf, lnum, FALSE);
     if (do_comments)
 	*leader_len = get_leader_len(ptr, leader_flags, FALSE, TRUE);
     else
@@ -529,12 +532,12 @@ fmt_check_par(
     static int
 ends_in_white(linenr_T lnum)
 {
-    char_u	*s = ml_get(lnum);
+    char_u	*s = buf_line(curbuf, lnum, FALSE);
     size_t	l;
 
     if (*s == NUL)
 	return FALSE;
-    l = ml_get_len(lnum) - 1;
+    l = buf_line_len(curbuf, lnum) - 1;
     return VIM_ISWHITE(s[l]);
 }
 
@@ -574,7 +577,7 @@ same_leader(
 		return FALSE;
 	    if (*p == COM_START)
 	    {
-		int line_len = ml_get_len(lnum);
+		int line_len = buf_line_len(curbuf, lnum);
 		if (line_len <= leader1_len)
 		    return FALSE;
 		if (leader2_flags == NULL || leader2_len == 0)
@@ -589,14 +592,15 @@ same_leader(
 
     // Get current line and next line, compare the leaders.
     // The first line has to be saved, only one line can be locked at a time.
-    line1 = vim_strnsave(ml_get(lnum), ml_get_len(lnum));
+    line1 = vim_strnsave(buf_line(curbuf, lnum, FALSE),
+						  buf_line_len(curbuf, lnum));
     if (line1 != NULL)
     {
 	char_u  *line2;
 
 	for (idx1 = 0; VIM_ISWHITE(line1[idx1]); ++idx1)
 	    ;
-	line2 = ml_get(lnum + 1);
+	line2 = buf_line(curbuf, lnum + 1, FALSE);
 	for (idx2 = 0; idx2 < leader2_len; ++idx2)
 	{
 	    if (!VIM_ISWHITE(line2[idx2]))
@@ -630,7 +634,7 @@ paragraph_start(linenr_T lnum)
     if (lnum <= 1)
 	return TRUE;		// start of the file
 
-    p = ml_get(lnum - 1);
+    p = buf_line(curbuf, lnum - 1, FALSE);
     if (*p == NUL)
 	return TRUE;		// after empty line
 
@@ -674,7 +678,7 @@ auto_format(
 	return;
 
     pos = curwin->w_cursor;
-    old = ml_get_curline();
+    old = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 
     // may remove added space
     check_auto_format(FALSE);
@@ -684,7 +688,7 @@ auto_format(
     // in 'formatoptions' and there is a single character before the cursor.
     // Otherwise the line would be broken and when typing another non-white
     // next they are not joined back together.
-    wasatend = (pos.col == ml_get_curline_len());
+    wasatend = (pos.col == buf_line_len(curbuf, curwin->w_cursor.lnum));
     if (*old != NUL && !trailblank && wasatend)
     {
 	int cc;
@@ -713,7 +717,7 @@ auto_format(
     if (*old != NUL && !trailblank && !wasatend && pos.col > 0
 	    && (State & MODE_INSERT))
     {
-	char_u *line = ml_get_curline();
+	char_u *line = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
 	if (WHITECHAR(line[pos.col - 1]))
 	{
 	    curwin->w_cursor = pos;
@@ -744,10 +748,10 @@ auto_format(
     curwin->w_cursor = saved_cursor;
     saved_cursor.lnum = 0;
 
-    if (curwin->w_cursor.lnum > curbuf->b_ml.ml_line_count)
+    if (curwin->w_cursor.lnum > buf_line_count(curbuf))
     {
 	// "cannot happen"
-	curwin->w_cursor.lnum = curbuf->b_ml.ml_line_count;
+	curwin->w_cursor.lnum = buf_line_count(curbuf);
 	coladvance((colnr_T)MAXCOL);
     }
     else
@@ -759,8 +763,8 @@ auto_format(
     // formatted.
     if (!wasatend && has_format_option(FO_WHITE_PAR))
     {
-	char_u	*new = ml_get_curline();
-	colnr_T	len = ml_get_curline_len();
+	char_u	*new = buf_line(curbuf, curwin->w_cursor.lnum, FALSE);
+	colnr_T	len = buf_line_len(curbuf, curwin->w_cursor.lnum);
 	if (curwin->w_cursor.col == len)
 	{
 	    char_u *pnew = vim_strnsave(new, len + 2);
@@ -768,7 +772,8 @@ auto_format(
 		return;
 	    pnew[len] = ' ';
 	    pnew[len + 1] = NUL;
-	    ml_replace(curwin->w_cursor.lnum, pnew, FALSE);
+	    buf_replace_line(curbuf, curwin->w_cursor.lnum, pnew, -1,
+								 FALSE, FALSE);
 	    // remove the space later
 	    did_add_space = TRUE;
 	}
@@ -866,7 +871,7 @@ op_format(
     oparg_T	*oap,
     int		keep_cursor)		// keep cursor on same text char
 {
-    long	old_line_count = curbuf->b_ml.ml_line_count;
+    long	old_line_count = buf_line_count(curbuf);
 
     // Place the cursor where the "gq" or "gw" command was given, so that "u"
     // can put it back there.
@@ -895,10 +900,10 @@ op_format(
     // Leave the cursor at the first non-blank of the last formatted line.
     // If the cursor was moved one line back (e.g. with "Q}") go to the next
     // line, so "." will do the next lines.
-    if (oap->end_adjusted && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+    if (oap->end_adjusted && curwin->w_cursor.lnum < buf_line_count(curbuf))
 	++curwin->w_cursor.lnum;
     beginline(BL_WHITE | BL_FIX);
-    old_line_count = curbuf->b_ml.ml_line_count - old_line_count;
+    old_line_count = buf_line_count(curbuf) - old_line_count;
     msgmore(old_line_count);
 
     if ((cmdmod.cmod_flags & CMOD_LOCKMARKS) == 0)
@@ -1061,7 +1066,7 @@ format_lines(
 	}
 
 	// The last line to be formatted.
-	if (count == 1 || curwin->w_cursor.lnum == curbuf->b_ml.ml_line_count)
+	if (count == 1 || curwin->w_cursor.lnum == buf_line_count(curbuf))
 	{
 	    next_is_not_par = TRUE;
 	    next_leader_len = 0;
@@ -1093,7 +1098,7 @@ format_lines(
 	    if (first_par_line
 		    && (do_second_indent || do_number_indent)
 		    && prev_is_end_par
-		    && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
+		    && curwin->w_cursor.lnum < buf_line_count(curbuf))
 	    {
 		if (do_second_indent && !LINEEMPTY(curwin->w_cursor.lnum + 1))
 		{
@@ -1128,7 +1133,7 @@ format_lines(
 	    }
 
 	    // When the comment leader changes, it's the end of the paragraph.
-	    if (curwin->w_cursor.lnum >= curbuf->b_ml.ml_line_count
+	    if (curwin->w_cursor.lnum >= buf_line_count(curbuf)
 		    || !same_leader(curwin->w_cursor.lnum,
 					leader_len, leader_flags,
 					   next_leader_len, next_leader_flags))
@@ -1138,7 +1143,8 @@ format_lines(
 		// paragraph doesn't really end.
 		if (next_leader_flags == NULL
 			|| STRNCMP(next_leader_flags, "://", 3) != 0
-			|| check_linecomment(ml_get_curline()) == MAXCOL)
+			|| check_linecomment(buf_line(curbuf,
+				    curwin->w_cursor.lnum, FALSE)) == MAXCOL)
 		is_end_par = TRUE;
 	    }
 
@@ -1250,7 +1256,7 @@ format_lines(
 		}
 		first_par_line = FALSE;
 		// If the line is getting long, format it next time
-		if (ml_get_curline_len() > max_len)
+		if (buf_line_len(curbuf, curwin->w_cursor.lnum) > max_len)
 		    force_format = TRUE;
 		else
 		    force_format = FALSE;

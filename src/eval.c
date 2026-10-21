@@ -6972,13 +6972,13 @@ buf_byteidx_to_charidx(buf_T *buf, int lnum, int byteidx)
     char_u	*t;
     int		count;
 
-    if (buf == NULL || buf->b_ml.ml_mfp == NULL)
+    if (buf == NULL || !buf_is_loaded(buf))
 	return -1;
 
-    if (lnum > buf->b_ml.ml_line_count)
-	lnum = buf->b_ml.ml_line_count;
+    if (lnum > buf_line_count(buf))
+	lnum = buf_line_count(buf);
 
-    str = ml_get_buf(buf, lnum, FALSE);
+    str = buf_line(buf, lnum, FALSE);
     if (str == NULL)
 	return -1;
 
@@ -7010,13 +7010,13 @@ buf_charidx_to_byteidx(buf_T *buf, int lnum, int charidx)
     char_u	*str;
     char_u	*t;
 
-    if (buf == NULL || buf->b_ml.ml_mfp == NULL)
+    if (buf == NULL || !buf_is_loaded(buf))
 	return -1;
 
-    if (lnum > buf->b_ml.ml_line_count)
-	lnum = buf->b_ml.ml_line_count;
+    if (lnum > buf_line_count(buf))
+	lnum = buf_line_count(buf);
 
-    str = ml_get_buf(buf, lnum, FALSE);
+    str = buf_line(buf, lnum, FALSE);
     if (str == NULL)
 	return -1;
 
@@ -7057,12 +7057,12 @@ var2fpos(
 
 	// Get the line number
 	pos.lnum = list_find_nr(l, 0L, &error);
-	if (error || pos.lnum <= 0 || pos.lnum > curbuf->b_ml.ml_line_count)
+	if (error || pos.lnum <= 0 || pos.lnum > buf_line_count(curbuf))
 	    return NULL;	// invalid line number
 	if (charcol)
-	    len = (long)mb_charlen(ml_get(pos.lnum));
+	    len = (long)mb_charlen(buf_line(curbuf, pos.lnum, FALSE));
 	else
-	    len = (long)ml_get_len(pos.lnum);
+	    len = (long)buf_line_len(curbuf, pos.lnum);
 
 	// Get the column number
 	// We accept "$" for the column number: last column.
@@ -7179,16 +7179,17 @@ var2fpos(
     {
 	if (dollar_lnum)
 	{
-	    pos.lnum = curbuf->b_ml.ml_line_count;
+	    pos.lnum = buf_line_count(curbuf);
 	    pos.col = 0;
 	}
 	else
 	{
 	    pos.lnum = curwin->w_cursor.lnum;
 	    if (charcol)
-		pos.col = (colnr_T)mb_charlen(ml_get_curline());
+		pos.col = (colnr_T)mb_charlen(buf_line(curbuf,
+					    curwin->w_cursor.lnum, FALSE));
 	    else
-		pos.col = ml_get_curline_len();
+		pos.col = buf_line_len(curbuf, curwin->w_cursor.lnum);
 	}
 	return &pos;
     }
@@ -7253,7 +7254,7 @@ list2fpos(
 
 	// Get the text for the specified line in a loaded buffer
 	buf = buflist_findnr(fnump == NULL ? curbuf->b_fnum : *fnump);
-	if (buf == NULL || buf->b_ml.ml_mfp == NULL)
+	if (buf == NULL || !buf_is_loaded(buf))
 	    return FAIL;
 
 	n = buf_charidx_to_byteidx(buf,

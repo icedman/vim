@@ -804,7 +804,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
      * Check if cursor.lnum is valid, since win_redr_ruler() may be called
      * after deleting lines, before cursor.lnum is corrected.
      */
-    if (wp->w_cursor.lnum > wp->w_buffer->b_ml.ml_line_count)
+    if (wp->w_cursor.lnum > buf_line_count(wp->w_buffer))
 	return;
 
     // Don't draw the ruler while doing insert-completion, it might overwrite
@@ -830,7 +830,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
      * Check if not in Insert mode and the line is empty (will show "0-1").
      */
     if ((State & MODE_INSERT) == 0
-		&& *ml_get_buf(wp->w_buffer, wp->w_cursor.lnum, FALSE) == NUL)
+		&& *buf_line(wp->w_buffer, wp->w_cursor.lnum, FALSE) == NUL)
 	empty_line = TRUE;
 
     /*
@@ -844,7 +844,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
 	    || wp->w_virtcol != wp->w_ru_virtcol
 	    || wp->w_cursor.coladd != wp->w_ru_cursor.coladd
 	    || wp->w_topline != wp->w_ru_topline
-	    || wp->w_buffer->b_ml.ml_line_count != wp->w_ru_line_count
+	    || buf_line_count(wp->w_buffer) != wp->w_ru_line_count
 #ifdef FEAT_DIFF
 	    || wp->w_topfill != wp->w_ru_topfill
 #endif
@@ -897,7 +897,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
 	// l10n: leave as-is unless a space after the comma is preferred
 	// l10n: do not add any row/column label, due to the limited space
 	bufferlen = vim_snprintf((char *)buffer, RULER_BUF_LEN, _("%ld,"),
-		(wp->w_buffer->b_ml.ml_flags & ML_EMPTY)
+		buf_has_empty_flag(wp->w_buffer)
 		    ? 0L
 		    : (long)(wp->w_cursor.lnum));
 	bufferlen += col_print(buffer + bufferlen, RULER_BUF_LEN - bufferlen,
@@ -967,7 +967,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
 	wp->w_ru_virtcol = wp->w_virtcol;
 	wp->w_ru_empty = empty_line;
 	wp->w_ru_topline = wp->w_topline;
-	wp->w_ru_line_count = wp->w_buffer->b_ml.ml_line_count;
+	wp->w_ru_line_count = buf_line_count(wp->w_buffer);
 #ifdef FEAT_DIFF
 	wp->w_ru_topfill = wp->w_topfill;
 #endif
@@ -1479,7 +1479,7 @@ fold_line(
 			&& (lnume < bot->lnum
 			    || (lnume == bot->lnum
 				&& (bot->col - (*p_sel == 'e'))
-				    >= ml_get_buf_len(wp->w_buffer, lnume))))))
+				    >= buf_line_len(wp->w_buffer, lnume))))))
 	{
 	    if (VIsual_mode == Ctrl_V)
 	    {
@@ -2229,7 +2229,7 @@ win_update(win_T *wp)
 			{
 			    colnr_T t;
 
-			    pos.col = (int)ml_get_buf_len(wp->w_buffer, pos.lnum);
+			    pos.col = (int)buf_line_len(wp->w_buffer, pos.lnum);
 			    getvvcol(wp, &pos, NULL, NULL, &t, 0);
 			    if (toc < t)
 				toc = t;
@@ -2392,7 +2392,7 @@ win_update(win_T *wp)
 	}
 
 	// stop updating when hit the end of the file
-	if (lnum > buf->b_ml.ml_line_count)
+	if (lnum > buf_line_count(buf))
 	{
 	    eof = TRUE;
 	    break;
@@ -2746,7 +2746,7 @@ win_update(win_T *wp)
 #endif
 	}
 
-	if (lnum > buf->b_ml.ml_line_count)
+	if (lnum > buf_line_count(buf))
 	{
 	    eof = TRUE;
 	    break;
@@ -2873,7 +2873,7 @@ win_update(win_T *wp)
 	draw_vsep_win(wp, row);
 	if (eof)		// we hit the end of the file
 	{
-	    wp->w_botline = buf->b_ml.ml_line_count + 1;
+	    wp->w_botline = buf_line_count(buf) + 1;
 #ifdef FEAT_DIFF
 	    j = diff_check_fill(wp, wp->w_botline);
 	    if (j > 0 && !wp->w_botfill)

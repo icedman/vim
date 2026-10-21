@@ -1112,7 +1112,7 @@ prepare_buffer(buf_T *buf)
 					    0L, (char_u *)"nofile", OPT_LOCAL);
     set_option_value_give_err((char_u *)"bh", 0L, (char_u *)"hide", OPT_LOCAL);
 #endif
-    if (curbuf->b_ml.ml_mfp == NULL)
+    if (!buf_is_loaded(curbuf))
 	ml_open(curbuf);
     curbuf = save_curbuf;
 }
@@ -1145,8 +1145,9 @@ channel_find_buffer(char_u *name, int err, int msg)
 
     curbuf = buf;
     if (msg)
-	ml_replace(1, (char_u *)(err ? "Reading from channel error..."
-		    : "Reading from channel output..."), TRUE);
+	buf_replace_line(curbuf, 1,
+		(char_u *)(err ? "Reading from channel error..."
+		    : "Reading from channel output..."), -1, FALSE, TRUE);
     changed_bytes(1, 0);
     curbuf = save_curbuf;
 
@@ -1232,7 +1233,7 @@ channel_set_options(channel_T *channel, jobopt_T *opt)
 						       (char *)buf->b_ffname);
 		set_bufref(&channel->ch_part[PART_OUT].ch_bufref, buf);
 		// if the buffer was deleted or unloaded resurrect it
-		if (buf->b_ml.ml_mfp == NULL)
+		if (!buf_is_loaded(buf))
 		    prepare_buffer(buf);
 	    }
 	}
@@ -1279,7 +1280,7 @@ channel_set_options(channel_T *channel, jobopt_T *opt)
 						       (char *)buf->b_ffname);
 		set_bufref(&channel->ch_part[PART_ERR].ch_bufref, buf);
 		// if the buffer was deleted or unloaded resurrect it
-		if (buf->b_ml.ml_mfp == NULL)
+		if (!buf_is_loaded(buf))
 		    prepare_buffer(buf);
 	    }
 	}
@@ -1800,7 +1801,7 @@ channel_set_job(channel_T *channel, job_T *job, jobopt_T *options)
 	    in_part->ch_bufref.br_buf->b_write_to_channel = true;
 	    in_part->ch_buf_append = TRUE;
 	    in_part->ch_buf_top =
-		in_part->ch_bufref.br_buf->b_ml.ml_line_count + 1;
+		buf_line_count(in_part->ch_bufref.br_buf) + 1;
 	}
 	else
 	    in_part->ch_buf_top = options->jo_in_top;
@@ -1810,7 +1811,7 @@ channel_set_job(channel_T *channel, job_T *job, jobopt_T *options)
     if (options->jo_set & JO_IN_BOT)
 	in_part->ch_buf_bot = options->jo_in_bot;
     else
-	in_part->ch_buf_bot = in_part->ch_bufref.br_buf->b_ml.ml_line_count;
+	in_part->ch_buf_bot = buf_line_count(in_part->ch_bufref.br_buf);
 }
 
 /*
@@ -1843,8 +1844,8 @@ channel_set_req_callback(
     static void
 write_buf_line(buf_T *buf, linenr_T lnum, channel_T *channel)
 {
-    char_u  *line = ml_get_buf(buf, lnum, FALSE);
-    int	    len = ml_get_buf_len(buf, lnum);
+    char_u  *line = buf_line(buf, lnum, FALSE);
+    int	    len = buf_line_len(buf, lnum);
     char_u  *p;
     int	    i;
 
@@ -1950,7 +1951,7 @@ channel_write_in(channel_T *channel)
 
     if (buf == NULL || in_part->ch_buf_append)
 	return;  // no buffer or using appending
-    if (!bufref_valid(&in_part->ch_bufref) || buf->b_ml.ml_mfp == NULL)
+    if (!bufref_valid(&in_part->ch_bufref) || !buf_is_loaded(buf))
     {
 	// buffer was wiped out or unloaded
 	ch_log(channel, "input buffer has been wiped out");
@@ -1959,7 +1960,7 @@ channel_write_in(channel_T *channel)
     }
 
     for (lnum = in_part->ch_buf_top; lnum <= in_part->ch_buf_bot
-				   && lnum <= buf->b_ml.ml_line_count; ++lnum)
+				   && lnum <= buf_line_count(buf); ++lnum)
     {
 	if (!can_write_buf_line(channel))
 	    break;
@@ -1973,7 +1974,7 @@ channel_write_in(channel_T *channel)
 	ch_log(channel, "written %d lines to channel", written);
 
     in_part->ch_buf_top = lnum;
-    if (lnum > buf->b_ml.ml_line_count || lnum > in_part->ch_buf_bot)
+    if (lnum > buf_line_count(buf) || lnum > in_part->ch_buf_bot)
     {
 #if defined(FEAT_TERMINAL)
 	// Send CTRL-D or "eof_chars" to close stdin on MS-Windows.
@@ -1997,7 +1998,7 @@ channel_write_in(channel_T *channel)
     }
     else
 	ch_log(channel, "Still %ld more lines to write",
-				   (long)(buf->b_ml.ml_line_count - lnum + 1));
+				   (long)(buf_line_count(buf) - lnum + 1));
 }
 
 /*
@@ -2076,7 +2077,7 @@ channel_write_new_lines(buf_T *buf)
 	    if (in_part->ch_fd == INVALID_FD)
 		continue;  // pipe was closed
 	    found_one = TRUE;
-	    for (lnum = in_part->ch_buf_bot; lnum < buf->b_ml.ml_line_count;
+	    for (lnum = in_part->ch_buf_bot; lnum < buf_line_count(buf);
 								       ++lnum)
 	    {
 		if (!can_write_buf_line(channel))
@@ -2089,9 +2090,9 @@ channel_write_new_lines(buf_T *buf)
 		ch_log(channel, "written line %d to channel", (int)lnum - 1);
 	    else if (written > 1)
 		ch_log(channel, "written %d lines to channel", written);
-	    if (lnum < buf->b_ml.ml_line_count)
+	    if (lnum < buf_line_count(buf))
 		ch_log(channel, "Still %ld more lines to write",
-				       (long)(buf->b_ml.ml_line_count - lnum));
+				       (long)(buf_line_count(buf) - lnum));
 
 	    in_part->ch_buf_bot = lnum;
 	}
@@ -3114,11 +3115,11 @@ append_to_buffer(
     ch_part_T	part)
 {
     aco_save_T	aco;
-    linenr_T    lnum = buffer->b_ml.ml_line_count;
+    linenr_T    lnum = buf_line_count(buffer);
     bool	save_write_to = buffer->b_write_to_channel;
     chanpart_T  *ch_part = &channel->ch_part[part];
     int		save_p_ma = buffer->b_p_ma;
-    int		empty = (buffer->b_ml.ml_flags & ML_EMPTY) ? 1 : 0;
+    int		empty = buf_has_empty_flag(buffer);
 
     if (!buffer->b_p_ma && !ch_part->ch_nomodifiable)
     {
@@ -3160,11 +3161,11 @@ append_to_buffer(
     if (empty)
     {
 	// The buffer is empty, replace the first (dummy) line.
-	ml_replace(lnum, msg, TRUE);
+	buf_replace_line(curbuf, lnum, msg, -1, FALSE, TRUE);
 	lnum = 0;
     }
     else
-	ml_append(lnum, msg, 0, FALSE);
+	buf_append_line(curbuf, lnum, msg, 0, FALSE);
     appended_lines_mark(lnum, 1L);
 
     // reset notion of buffer
@@ -3190,7 +3191,7 @@ append_to_buffer(
 
 		// If the cursor is at or above the new line, move it one line
 		// down.  If the topline is outdated update it now.
-		if (move_cursor || wp->w_topline > buffer->b_ml.ml_line_count)
+		if (move_cursor || wp->w_topline > buf_line_count(buffer))
 		{
 		    win_T *save_curwin = curwin;
 
@@ -3220,7 +3221,7 @@ append_to_buffer(
 	    chanpart_T  *in_part = &ch->ch_part[PART_IN];
 
 	    if (in_part->ch_bufref.br_buf == buffer)
-		in_part->ch_buf_bot = buffer->b_ml.ml_line_count;
+		in_part->ch_buf_bot = buf_line_count(buffer);
 	}
     }
 }
@@ -3294,7 +3295,7 @@ may_invoke_callback(channel_T *channel, ch_part_T part)
 
     buffer = ch_part->ch_bufref.br_buf;
     if (buffer != NULL && (!bufref_valid(&ch_part->ch_bufref)
-					       || buffer->b_ml.ml_mfp == NULL))
+					       || !buf_is_loaded(buffer)))
     {
 	// buffer was wiped out or unloaded
 	ch_log(channel, "%s buffer has been wiped out", ch_part_names[part]);
@@ -4008,9 +4009,9 @@ is_channel_write_remaining(chanpart_T *in_part)
     if (buf == NULL)
 	return FALSE;
     return in_part->ch_buf_append
-	    ? (in_part->ch_buf_bot < buf->b_ml.ml_line_count)
+	    ? (in_part->ch_buf_bot < buf_line_count(buf))
 	    : (in_part->ch_buf_top <= in_part->ch_buf_bot
-			    && in_part->ch_buf_top <= buf->b_ml.ml_line_count);
+			    && in_part->ch_buf_top <= buf_line_count(buf));
 }
 
 #if defined(HAVE_SELECT)
